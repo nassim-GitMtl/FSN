@@ -20,21 +20,21 @@ export const Badge: React.FC<BadgeProps> = ({ children, color, className, dot })
   </span>
 );
 
-export const StatusBadge: React.FC<{ status: JobStatus; className?: string }> = ({ status, className }) => (
+export const StatusBadge: React.FC<{ status: JobStatus; className?: string; label?: string }> = ({ status, className, label }) => (
   <span className={cn('badge', STATUS_COLORS[status], className)}>
-    {STATUS_LABELS[status] || status}
+    {label || STATUS_LABELS[status] || status}
   </span>
 );
 
-export const PriorityBadge: React.FC<{ priority: Priority; className?: string }> = ({ priority, className }) => (
+export const PriorityBadge: React.FC<{ priority: Priority; className?: string; label?: string }> = ({ priority, className, label }) => (
   <span className={cn('badge', PRIORITY_COLORS[priority], className)}>
-    {PRIORITY_LABELS[priority] || priority}
+    {label || PRIORITY_LABELS[priority] || priority}
   </span>
 );
 
-export const ServiceTypeBadge: React.FC<{ type: ServiceType; className?: string }> = ({ type, className }) => (
+export const ServiceTypeBadge: React.FC<{ type: ServiceType; className?: string; label?: string }> = ({ type, className, label }) => (
   <span className={cn('badge', SERVICE_TYPE_COLORS[type], className)}>
-    {SERVICE_TYPE_LABELS[type] || type}
+    {label || SERVICE_TYPE_LABELS[type] || type}
   </span>
 );
 

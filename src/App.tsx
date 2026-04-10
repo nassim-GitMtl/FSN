@@ -22,10 +22,11 @@ const ProtectedAppShell: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const userId = useAuthStore((state) => state.user?.id);
   const logout = useAuthStore((state) => state.logout);
-  const { dataStatus, dataError, bootstrapApp } = useUIStore((state) => ({
+  const { dataStatus, dataError, bootstrapApp, triggerSync } = useUIStore((state) => ({
     dataStatus: state.dataStatus,
     dataError: state.dataError,
     bootstrapApp: state.bootstrapApp,
+    triggerSync: state.triggerSync,
   }));
 
   useEffect(() => {
@@ -33,6 +34,21 @@ const ProtectedAppShell: React.FC = () => {
       void bootstrapApp();
     }
   }, [bootstrapApp, isAuthenticated, userId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') {
+      return;
+    }
+
+    const handleOnline = () => {
+      if (useUIStore.getState().dataStatus === 'READY') {
+        void triggerSync({ silent: true });
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [isAuthenticated, triggerSync]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

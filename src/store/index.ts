@@ -12,6 +12,7 @@ import {
   type SupabaseBootstrapPayload,
   type SupabaseSyncSnapshot,
 } from '@/lib/supabase';
+import type { AppLanguage } from '@/lib/app-language';
 
 const LABOR_RATE_BY_TYPE: Record<TimeEntry['type'], number> = {
   REGULAR: 125,
@@ -121,7 +122,14 @@ interface JobState {
   // Notes
   notes: JobNote[];
   getNotes: (jobId: string) => JobNote[];
-  addNote: (jobId: string, text: string, type: string, authorId: string, authorName: string) => JobNote;
+  addNote: (
+    jobId: string,
+    text: string,
+    type: string,
+    authorId: string,
+    authorName: string,
+    options?: { createdAt?: string; visibility?: JobNote['visibility'] },
+  ) => JobNote;
 
   // Time entries
   timeEntries: TimeEntry[];
@@ -152,7 +160,7 @@ interface JobState {
   setSelectedJob: (id: string | null) => void;
 }
 
-export const useJobStore = create<JobState>()((set, get) => ({
+export const useJobStore = create<JobState>()(persist((set, get) => ({
   jobs: [],
   filters: {},
   selectedJobId: null,
@@ -212,7 +220,45 @@ export const useJobStore = create<JobState>()((set, get) => ({
   },
 
   updateStatus: (jobId, status) => {
-    get().updateJob(jobId, { status });
+    const job = get().getJob(jobId);
+    if (!job || job.status === status) return;
+
+    const now = new Date().toISOString();
+    const nextData: Partial<Job> = { status };
+    if (status === 'IN_PROGRESS' && !job.actualStart) {
+      nextData.actualStart = now;
+    }
+    if (status === 'COMPLETED' && !job.actualEnd) {
+      nextData.actualEnd = now;
+      if (job.actualStart) {
+        const durationHours = Math.max(0, (new Date(now).getTime() - new Date(job.actualStart).getTime()) / 3600000);
+        nextData.actualDuration = Math.round(durationHours * 10) / 10;
+      }
+    }
+
+    get().updateJob(jobId, nextData);
+
+    const user = useAuthStore.getState().user;
+    get().addNote(
+      jobId,
+      `Status changed from ${job.status} to ${status}.`,
+      'ACTIVITY',
+      user?.id || 'u-system',
+      user?.name || 'System',
+      { createdAt: now, visibility: 'TECHNICIAN_ONLY' },
+    );
+
+    if (job.technicianId) {
+      const nextTechStatus = ['EN_ROUTE', 'IN_PROGRESS'].includes(status)
+        ? 'ON_JOB'
+        : status === 'COMPLETED'
+          ? 'AVAILABLE'
+          : undefined;
+
+      if (nextTechStatus) {
+        useTechStore.getState().updateTechStatus(job.technicianId, nextTechStatus);
+      }
+    }
   },
 
   rescheduleJob: (jobId, data) => {
@@ -374,14 +420,14 @@ export const useJobStore = create<JobState>()((set, get) => ({
 
   getNotes: (jobId) => get().notes.filter(n => n.jobId === jobId),
 
-  addNote: (jobId, text, type, authorId, authorName) => {
+  addNote: (jobId, text, type, authorId, authorName, options) => {
     const note: JobNote = {
       id: createRecordId('note'),
       jobId, text,
       type: type as JobNote['type'],
-      visibility: 'INTERNAL',
+      visibility: options?.visibility || 'INTERNAL',
       authorId, authorName,
-      createdAt: new Date().toISOString(),
+      createdAt: options?.createdAt || new Date().toISOString(),
       _dirty: true,
     };
     set(s => ({
@@ -551,6 +597,19 @@ export const useJobStore = create<JobState>()((set, get) => ({
   },
 
   setSelectedJob: (id) => set({ selectedJobId: id }),
+}), {
+  name: 'fsm-job-store-v2',
+  partialize: (state) => ({
+    jobs: state.jobs,
+    filters: state.filters,
+    selectedJobId: state.selectedJobId,
+    notes: state.notes,
+    timeEntries: state.timeEntries,
+    parts: state.parts,
+    checklistItems: state.checklistItems,
+    checklistResponses: state.checklistResponses,
+    attachments: state.attachments,
+  }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -564,7 +623,7 @@ interface CustomerState {
   updateCustomer: (id: string, data: Partial<Customer>) => void;
 }
 
-export const useCustomerStore = create<CustomerState>()((set, get) => ({
+export const useCustomerStore = create<CustomerState>()(persist((set, get) => ({
   customers: [],
 
   getCustomer: (id) => get().customers.find(c => c.id === id),
@@ -594,6 +653,9 @@ export const useCustomerStore = create<CustomerState>()((set, get) => ({
     }));
     scheduleAutoSync();
   },
+}), {
+  name: 'fsm-customer-store-v1',
+  partialize: (state) => ({ customers: state.customers }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -651,7 +713,7 @@ function recalcSalesOrder(so: SalesOrder): SalesOrder {
   };
 }
 
-export const useSOStore = create<SOState>()((set, get) => ({
+export const useSOStore = create<SOState>()(persist((set, get) => ({
   salesOrders: [],
 
   getSO: (id) => get().salesOrders.find(s => s.id === id),
@@ -822,6 +884,9 @@ export const useSOStore = create<SOState>()((set, get) => ({
       billingCode: so.billingCode,
     });
   },
+}), {
+  name: 'fsm-sales-order-store-v2',
+  partialize: (state) => ({ salesOrders: state.salesOrders }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -835,7 +900,7 @@ interface TechState {
   updateTechStatus: (id: string, status: Technician['status']) => void;
 }
 
-export const useTechStore = create<TechState>()((set, get) => ({
+export const useTechStore = create<TechState>()(persist((set, get) => ({
   technicians: [],
 
   getTech: (id) => get().technicians.find(t => t.id === id),
@@ -848,6 +913,9 @@ export const useTechStore = create<TechState>()((set, get) => ({
     }));
     scheduleAutoSync();
   },
+}), {
+  name: 'fsm-tech-store-v1',
+  partialize: (state) => ({ technicians: state.technicians }),
 }));
 
 function getWorkspaceCategory(workspace: Workspace) {
@@ -1081,7 +1149,7 @@ interface AssetState {
   getServiceHistory: (assetId: string) => ServiceHistoryEntry[];
 }
 
-export const useAssetStore = create<AssetState>()((_set, get) => ({
+export const useAssetStore = create<AssetState>()(persist((_set, get) => ({
   assets: [],
   serviceHistory: [],
   getAsset: (id) => get().assets.find((asset) => asset.id === id),
@@ -1093,6 +1161,12 @@ export const useAssetStore = create<AssetState>()((_set, get) => ({
       useJobStore.getState().jobs.some((job) => job.id === entry.jobId && job.assetId === assetId),
     );
   },
+}), {
+  name: 'fsm-asset-store-v1',
+  partialize: (state) => ({
+    assets: state.assets,
+    serviceHistory: state.serviceHistory,
+  }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1108,6 +1182,7 @@ interface Toast {
 interface UIState {
   sidebarCollapsed: boolean;
   mobileMenuOpen: boolean;
+  language: AppLanguage;
   toasts: Toast[];
   syncState: SyncState;
   dataStatus: 'IDLE' | 'LOADING' | 'READY' | 'ERROR';
@@ -1117,6 +1192,8 @@ interface UIState {
 
   toggleSidebar: () => void;
   setMobileMenu: (open: boolean) => void;
+  setLanguage: (language: AppLanguage) => void;
+  toggleLanguage: () => void;
   toast: (type: Toast['type'], message: string) => void;
   dismissToast: (id: string) => void;
   setSyncState: (s: Partial<SyncState>) => void;
@@ -1126,9 +1203,10 @@ interface UIState {
   setUnsavedChanges: (val: boolean) => void;
 }
 
-export const useUIStore = create<UIState>()((set, get) => ({
+export const useUIStore = create<UIState>()(persist((set, get) => ({
   sidebarCollapsed: false,
   mobileMenuOpen: false,
+  language: 'en',
   toasts: [],
   syncState: { status: 'IDLE', pendingChanges: 0, source: 'LOCAL' },
   dataStatus: 'IDLE',
@@ -1139,6 +1217,10 @@ export const useUIStore = create<UIState>()((set, get) => ({
   toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
   setMobileMenu: (open) => set({ mobileMenuOpen: open }),
+
+  setLanguage: (language) => set({ language }),
+
+  toggleLanguage: () => set((state) => ({ language: state.language === 'en' ? 'fr' : 'en' })),
 
   toast: (type, message) => {
     const toastId = `toast-${Date.now()}`;
@@ -1294,6 +1376,12 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
 
   setUnsavedChanges: (val) => set({ unsavedChanges: val }),
+}), {
+  name: 'fsm-ui-store-v1',
+  partialize: (state) => ({
+    sidebarCollapsed: state.sidebarCollapsed,
+    language: state.language,
+  }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,38 +1,325 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
-import { formatDate, formatCurrency, cn, STATUS_LABELS, SERVICE_TYPE_LABELS } from '@/lib/utils';
-import type {
-  Attachment,
-  ChecklistItem,
-  ChecklistResponse,
-  Job,
-  JobStatus,
-  SalesOrder,
-  Technician,
-  TimeEntry,
-} from '@/types';
+import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
+import { cn, SERVICE_TYPE_LABELS, formatFileSize, parseDateValue, toISODate } from '@/lib/utils';
+import type { Attachment, Job, JobNote, JobStatus, SalesOrder, SOLine, Technician } from '@/types';
 
-// ── Bottom nav tabs ───────────────────────────────────────────────────────────
+type MobileTab = 'home' | 'jobs' | 'profile';
+type MobileJobTab = 'overview' | 'journal' | 'sales' | 'closeout';
+type MobileJobFilter = 'active' | 'today' | 'upcoming' | 'completed';
+type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'OTHER';
 
-type MobileTab = 'home' | 'jobs' | 'sales' | 'schedule' | 'profile';
+type PaymentCapture = {
+  paid: boolean;
+  method?: PaymentMethod;
+  note?: string;
+  recordedAt: string;
+  recordedBy: string;
+};
 
-const NAV_ITEMS: Array<{ id: MobileTab; label: string; icon: string }> = [
-  { id: 'home',     label: 'Home',     icon: '⬡' },
-  { id: 'jobs',     label: 'Jobs',     icon: '🔧' },
-  { id: 'sales',    label: 'Sales',    icon: '🧾' },
-  { id: 'schedule', label: 'Schedule', icon: '📅' },
-  { id: 'profile',  label: 'Profile',  icon: '👤' },
+type JournalGroup = {
+  createdAt: string;
+  notes: JobNote[];
+  attachments: Attachment[];
+};
+
+type ApprovedCatalogItem = {
+  id: string;
+  label: string;
+  description: string;
+  rate: number;
+  category: 'SERVICE' | 'INVENTORY';
+};
+
+const CLOSED_JOB_STATUSES: JobStatus[] = ['COMPLETED', 'BILLING_READY', 'INVOICED'];
+const ACTIVE_JOB_STATUSES: JobStatus[] = ['SCHEDULED', 'DISPATCHED', 'EN_ROUTE', 'IN_PROGRESS', 'ON_HOLD'];
+const PAYMENT_NOTE_PREFIX = '__FSM_PAYMENT__';
+
+const APPROVED_ITEM_CATALOG: ApprovedCatalogItem[] = [
+  { id: 'svc-diagnostics', label: 'Diagnostic Visit', description: 'Approved onsite diagnostic service', rate: 165, category: 'SERVICE' },
+  { id: 'svc-emergency', label: 'Emergency Response', description: 'After-hours service response', rate: 225, category: 'SERVICE' },
+  { id: 'inv-filter-kit', label: 'Filter Kit', description: 'Approved consumable filter kit', rate: 48, category: 'INVENTORY' },
+  { id: 'inv-thermostat', label: 'Programmable Thermostat', description: 'Approved thermostat replacement', rate: 129, category: 'INVENTORY' },
+  { id: 'inv-valve-pack', label: 'Valve Service Pack', description: 'Approved valve repair pack', rate: 86, category: 'INVENTORY' },
 ];
 
-const STATUS_TRANSITIONS: Record<string, JobStatus[]> = {
-  SCHEDULED:  ['EN_ROUTE'],
-  DISPATCHED: ['EN_ROUTE'],
-  EN_ROUTE:   ['IN_PROGRESS'],
-  IN_PROGRESS: ['COMPLETED', 'ON_HOLD'],
-  ON_HOLD:    ['IN_PROGRESS'],
-  COMPLETED: ['BILLING_READY'],
-  BILLING_READY: ['INVOICED'],
+const MOBILE_COPY = {
+  en: {
+    tabs: { home: 'Home', jobs: 'Jobs', profile: 'Profile' },
+    greetingMorning: 'Good morning',
+    greetingAfternoon: 'Good afternoon',
+    commandCenter: 'Technician workspace',
+    todayQueue: "Today's queue",
+    activeNow: 'Active now',
+    noActiveJob: 'No active job right now.',
+    noTodayJobs: 'No jobs scheduled for today.',
+    noVisibleJobs: 'No assigned jobs match this view.',
+    upcoming: 'Upcoming',
+    completedToday: 'Completed today',
+    assigned: 'Assigned',
+    openJob: 'Open job',
+    navigate: 'Navigate',
+    directions: 'Directions',
+    profileTitle: 'Profile',
+    technicianMode: 'Execution-only mode',
+    syncNow: 'Sync now',
+    syncing: 'Saving...',
+    lastSaved: 'Last saved',
+    pendingChanges: 'Pending changes',
+    signOut: 'Sign out',
+    filters: {
+      active: 'Active',
+      today: 'Today',
+      upcoming: 'Upcoming',
+      completed: 'Done today',
+    },
+    sections: {
+      summary: 'Summary',
+      dispatcherNotes: 'Dispatcher notes',
+      fieldJournal: 'Field journal',
+      salesOrder: 'Linked sales order',
+      closeout: 'Closeout',
+      report: 'Work report',
+      payment: 'Payment capture',
+      signatures: 'Signatures',
+      customerSignature: 'Customer signature',
+      techSignature: 'Technician sign-off',
+      approvedItems: 'Approved items',
+      lineItems: 'Current lines',
+      requirements: 'Completion requirements',
+    },
+    labels: {
+      jobNumber: 'Job',
+      customer: 'Customer',
+      contact: 'Contact',
+      phone: 'Phone',
+      email: 'Email',
+      address: 'Address',
+      serviceType: 'Service type',
+      priority: 'Priority',
+      scheduled: 'Scheduled',
+      dispatcher: 'Dispatcher',
+      reportPlaceholder: 'Describe the work completed, findings, and any follow-up needed.',
+      journalPlaceholder: 'Add a field note for the office, customer context, or onsite findings.',
+      paymentMethod: 'Payment method',
+      paymentNote: 'Payment note',
+      qty: 'Qty',
+      note: 'Note',
+      rate: 'Rate',
+    },
+    buttons: {
+      saveReport: 'Save report',
+      savePayment: 'Save payment',
+      saveJournal: 'Save note',
+      addFromCamera: 'Camera',
+      addFiles: 'Files',
+      clear: 'Clear',
+      addLine: 'Add approved line',
+      startJob: 'Start job',
+      moveInProgress: 'In progress',
+      readyForSignature: 'Ready for signature',
+      completeJob: 'Complete',
+      back: 'Back',
+    },
+    payment: {
+      unknown: 'Not recorded',
+      no: 'No payment collected',
+      yes: 'Payment collected',
+      saved: 'Payment saved to the audit trail.',
+    },
+    statusIntro: 'Technicians execute. The system controls. Data is always saved.',
+    reportRequired: 'A work report is required before completion.',
+    signatureRequired: 'A customer signature is required before completion.',
+    lineAdded: 'Approved item added to the linked sales order.',
+    lineRestricted: 'Only approved catalog items can be added here.',
+    salesEmpty: 'No linked sales order is available for this job.',
+    salesRestricted: 'Technicians can only add approved items to the existing linked order.',
+    journalEmpty: 'No field notes or attachments have been saved yet.',
+    attachmentsReady: 'Selected attachments',
+    mobilePreview: 'Technician mobile preview',
+    readyForSignatureNote: 'Job marked ready for customer signature.',
+    reportSaved: 'Work report saved.',
+    signatureSaved: 'Signature saved.',
+    jobCompleted: 'Job completed successfully.',
+    cannotComplete: 'Complete the report and customer signature before finishing the job.',
+    reportSavedLabel: 'Report on file',
+    signatureSavedLabel: 'Customer signature on file',
+    lineNotePlaceholder: 'Optional note for the office',
+    auditLocked: 'Saved history is read-only for technicians.',
+    hiddenHistory: 'Completed jobs before today stay out of the mobile queue.',
+    noSalesLink: 'Sales order access is only available inside an assigned job.',
+    pending: 'Pending',
+    journalSaved: 'Field entry saved.',
+    choosePaymentState: 'Choose whether payment was collected before saving.',
+    openAttachment: 'Open',
+  },
+  fr: {
+    tabs: { home: 'Accueil', jobs: 'Travaux', profile: 'Profil' },
+    greetingMorning: 'Bonjour',
+    greetingAfternoon: 'Bon apres-midi',
+    commandCenter: 'Espace technicien',
+    todayQueue: "File d'aujourd'hui",
+    activeNow: 'En cours',
+    noActiveJob: "Aucun travail actif pour le moment.",
+    noTodayJobs: "Aucun travail prevu aujourd'hui.",
+    noVisibleJobs: "Aucun travail assigne ne correspond a cette vue.",
+    upcoming: 'A venir',
+    completedToday: "Termines aujourd'hui",
+    assigned: 'Assignes',
+    openJob: 'Ouvrir',
+    navigate: 'Naviguer',
+    directions: 'Itineraire',
+    profileTitle: 'Profil',
+    technicianMode: "Mode execution seulement",
+    syncNow: 'Synchroniser',
+    syncing: 'Enregistrement...',
+    lastSaved: 'Derniere sauvegarde',
+    pendingChanges: 'Modifications en attente',
+    signOut: 'Fermer la session',
+    filters: {
+      active: 'Actifs',
+      today: "Aujourd'hui",
+      upcoming: 'A venir',
+      completed: "Termines aujourd'hui",
+    },
+    sections: {
+      summary: 'Resume',
+      dispatcherNotes: 'Notes du bureau',
+      fieldJournal: 'Journal terrain',
+      salesOrder: 'Commande liee',
+      closeout: 'Cloture',
+      report: 'Rapport de travail',
+      payment: 'Capture de paiement',
+      signatures: 'Signatures',
+      customerSignature: 'Signature du client',
+      techSignature: 'Signature du technicien',
+      approvedItems: 'Articles approuves',
+      lineItems: 'Lignes actuelles',
+      requirements: 'Conditions de cloture',
+    },
+    labels: {
+      jobNumber: 'Travail',
+      customer: 'Client',
+      contact: 'Contact',
+      phone: 'Telephone',
+      email: 'Courriel',
+      address: 'Adresse',
+      serviceType: 'Type de service',
+      priority: 'Priorite',
+      scheduled: 'Planifie',
+      dispatcher: 'Bureau',
+      reportPlaceholder: 'Decrivez le travail effectue, les constats et le suivi requis.',
+      journalPlaceholder: 'Ajoutez une note terrain pour le bureau ou le contexte client.',
+      paymentMethod: 'Mode de paiement',
+      paymentNote: 'Note de paiement',
+      qty: 'Qt',
+      note: 'Note',
+      rate: 'Tarif',
+    },
+    buttons: {
+      saveReport: 'Enregistrer le rapport',
+      savePayment: 'Enregistrer le paiement',
+      saveJournal: 'Enregistrer la note',
+      addFromCamera: 'Camera',
+      addFiles: 'Fichiers',
+      clear: 'Effacer',
+      addLine: 'Ajouter une ligne approuvee',
+      startJob: 'Debuter',
+      moveInProgress: 'En execution',
+      readyForSignature: 'Pret pour signature',
+      completeJob: 'Terminer',
+      back: 'Retour',
+    },
+    payment: {
+      unknown: 'Non enregistre',
+      no: 'Aucun paiement collecte',
+      yes: 'Paiement collecte',
+      saved: 'Paiement enregistre dans la piste de verification.',
+    },
+    statusIntro: 'Les techniciens executent. Le systeme controle. Les donnees sont toujours sauvegardees.',
+    reportRequired: 'Un rapport de travail est obligatoire avant la cloture.',
+    signatureRequired: 'Une signature client est obligatoire avant la cloture.',
+    lineAdded: 'Article approuve ajoute a la commande liee.',
+    lineRestricted: 'Seuls les articles approuves peuvent etre ajoutes ici.',
+    salesEmpty: "Aucune commande liee n'est disponible pour ce travail.",
+    salesRestricted: "Les techniciens peuvent seulement ajouter des articles approuves a la commande deja liee.",
+    journalEmpty: "Aucune note terrain ni piece jointe n'a encore ete sauvegardee.",
+    attachmentsReady: 'Pieces selectionnees',
+    mobilePreview: 'Apercu mobile technicien',
+    readyForSignatureNote: 'Le travail est pret pour la signature du client.',
+    reportSaved: 'Rapport enregistre.',
+    signatureSaved: 'Signature enregistree.',
+    jobCompleted: 'Travail termine avec succes.',
+    cannotComplete: 'Le rapport et la signature du client sont obligatoires avant la fin du travail.',
+    reportSavedLabel: 'Rapport enregistre',
+    signatureSavedLabel: 'Signature client enregistree',
+    lineNotePlaceholder: 'Note optionnelle pour le bureau',
+    auditLocked: "L'historique enregistre est en lecture seule pour les techniciens.",
+    hiddenHistory: "Les travaux termines avant aujourd'hui restent hors de la file mobile.",
+    noSalesLink: "L'acces commande est disponible seulement dans un travail assigne.",
+    pending: 'En attente',
+    journalSaved: 'Entree terrain enregistree.',
+    choosePaymentState: 'Choisissez si un paiement a ete collecte avant de sauvegarder.',
+    openAttachment: 'Ouvrir',
+  },
+} as const;
+
+const PAYMENT_METHOD_LABELS: Record<AppLanguage, Record<PaymentMethod, string>> = {
+  en: { CASH: 'Cash', CARD: 'Card', CHEQUE: 'Cheque', OTHER: 'Other' },
+  fr: { CASH: 'Comptant', CARD: 'Carte', CHEQUE: 'Cheque', OTHER: 'Autre' },
 };
+
+const STATUS_LABELS_BY_LANGUAGE: Record<AppLanguage, Record<JobStatus, string>> = {
+  en: {
+    NEW: 'New',
+    SCHEDULED: 'Scheduled',
+    DISPATCHED: 'Dispatched',
+    EN_ROUTE: 'En route',
+    IN_PROGRESS: 'In progress',
+    ON_HOLD: 'On hold',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    BILLING_READY: 'Billing ready',
+    INVOICED: 'Invoiced',
+  },
+  fr: {
+    NEW: 'Nouveau',
+    SCHEDULED: 'Planifie',
+    DISPATCHED: 'Distribue',
+    EN_ROUTE: 'En route',
+    IN_PROGRESS: 'En execution',
+    ON_HOLD: 'En attente',
+    COMPLETED: 'Termine',
+    CANCELLED: 'Annule',
+    BILLING_READY: 'Pret pour facturation',
+    INVOICED: 'Facture',
+  },
+};
+
+const PRIORITY_LABELS_BY_LANGUAGE: Record<AppLanguage, Record<Job['priority'], string>> = {
+  en: { CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' },
+  fr: { CRITICAL: 'Critique', HIGH: 'Haute', MEDIUM: 'Moyenne', LOW: 'Basse' },
+};
+
+const SERVICE_TYPE_LABELS_BY_LANGUAGE: Record<AppLanguage, Partial<Record<Job['serviceType'], string>>> = {
+  en: {},
+  fr: {
+    INSTALLATION: 'Installation',
+    REPAIR: 'Reparation',
+    MAINTENANCE: 'Entretien',
+    INSPECTION: 'Inspection',
+    WARRANTY_REPAIR: 'Reparation sous garantie',
+    EMERGENCY: 'Urgence',
+    PREVENTIVE_MAINTENANCE: 'Entretien preventif',
+    DECOMMISSION: 'Retrait',
+  },
+};
+
+const NAV_ITEMS: Array<{ id: MobileTab; icon: string }> = [
+  { id: 'home', icon: 'HO' },
+  { id: 'jobs', icon: 'JB' },
+  { id: 'profile', icon: 'ME' },
+];
 
 function getPreviewTechnicianId(
   user: { workspace: 'SERVICE' | 'INSTALLATION'; technicianId?: string } | null,
@@ -44,121 +331,259 @@ function getPreviewTechnicianId(
   return technicians.find((technician) => technician.category === category)?.id || technicians[0]?.id;
 }
 
-function getTechnicianSalesOrders(previewTechnicianId: string | undefined, jobs: Job[], salesOrders: SalesOrder[]) {
-  const jobIds = new Set(
-    jobs
-      .filter((job) => job.technicianId === previewTechnicianId)
-      .map((job) => job.id),
-  );
-
-  return salesOrders.filter((order) => order.linkedJobId && jobIds.has(order.linkedJobId));
-}
-
-const EMPTY_MOBILE_TIME_DRAFT = {
-  type: 'REGULAR' as TimeEntry['type'],
-  date: new Date().toISOString().split('T')[0],
-  startTime: '08:00',
-  endTime: '10:00',
-  duration: '2',
-  billable: true,
-  notes: '',
-};
-
-const EMPTY_MOBILE_PART_DRAFT = {
-  itemName: '',
-  partNumber: '',
-  description: '',
-  quantity: '1',
-  unitCost: '',
-  warranty: false,
-};
-
-const EMPTY_MOBILE_FILE_DRAFT = {
-  name: '',
-  type: 'application/pdf',
-  source: 'JOB' as Attachment['source'],
-};
-
-function buildChecklistState(items: ChecklistItem[], responses: ChecklistResponse[]) {
-  return items.map((item) => ({
-    item,
-    response: responses.find((response) => response.itemId === item.id),
-  }));
-}
-
-function getMobileBillingValidations(job: Job, timeEntries: TimeEntry[]) {
-  if (job.warranty) {
-    return [{ ok: true, label: 'Warranty job — billing validation skipped' }];
+function isHistoricalCompletedJob(job: Job, today: string) {
+  if (!CLOSED_JOB_STATUSES.includes(job.status)) {
+    return false;
   }
 
-  return [
-    { ok: Boolean(job.resolution), label: 'Resolution summary provided' },
-    { ok: timeEntries.length > 0, label: 'At least one time entry recorded' },
-    { ok: Boolean(job.actualEnd), label: 'Actual end time recorded' },
-    { ok: !job.billingHold, label: 'Not on billing hold' },
-  ];
+  const completedDate = job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate;
+  return Boolean(completedDate && completedDate < today);
 }
 
-// ── Mobile App Root ───────────────────────────────────────────────────────────
+function getVisibleTechnicianJobs(jobs: Job[], technicianId?: string) {
+  const today = toISODate(new Date());
+
+  return jobs
+    .filter((job) => job.technicianId === technicianId)
+    .filter((job) => job.status !== 'CANCELLED')
+    .filter((job) => !isHistoricalCompletedJob(job, today))
+    .sort((left, right) => {
+      const leftRank = ACTIVE_JOB_STATUSES.includes(left.status) ? 0 : CLOSED_JOB_STATUSES.includes(left.status) ? 3 : 1;
+      const rightRank = ACTIVE_JOB_STATUSES.includes(right.status) ? 0 : CLOSED_JOB_STATUSES.includes(right.status) ? 3 : 1;
+
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      const leftDate = left.scheduledDate || '9999-12-31';
+      const rightDate = right.scheduledDate || '9999-12-31';
+      if (leftDate !== rightDate) {
+        return leftDate.localeCompare(rightDate);
+      }
+
+      return (left.scheduledStart || '').localeCompare(right.scheduledStart || '');
+    });
+}
+
+function getLocalizedStatus(language: AppLanguage, status: JobStatus) {
+  return STATUS_LABELS_BY_LANGUAGE[language][status] || status;
+}
+
+function getLocalizedServiceType(language: AppLanguage, serviceType: Job['serviceType']) {
+  return SERVICE_TYPE_LABELS_BY_LANGUAGE[language][serviceType] || SERVICE_TYPE_LABELS[serviceType] || serviceType;
+}
+
+function getLocale(language: AppLanguage) {
+  return language === 'fr' ? 'fr-CA' : 'en-US';
+}
+
+function formatDateForLanguage(language: AppLanguage, value?: string) {
+  if (!value) return '—';
+  const parsed = parseDateValue(value);
+  if (!parsed) return value;
+  return new Intl.DateTimeFormat(getLocale(language), { month: 'short', day: 'numeric', year: 'numeric' }).format(parsed);
+}
+
+function formatShortDateForLanguage(language: AppLanguage, value?: string) {
+  if (!value) return '—';
+  const parsed = parseDateValue(value);
+  if (!parsed) return value;
+  return new Intl.DateTimeFormat(getLocale(language), { month: 'short', day: 'numeric' }).format(parsed);
+}
+
+function formatDateTimeForLanguage(language: AppLanguage, value?: string) {
+  if (!value) return '—';
+  const parsed = parseDateValue(value);
+  if (!parsed) return value;
+  return new Intl.DateTimeFormat(getLocale(language), {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(parsed);
+}
+
+function formatCurrencyForLanguage(language: AppLanguage, amount: number) {
+  return new Intl.NumberFormat(getLocale(language), {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount || 0);
+}
+
+function getAddressLine(job: Job) {
+  return [
+    job.serviceAddress.street,
+    job.serviceAddress.city,
+    job.serviceAddress.state,
+    job.serviceAddress.zip,
+  ].filter(Boolean).join(', ');
+}
+
+function getMapsLink(job: Job) {
+  const query = encodeURIComponent(getAddressLine(job) || job.customerName);
+  if (typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Mac/i.test(navigator.userAgent)) {
+    return `https://maps.apple.com/?q=${query}`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${query}`;
+}
+
+function encodePaymentCapture(capture: PaymentCapture) {
+  return `${PAYMENT_NOTE_PREFIX}${JSON.stringify(capture)}`;
+}
+
+function decodePaymentCapture(text: string): PaymentCapture | null {
+  if (!text.startsWith(PAYMENT_NOTE_PREFIX)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text.slice(PAYMENT_NOTE_PREFIX.length)) as PaymentCapture;
+  } catch {
+    return null;
+  }
+}
+
+function getReadableNoteText(language: AppLanguage, note: JobNote) {
+  const payment = decodePaymentCapture(note.text);
+  if (payment) {
+    const copy = MOBILE_COPY[language];
+    const paymentLabel = payment.paid ? copy.payment.yes : copy.payment.no;
+    const methodLabel = payment.method ? PAYMENT_METHOD_LABELS[language][payment.method] : '';
+    return [paymentLabel, methodLabel, payment.note].filter(Boolean).join(' • ');
+  }
+
+  return note.text;
+}
+
+function getLatestPaymentCapture(notes: JobNote[]) {
+  for (let index = notes.length - 1; index >= 0; index -= 1) {
+    const payload = decodePaymentCapture(notes[index].text);
+    if (payload) {
+      return payload;
+    }
+  }
+
+  return null;
+}
+
+function buildJournalGroups(notes: JobNote[], attachments: Attachment[]) {
+  const groups = new Map<string, JournalGroup>();
+
+  notes.forEach((note) => {
+    const bucket = groups.get(note.createdAt) || { createdAt: note.createdAt, notes: [], attachments: [] };
+    bucket.notes.push(note);
+    groups.set(note.createdAt, bucket);
+  });
+
+  attachments.forEach((attachment) => {
+    const bucket = groups.get(attachment.createdAt) || { createdAt: attachment.createdAt, notes: [], attachments: [] };
+    bucket.attachments.push(attachment);
+    groups.set(attachment.createdAt, bucket);
+  });
+
+  return Array.from(groups.values()).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function getStageButton(job: Job, copy: { startJob: string; moveInProgress: string }) {
+  if (job.status === 'SCHEDULED' || job.status === 'DISPATCHED' || job.status === 'NEW') {
+    return { status: 'EN_ROUTE' as JobStatus, label: copy.startJob };
+  }
+
+  if (job.status === 'EN_ROUTE' || job.status === 'ON_HOLD') {
+    return { status: 'IN_PROGRESS' as JobStatus, label: copy.moveInProgress };
+  }
+
+  return null;
+}
+
+async function readFileAsDataUrl(file: File) {
+  const isImage = file.type.startsWith('image/');
+
+  if (isImage) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(`Unable to read ${file.name}`));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error(`Unable to process ${file.name}`));
+        image.onload = () => {
+          const maxDimension = 1600;
+          const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const context = canvas.getContext('2d');
+          if (!context) {
+            reject(new Error(`Unable to prepare ${file.name}`));
+            return;
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        image.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Unable to read ${file.name}`));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+}
 
 export const MobileApp: React.FC = () => {
-  const { user } = useAuthStore();
-  const technicians = useTechStore(s => s.technicians);
+  const user = useAuthStore((state) => state.user);
+  const technicians = useTechStore((state) => state.technicians);
+  const language = useUIStore((state) => state.language);
   const [activeTab, setActiveTab] = useState<MobileTab>('home');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
-  const previewTechnicianId = getPreviewTechnicianId(user, technicians);
 
   if (!user) return null;
 
+  const previewTechnicianId = getPreviewTechnicianId(user, technicians);
+  const copy = MOBILE_COPY[language];
+
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f14] text-white overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif' }}>
-      {/* Status bar simulation */}
-      <div className="flex items-center justify-between px-5 pt-3 pb-1 flex-shrink-0">
-        <div className="text-xs font-semibold opacity-80">
-          {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+    <div className="flex h-screen flex-col overflow-hidden bg-[#08111b] text-white">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">FSM</div>
+          <div className="mt-1 text-sm font-semibold text-white/90">{copy.commandCenter}</div>
         </div>
-        <div className="flex items-center gap-1.5 opacity-80">
-          <div className="flex gap-0.5">
-            {[1,2,3,4].map(i => <div key={i} className="w-1 rounded-sm bg-white" style={{ height: `${i * 3}px` }} />)}
-          </div>
-          <div className="text-xs">●●●</div>
-          <div className="text-xs font-medium">100%</div>
+        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+          {APP_LANGUAGE_LABELS[language]}
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {selectedSalesOrderId ? (
-          <MobileSalesOrderDetail salesOrderId={selectedSalesOrderId} onBack={() => setSelectedSalesOrderId(null)} />
-        ) : selectedJobId ? (
-          <MobileJobDetail jobId={selectedJobId} onBack={() => setSelectedJobId(null)} onOpenSalesOrder={setSelectedSalesOrderId} />
+        {selectedJobId ? (
+          <MobileJobDetail jobId={selectedJobId} onBack={() => setSelectedJobId(null)} language={language} />
         ) : (
           <>
-            {activeTab === 'home'     && <MobileHome onSelectJob={setSelectedJobId} previewTechnicianId={previewTechnicianId} />}
-            {activeTab === 'jobs'     && <MobileJobList onSelectJob={setSelectedJobId} previewTechnicianId={previewTechnicianId} />}
-            {activeTab === 'sales'    && <MobileSalesOrders onSelectSalesOrder={setSelectedSalesOrderId} previewTechnicianId={previewTechnicianId} />}
-            {activeTab === 'schedule' && <MobileSchedule onSelectJob={setSelectedJobId} previewTechnicianId={previewTechnicianId} />}
-            {activeTab === 'profile'  && <MobileProfile previewTechnicianId={previewTechnicianId} />}
+            {activeTab === 'home' && <MobileHome previewTechnicianId={previewTechnicianId} language={language} onSelectJob={setSelectedJobId} />}
+            {activeTab === 'jobs' && <MobileJobList previewTechnicianId={previewTechnicianId} language={language} onSelectJob={setSelectedJobId} />}
+            {activeTab === 'profile' && <MobileProfile previewTechnicianId={previewTechnicianId} language={language} />}
           </>
         )}
       </div>
 
-      {/* Bottom nav */}
-      {!selectedJobId && !selectedSalesOrderId && (
-        <div className="flex-shrink-0 flex items-center bg-[#1a1a24]/90 backdrop-blur-xl border-t border-white/10 pb-safe"
-          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}>
-          {NAV_ITEMS.map(item => (
+      {!selectedJobId && (
+        <div className="grid grid-cols-3 border-t border-white/10 bg-[#0d1723]">
+          {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                'flex-1 flex flex-col items-center py-2 gap-0.5 transition-all',
-                activeTab === item.id ? 'text-brand-300' : 'text-white/40 hover:text-white/70'
+                'flex flex-col items-center gap-1 px-2 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors',
+                activeTab === item.id ? 'text-brand-300' : 'text-white/42 hover:text-white/72',
               )}
             >
-              <span className="text-lg leading-none">{item.icon}</span>
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="rounded-lg border border-current/20 px-2 py-1 text-[10px]">{item.icon}</span>
+              <span>{copy.tabs[item.id]}</span>
             </button>
           ))}
         </div>
@@ -167,1460 +592,971 @@ export const MobileApp: React.FC = () => {
   );
 };
 
-// ── Home Screen ───────────────────────────────────────────────────────────────
-
-const MobileHome: React.FC<{ onSelectJob: (id: string) => void; previewTechnicianId?: string }> = ({ onSelectJob, previewTechnicianId }) => {
-  const { user } = useAuthStore();
-  const jobs = useJobStore(s => s.jobs);
-
-  const today = new Date().toISOString().split('T')[0];
-  const myJobs = jobs.filter(j =>
-    j.technicianId === previewTechnicianId &&
-    !['CANCELLED', 'INVOICED'].includes(j.status)
-  );
-  const todayJobs = myJobs.filter(j => j.scheduledDate === today);
-  const activeJob = myJobs.find(j => ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status));
-
-  return (
-    <div className="h-full overflow-y-auto px-4 py-2">
-      {/* Greeting */}
-      <div className="mb-6 mt-2">
-        <div className="text-white/50 text-sm">Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'},</div>
-        <div className="text-2xl font-bold">{user?.name?.split(' ')[0]}</div>
-      </div>
-
-      {/* Active job banner */}
-      {activeJob && (
-        <button onClick={() => onSelectJob(activeJob.id)}
-          className="w-full mb-4 bg-gradient-to-r from-brand-600 to-cyan-600 rounded-2xl p-4 text-left shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider opacity-80">Active Job</span>
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{STATUS_LABELS[activeJob.status]}</span>
-          </div>
-          <div className="font-bold text-lg">{activeJob.customerName}</div>
-          <div className="text-sm opacity-80">{activeJob.description.substring(0, 60)}</div>
-          <div className="text-xs opacity-60 mt-1">📍 {activeJob.serviceAddress.city}</div>
-        </button>
-      )}
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {[
-          { label: "Today's Jobs", value: todayJobs.length, color: 'from-brand-500 to-brand-600' },
-          { label: 'Total Assigned', value: myJobs.length, color: 'from-cyan-500 to-cyan-600' },
-          { label: 'Completed', value: myJobs.filter(j => j.status === 'COMPLETED').length, color: 'from-emerald-500 to-emerald-600' },
-        ].map(s => (
-          <div key={s.label} className={`bg-gradient-to-br ${s.color} rounded-2xl p-3 text-center`}>
-            <div className="text-2xl font-bold">{s.value}</div>
-            <div className="text-[10px] opacity-80 mt-0.5">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Today's jobs */}
-      <div className="mb-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-2">Today — {todayJobs.length} jobs</div>
-        {todayJobs.length === 0 ? (
-          <div className="text-center py-8 text-white/30 text-sm">No jobs scheduled for today</div>
-        ) : todayJobs.map(j => (
-          <MobileJobCard key={j.id} job={j} onSelect={onSelectJob} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Job List ──────────────────────────────────────────────────────────────────
-
-const MobileJobList: React.FC<{ onSelectJob: (id: string) => void; previewTechnicianId?: string }> = ({ onSelectJob, previewTechnicianId }) => {
-  const jobs = useJobStore(s => s.jobs);
-  const [filter, setFilter] = useState('');
-
-  const myJobs = jobs.filter(j =>
-    j.technicianId === previewTechnicianId &&
-    !['CANCELLED', 'INVOICED'].includes(j.status)
-  ).filter(j => filter === '' || j.status === filter);
-
-  const upcoming = myJobs.filter(j => j.scheduledDate && j.scheduledDate >= new Date().toISOString().split('T')[0]).length;
-
-  return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 flex-shrink-0">
-        <h1 className="text-xl font-bold mb-3">My Jobs</h1>
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {[
-            { value: '', label: 'All' },
-            { value: 'SCHEDULED', label: 'Scheduled' },
-            { value: 'EN_ROUTE', label: 'En Route' },
-            { value: 'IN_PROGRESS', label: 'In Progress' },
-            { value: 'COMPLETED', label: 'Done' },
-          ].map(f => (
-            <button key={f.value} onClick={() => setFilter(f.value)}
-              className={cn('px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all',
-                filter === f.value ? 'bg-brand-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
-              )}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Job list */}
-      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
-        {myJobs.length === 0 ? (
-          <div className="text-center py-16 text-white/30">No jobs found</div>
-        ) : myJobs.map(j => (
-          <MobileJobCard key={j.id} job={j} onSelect={onSelectJob} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Schedule ──────────────────────────────────────────────────────────────────
-
-const MobileSchedule: React.FC<{ onSelectJob: (id: string) => void; previewTechnicianId?: string }> = ({ onSelectJob, previewTechnicianId }) => {
-  const jobs = useJobStore(s => s.jobs);
-  const today = new Date();
-  const [selectedDay, setSelectedDay] = useState(today.toISOString().split('T')[0]);
-
-  // Next 7 days
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    return d.toISOString().split('T')[0];
-  });
-
-  const myJobs = jobs.filter(j => j.technicianId === previewTechnicianId);
-  const dayJobs = myJobs.filter(j => j.scheduledDate === selectedDay);
-
-  return (
-    <div className="h-full flex flex-col">
-      <div className="px-4 py-3 flex-shrink-0">
-        <h1 className="text-xl font-bold mb-3">Schedule</h1>
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {days.map(d => {
-            const dt = new Date(d + 'T12:00:00');
-            const count = myJobs.filter(j => j.scheduledDate === d).length;
-            const isToday = d === today.toISOString().split('T')[0];
-            return (
-              <button key={d} onClick={() => setSelectedDay(d)}
-                className={cn('flex flex-col items-center px-3 py-2 rounded-2xl flex-shrink-0 transition-all min-w-12',
-                  selectedDay === d ? 'bg-brand-500' : isToday ? 'bg-white/20' : 'bg-white/8 hover:bg-white/15'
-                )}>
-                <div className="text-[10px] opacity-70">{dt.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                <div className="text-base font-bold">{dt.getDate()}</div>
-                {count > 0 && <div className="text-[9px] bg-white/30 rounded-full px-1">{count}</div>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
-        <div className="text-xs text-white/40 mb-2">
-          {new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          {' — '}
-          {dayJobs.length} job{dayJobs.length !== 1 ? 's' : ''}
-        </div>
-        {dayJobs.length === 0 ? (
-          <div className="text-center py-12 text-white/30 text-sm">No jobs on this day</div>
-        ) : dayJobs.map(j => (
-          <MobileJobCard key={j.id} job={j} onSelect={onSelectJob} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Sales Orders ──────────────────────────────────────────────────────────────
-
-const MobileSalesOrders: React.FC<{ onSelectSalesOrder: (id: string) => void; previewTechnicianId?: string }> = ({ onSelectSalesOrder, previewTechnicianId }) => {
+const MobileHome: React.FC<{
+  previewTechnicianId?: string;
+  language: AppLanguage;
+  onSelectJob: (jobId: string) => void;
+}> = ({ previewTechnicianId, language, onSelectJob }) => {
+  const user = useAuthStore((state) => state.user);
   const jobs = useJobStore((state) => state.jobs);
-  const salesOrders = useSOStore((state) => state.salesOrders);
-  const [statusFilter, setStatusFilter] = useState('');
+  const syncState = useUIStore((state) => state.syncState);
+  const copy = MOBILE_COPY[language];
+  const today = toISODate(new Date());
+  const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
+  const activeJob = visibleJobs.find((job) => job.status === 'EN_ROUTE' || job.status === 'IN_PROGRESS' || job.status === 'ON_HOLD');
+  const todayJobs = visibleJobs.filter((job) => job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status));
+  const upcomingJobs = visibleJobs.filter((job) => job.scheduledDate && job.scheduledDate > today && !CLOSED_JOB_STATUSES.includes(job.status)).slice(0, 4);
+  const completedToday = visibleJobs.filter((job) => CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today);
 
-  const mySalesOrders = getTechnicianSalesOrders(previewTechnicianId, jobs, salesOrders)
-    .filter((salesOrder) => !statusFilter || salesOrder.status === statusFilter)
-    .sort((left, right) => right.tranDate.localeCompare(left.tranDate));
+  return (
+    <div className="h-full overflow-y-auto px-4 py-4">
+      <div className="mb-5">
+        <div className="text-sm text-white/55">
+          {new Date().getHours() < 12 ? copy.greetingMorning : copy.greetingAfternoon}
+        </div>
+        <div className="mt-1 text-3xl font-semibold tracking-[-0.04em]">{user?.name?.split(' ')[0]}</div>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/58">{copy.statusIntro}</p>
+      </div>
 
-  const outstanding = mySalesOrders.reduce((sum, salesOrder) => sum + (salesOrder.balance || 0), 0);
-  const onHold = mySalesOrders.filter((salesOrder) => salesOrder.billingHold).length;
+      <div className="mb-5 grid grid-cols-3 gap-3">
+        <MetricCard label={copy.todayQueue} value={todayJobs.length} />
+        <MetricCard label={copy.assigned} value={visibleJobs.length} />
+        <MetricCard label={copy.completedToday} value={completedToday.length} />
+      </div>
+
+      <div className="mb-4 rounded-[26px] border border-white/10 bg-white/[0.05] p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/42">{copy.activeNow}</div>
+            <div className="mt-2 text-lg font-semibold text-white/92">
+              {activeJob ? activeJob.customerName : copy.noActiveJob}
+            </div>
+          </div>
+          {activeJob && (
+            <button
+              type="button"
+              onClick={() => onSelectJob(activeJob.id)}
+              className="rounded-xl bg-brand-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-400"
+            >
+              {copy.openJob}
+            </button>
+          )}
+        </div>
+        {activeJob && (
+          <div className="mt-4 space-y-2 text-sm text-white/64">
+            <div>{getLocalizedStatus(language, activeJob.status)} • {activeJob.scheduledStart || '--:--'}</div>
+            <div>{getAddressLine(activeJob)}</div>
+            <a href={getMapsLink(activeJob)} target="_blank" rel="noreferrer" className="inline-flex rounded-full border border-white/12 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200 hover:border-brand-300/60 hover:text-brand-100">
+              {copy.navigate}
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-4 rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-sm text-white/70">
+        <div className="flex items-center justify-between">
+          <span>{copy.pendingChanges}</span>
+          <span className="font-semibold text-white">{syncState.pendingChanges}</span>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span>{copy.lastSaved}</span>
+          <span className="text-white/90">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
+        </div>
+      </div>
+
+      <SectionHeading label={copy.todayQueue} />
+      <div className="space-y-3">
+        {todayJobs.length === 0 ? (
+          <EmptyMobileState label={copy.noTodayJobs} />
+        ) : todayJobs.map((job) => (
+          <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} />
+        ))}
+      </div>
+
+      <SectionHeading label={copy.upcoming} className="mt-6" />
+      <div className="space-y-3">
+        {upcomingJobs.length === 0 ? (
+          <EmptyMobileState label={copy.hiddenHistory} />
+        ) : upcomingJobs.map((job) => (
+          <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const MobileJobList: React.FC<{
+  previewTechnicianId?: string;
+  language: AppLanguage;
+  onSelectJob: (jobId: string) => void;
+}> = ({ previewTechnicianId, language, onSelectJob }) => {
+  const jobs = useJobStore((state) => state.jobs);
+  const copy = MOBILE_COPY[language];
+  const [filter, setFilter] = useState<MobileJobFilter>('active');
+  const today = toISODate(new Date());
+  const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
+
+  const filteredJobs = visibleJobs.filter((job) => {
+    if (filter === 'active') return ACTIVE_JOB_STATUSES.includes(job.status);
+    if (filter === 'today') return job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status);
+    if (filter === 'upcoming') return Boolean(job.scheduledDate && job.scheduledDate > today && !CLOSED_JOB_STATUSES.includes(job.status));
+    return CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today;
+  });
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-shrink-0 px-4 py-3">
-        <h1 className="mb-3 text-xl font-bold">Sales Orders</h1>
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {[
-            { label: 'My SOs', value: mySalesOrders.length },
-            { label: 'Outstanding', value: formatCurrency(outstanding) },
-            { label: 'On Hold', value: String(onHold) },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl bg-white/8 p-3">
-              <div className="text-sm font-semibold">{item.value}</div>
-              <div className="mt-1 text-[10px] uppercase tracking-wide text-white/40">{item.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {['', 'Pending Approval', 'Approved', 'Partially Billed', 'Fully Billed'].map((status) => (
+      <div className="border-b border-white/10 px-4 py-4">
+        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white">{copy.tabs.jobs}</h1>
+        <p className="mt-2 text-sm text-white/58">{copy.hiddenHistory}</p>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {(['active', 'today', 'upcoming', 'completed'] as MobileJobFilter[]).map((value) => (
             <button
-              key={status || 'all'}
-              onClick={() => setStatusFilter(status)}
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
               className={cn(
-                'flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
-                statusFilter === status ? 'bg-brand-500 text-white' : 'bg-white/10 text-white/65',
+                'rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors',
+                filter === value ? 'bg-brand-500 text-white' : 'bg-white/8 text-white/58 hover:bg-white/12 hover:text-white/84',
               )}
             >
-              {status || 'All'}
+              {copy.filters[value]}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-        {mySalesOrders.length === 0 ? (
-          <div className="py-12 text-center text-sm text-white/30">No sales orders linked to this technician yet.</div>
-        ) : mySalesOrders.map((salesOrder) => (
-          <MobileSalesOrderCard key={salesOrder.id} salesOrder={salesOrder} onSelect={() => onSelectSalesOrder(salesOrder.id)} />
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        {filteredJobs.length === 0 ? (
+          <EmptyMobileState label={copy.noVisibleJobs} />
+        ) : filteredJobs.map((job) => (
+          <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} />
         ))}
       </div>
     </div>
   );
 };
 
-// ── Profile ───────────────────────────────────────────────────────────────────
-
-const MobileProfile: React.FC<{ previewTechnicianId?: string }> = ({ previewTechnicianId }) => {
-  const { user, logout } = useAuthStore();
-  const { syncState, triggerSync } = useUIStore();
-  const jobs = useJobStore(s => s.jobs);
-  const previewTechnician = useTechStore(s => s.technicians.find(t => t.id === previewTechnicianId));
+const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLanguage }> = ({ previewTechnicianId, language }) => {
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const jobs = useJobStore((state) => state.jobs);
+  const syncState = useUIStore((state) => state.syncState);
+  const triggerSync = useUIStore((state) => state.triggerSync);
+  const setLanguage = useUIStore((state) => state.setLanguage);
+  const copy = MOBILE_COPY[language];
+  const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
+  const today = toISODate(new Date());
 
   if (!user) return null;
 
-  const today = new Date().toISOString().split('T')[0];
-  const myJobs = jobs.filter(job => job.technicianId === previewTechnicianId && !['CANCELLED', 'INVOICED'].includes(job.status));
-  const completedJobs = myJobs.filter(job => ['COMPLETED', 'BILLING_READY', 'INVOICED'].includes(job.status));
-  const completedWithDuration = completedJobs.filter(job => job.actualDuration);
-  const avgDuration = completedWithDuration.length > 0
-    ? Math.round((completedWithDuration.reduce((sum, job) => sum + (job.actualDuration || 0), 0) / completedWithDuration.length) * 10) / 10
-    : 0;
-
   return (
-    <div className="px-4 py-4">
-      <h1 className="text-xl font-bold mb-4">Profile</h1>
-      <div className="bg-white/10 rounded-2xl p-4 mb-4 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-cyan-500 flex items-center justify-center text-2xl font-bold">
-          {user.avatarInitials}
-        </div>
-        <div>
-          <div className="text-lg font-bold">{user.name}</div>
-          <div className="text-sm opacity-60">{user.role}</div>
-          <div className="text-xs text-brand-300 mt-1">{user.workspace} workspace</div>
-        </div>
-      </div>
-
-      {previewTechnician && previewTechnician.id !== user.technicianId && (
-        <div className="mb-4 rounded-2xl border border-brand-400/20 bg-brand-500/10 px-4 py-3 text-sm text-brand-200">
-          Previewing technician mobile for {previewTechnician.name}
-        </div>
-      )}
-
-      {[
-        { label: 'My Jobs Today', value: String(myJobs.filter(job => job.scheduledDate === today).length) },
-        { label: 'Total Completed (all time)', value: String(completedJobs.length) },
-        { label: 'Avg Job Duration', value: avgDuration > 0 ? `${avgDuration}h` : '—' },
-      ].map(row => (
-        <div key={row.label} className="flex items-center justify-between py-3 border-b border-white/10">
-          <span className="text-sm opacity-70">{row.label}</span>
-          <span className="font-semibold">{row.value}</span>
-        </div>
-      ))}
-
-      <button
-        onClick={() => triggerSync()}
-        disabled={syncState.status === 'SYNCING'}
-        className="w-full mt-6 py-3 bg-brand-500/20 text-brand-300 rounded-2xl font-medium text-sm hover:bg-brand-500/30 disabled:opacity-50 transition-colors"
-      >
-        {syncState.status === 'SYNCING'
-          ? 'Saving…'
-          : syncState.pendingChanges > 0
-            ? `Save ${syncState.pendingChanges} changes`
-            : syncState.lastSync
-              ? `Refresh data · Last ${new Date(syncState.lastSync).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-              : 'Refresh data'}
-      </button>
-
-      <button onClick={logout} className="w-full mt-3 py-3 bg-red-500/20 text-red-400 rounded-2xl font-medium text-sm hover:bg-red-500/30 transition-colors">
-        Sign Out
-      </button>
-    </div>
-  );
-};
-
-// ── Job Card ──────────────────────────────────────────────────────────────────
-
-const MobileJobCard: React.FC<{ job: Job; onSelect: (id: string) => void }> = ({ job, onSelect }) => {
-  const STATUS_BG: Record<string, string> = {
-    NEW: 'border-l-slate-400',
-    SCHEDULED: 'border-l-blue-400',
-    DISPATCHED: 'border-l-cyan-400',
-    EN_ROUTE: 'border-l-amber-400',
-    IN_PROGRESS: 'border-l-brand-400',
-    ON_HOLD: 'border-l-orange-400',
-    COMPLETED: 'border-l-emerald-400',
-  };
-
-  return (
-    <button onClick={() => onSelect(job.id)}
-      className={cn('w-full bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 text-left border-l-4 transition-all hover:bg-white/15', STATUS_BG[job.status] || 'border-l-white/20')}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-xs font-bold text-brand-300">{job.jobNumber}</span>
-            <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full">{STATUS_LABELS[job.status]}</span>
+    <div className="h-full overflow-y-auto px-4 py-4">
+      <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white">{copy.profileTitle}</h1>
+      <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.05] p-4">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500/20 text-lg font-semibold text-brand-100">
+            {user.avatarInitials}
           </div>
-          <div className="font-semibold text-sm truncate">{job.customerName}</div>
-          <div className="text-xs opacity-60 truncate">{job.description.substring(0, 55)}</div>
+          <div>
+            <div className="text-lg font-semibold text-white">{user.name}</div>
+            <div className="text-sm text-white/52">{copy.technicianMode}</div>
+          </div>
         </div>
-        <div className="text-right flex-shrink-0">
-          {job.scheduledStart && <div className="text-xs text-brand-300">{job.scheduledStart}</div>}
-          {job.estimatedDuration && <div className="text-[10px] opacity-50">{job.estimatedDuration}h est.</div>}
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <MetricCard label={copy.todayQueue} value={visibleJobs.filter((job) => job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status)).length} compact />
+          <MetricCard label={copy.completedToday} value={visibleJobs.filter((job) => CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today).length} compact />
         </div>
+
+        <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">Language</div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(['en', 'fr'] as AppLanguage[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLanguage(value)}
+                className={cn(
+                  'rounded-xl px-3 py-2 text-sm font-semibold transition-colors',
+                  language === value ? 'bg-brand-500 text-white' : 'bg-white/6 text-white/65 hover:bg-white/12',
+                )}
+              >
+                {APP_LANGUAGE_LABELS[value]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3 text-sm text-white/70">
+          <div className="flex items-center justify-between">
+            <span>{copy.lastSaved}</span>
+            <span className="text-white/92">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span>{copy.pendingChanges}</span>
+            <span className="font-semibold text-white">{syncState.pendingChanges}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void triggerSync()}
+          disabled={syncState.status === 'SYNCING'}
+          className="mt-4 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400 disabled:opacity-60"
+        >
+          {syncState.status === 'SYNCING' ? copy.syncing : copy.syncNow}
+        </button>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-3 w-full rounded-2xl border border-white/12 bg-transparent px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:border-white/20 hover:bg-white/6"
+        >
+          {copy.signOut}
+        </button>
       </div>
-      <div className="flex items-center gap-3 mt-2 text-xs opacity-50">
-        <span>📍 {job.serviceAddress.city}</span>
-        {job.scheduledDate && <span>📅 {formatDate(job.scheduledDate)}</span>}
-      </div>
-    </button>
+    </div>
   );
 };
 
-const MobileSalesOrderCard: React.FC<{ salesOrder: SalesOrder; onSelect: () => void }> = ({ salesOrder, onSelect }) => (
-  <button onClick={onSelect} className="w-full rounded-2xl border border-white/10 bg-white/8 p-3.5 text-left transition-all hover:bg-white/12">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-brand-300">{salesOrder.soNumber}</span>
-          <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">{salesOrder.status}</span>
+const MobileJobCard: React.FC<{
+  job: Job;
+  language: AppLanguage;
+  onOpen: (jobId: string) => void;
+}> = ({ job, language, onOpen }) => {
+  const statusLabel = getLocalizedStatus(language, job.status);
+
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-200">{job.jobNumber}</div>
+          <div className="mt-1 text-lg font-semibold tracking-[-0.02em] text-white">{job.customerName}</div>
+          <div className="mt-1 text-sm text-white/58">{job.description}</div>
         </div>
-        <div className="mt-1 truncate text-sm font-semibold">{salesOrder.customerName}</div>
-        <div className="mt-1 truncate text-xs opacity-60">{salesOrder.memo || salesOrder.linkedJobNumber || 'No memo'}</div>
+        <span className="rounded-full border border-white/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+          {statusLabel}
+        </span>
       </div>
-      <div className="text-right">
-        <div className="text-sm font-semibold">{formatCurrency(salesOrder.total)}</div>
-        <div className="text-[10px] opacity-50">Bal. {formatCurrency(salesOrder.balance || 0)}</div>
+
+      <div className="mt-4 grid gap-2 text-sm text-white/66">
+        <div>{formatShortDateForLanguage(language, job.scheduledDate)} • {job.scheduledStart || '--:--'}</div>
+        <div>{getAddressLine(job)}</div>
+        <div>{getLocalizedServiceType(language, job.serviceType)} • {PRIORITY_LABELS_BY_LANGUAGE[language][job.priority]}</div>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onOpen(job.id)}
+          className="flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+        >
+          {MOBILE_COPY[language].openJob}
+        </button>
+        <a
+          href={getMapsLink(job)}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-xl border border-white/12 px-4 py-3 text-sm font-semibold text-white/76 transition-colors hover:border-white/20 hover:bg-white/6"
+        >
+          {MOBILE_COPY[language].navigate}
+        </a>
       </div>
     </div>
-    <div className="mt-2 flex items-center gap-3 text-xs opacity-50">
-      <span>{salesOrder.linkedJobNumber || 'No job link'}</span>
-      {salesOrder.invoiceNumber && <span>{salesOrder.invoiceNumber}</span>}
-      {salesOrder.billingHold && <span className="text-amber-300">On hold</span>}
-    </div>
-  </button>
-);
+  );
+};
 
-// ── Job Detail (mobile) ───────────────────────────────────────────────────────
+const MobileJobDetail: React.FC<{
+  jobId: string;
+  onBack: () => void;
+  language: AppLanguage;
+}> = ({ jobId, onBack, language }) => {
+  const getJob = useJobStore((state) => state.getJob);
+  const getNotes = useJobStore((state) => state.getNotes);
+  const getUnifiedFilesForJob = useJobStore((state) => state.getUnifiedFilesForJob);
+  const updateJob = useJobStore((state) => state.updateJob);
+  const updateStatus = useJobStore((state) => state.updateStatus);
+  const addNote = useJobStore((state) => state.addNote);
+  const addAttachment = useJobStore((state) => state.addAttachment);
+  const getSO = useSOStore((state) => state.getSO);
+  const addSOLine = useSOStore((state) => state.addSOLine);
+  const updateSO = useSOStore((state) => state.updateSO);
+  const user = useAuthStore((state) => state.user);
+  const toast = useUIStore((state) => state.toast);
 
-const MobileJobDetail: React.FC<{ jobId: string; onBack: () => void; onOpenSalesOrder: (id: string) => void }> = ({ jobId, onBack, onOpenSalesOrder }) => {
-  const {
-    getJob,
-    getNotes,
-    getTimeEntries,
-    getParts,
-    updateJob,
-    updateStatus,
-    addNote,
-    addTimeEntry,
-    addPart,
-    rescheduleJob,
-    markBillingReady,
-    setBillingHold,
-    removeBillingHold,
-    generateInvoice,
-    getChecklistItems,
-    getChecklistResponses,
-    upsertChecklistResponse,
-    getUnifiedFilesForJob,
-    addAttachment,
-  } = useJobStore();
-  const { getSOsForJob, createSO } = useSOStore();
-  const { user } = useAuthStore();
-  const { toast } = useUIStore();
+  const copy = MOBILE_COPY[language];
   const job = getJob(jobId);
-  const [activeTab, setActiveTab] = useState('info');
-  const [noteText, setNoteText] = useState('');
-  const [jobDraft, setJobDraft] = useState({
-    resolution: '',
-    billingCode: '',
-    followUpRequired: false,
-    followUpNotes: '',
-  });
-  const [timeDraft, setTimeDraft] = useState(EMPTY_MOBILE_TIME_DRAFT);
-  const [partDraft, setPartDraft] = useState(EMPTY_MOBILE_PART_DRAFT);
-  const [rescheduleDraft, setRescheduleDraft] = useState({
-    scheduledDate: '',
-    scheduledStart: '',
-    scheduledEnd: '',
-    reason: '',
-  });
-  const [holdReason, setHoldReason] = useState('');
-  const [fileDraft, setFileDraft] = useState(EMPTY_MOBILE_FILE_DRAFT);
+  const [activeTab, setActiveTab] = useState<MobileJobTab>('overview');
+  const [reportText, setReportText] = useState('');
+  const [journalText, setJournalText] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
+  const [customerSignature, setCustomerSignature] = useState<string | undefined>();
+  const [technicianSignature, setTechnicianSignature] = useState<string | undefined>();
+  const [paymentChoice, setPaymentChoice] = useState<'unknown' | 'no' | 'yes'>('unknown');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(APPROVED_ITEM_CATALOG[0].id);
+  const [selectedQuantity, setSelectedQuantity] = useState('1');
+  const [selectedLineNote, setSelectedLineNote] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!job) return;
+    setReportText(job.resolution || '');
+    setCustomerSignature(job.completionSignature);
+    setTechnicianSignature(job.techSignature);
+  }, [job?.id, job?.resolution, job?.completionSignature, job?.techSignature]);
 
-    setJobDraft({
-      resolution: job.resolution || '',
-      billingCode: job.billingCode || '',
-      followUpRequired: Boolean(job.followUpRequired),
-      followUpNotes: job.followUpNotes || '',
-    });
-    setRescheduleDraft({
-      scheduledDate: job.scheduledDate || new Date().toISOString().split('T')[0],
-      scheduledStart: job.scheduledStart || '',
-      scheduledEnd: job.scheduledEnd || '',
-      reason: '',
-    });
-    setHoldReason(job.billingHoldReason || '');
-    setTimeDraft((current) => ({ ...current, date: job.scheduledDate || current.date }));
-  }, [
-    job?.id,
-    job?.resolution,
-    job?.billingCode,
-    job?.followUpRequired,
-    job?.followUpNotes,
-    job?.scheduledDate,
-    job?.scheduledStart,
-    job?.scheduledEnd,
-    job?.billingHoldReason,
-  ]);
-
-  if (!job) return null;
+  if (!job || !user) return null;
 
   const notes = getNotes(job.id);
-  const timeEntries = getTimeEntries(job.id);
-  const parts = getParts(job.id);
-  const salesOrders = getSOsForJob(job.id);
-  const primarySalesOrder = salesOrders[0];
-  const checklist = buildChecklistState(getChecklistItems(), getChecklistResponses(job.id));
-  const files = getUnifiedFilesForJob(job.id);
-  const nextStatuses = STATUS_TRANSITIONS[job.status] || [];
-  const billingValidations = getMobileBillingValidations(job, timeEntries);
-  const billingReady = job.billingReady || job.status === 'BILLING_READY' || job.status === 'INVOICED';
-  const allBillingValid = billingValidations.every((validation) => validation.ok);
-  const checklistCompleted = checklist.filter((entry) => entry.response?.checked).length;
-  const totalTimeHours = timeEntries.reduce((sum, entry) => sum + entry.duration, 0);
-  const totalPartsCost = parts.reduce((sum, part) => sum + part.totalCost, 0);
+  const attachments = getUnifiedFilesForJob(job.id);
+  const linkedSalesOrder = job.salesOrderId ? getSO(job.salesOrderId) : undefined;
+  const paymentCapture = getLatestPaymentCapture(notes);
+  const journalGroups = buildJournalGroups(notes, attachments);
+  const stageButton = getStageButton(job, copy.buttons);
+  const completionReady = Boolean(reportText.trim()) && Boolean(customerSignature);
+  const selectedCatalogItem = APPROVED_ITEM_CATALOG.find((item) => item.id === selectedCatalogItemId) || APPROVED_ITEM_CATALOG[0];
+  const reportOnFile = Boolean(job.resolution?.trim());
+  const signatureOnFile = Boolean(job.completionSignature);
 
-  const TABS = [
-    { id: 'info',     label: 'Info' },
-    { id: 'schedule', label: 'Schedule' },
-    { id: 'sales',    label: `Sales (${salesOrders.length})` },
-    { id: 'time',     label: `Time (${timeEntries.length})` },
-    { id: 'parts',    label: `Parts (${parts.length})` },
-    { id: 'checklist', label: `Checklist (${checklistCompleted}/${checklist.length || 0})` },
-    { id: 'files',    label: `Files (${files.length})` },
-    { id: 'billing',  label: 'Billing' },
-    { id: 'notes',    label: 'Notes' },
-    { id: 'signoff',  label: 'Sign-off' },
-  ];
+  useEffect(() => {
+    if (!paymentCapture) return;
+    setPaymentChoice(paymentCapture.paid ? 'yes' : 'no');
+    if (paymentCapture.method) {
+      setPaymentMethod(paymentCapture.method);
+    }
+    setPaymentNote(paymentCapture.note || '');
+  }, [paymentCapture?.recordedAt]);
 
-  const handleStatusChange = (status: JobStatus) => {
-    updateStatus(job.id, status);
-    toast('success', `Status: ${STATUS_LABELS[status]}`);
+  const saveReport = () => {
+    const nextReport = reportText.trim();
+    if (!nextReport) {
+      toast('warning', copy.reportRequired);
+      return;
+    }
+
+    updateJob(job.id, { resolution: nextReport });
+    addNote(job.id, copy.reportSaved, 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    toast('success', copy.reportSaved);
   };
 
-  const handleAddNote = () => {
-    if (!noteText.trim()) return;
-    addNote(job.id, noteText, 'TECHNICIAN', user?.id || 'u-tech', user?.name || 'Tech');
-    setNoteText('');
-    toast('success', 'Note saved');
+  const savePayment = () => {
+    if (paymentChoice === 'unknown') {
+      toast('warning', copy.choosePaymentState);
+      return;
+    }
+
+    const capture: PaymentCapture = {
+      paid: paymentChoice === 'yes',
+      method: paymentChoice === 'yes' ? paymentMethod : undefined,
+      note: paymentNote.trim() || undefined,
+      recordedAt: new Date().toISOString(),
+      recordedBy: user.name,
+    };
+
+    addNote(job.id, encodePaymentCapture(capture), 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    if (linkedSalesOrder) {
+      updateSO(linkedSalesOrder.id, {
+        paymentMode: capture.paid ? PAYMENT_METHOD_LABELS.en[capture.method || 'CARD'] : 'No payment collected',
+      });
+    }
+    toast('success', copy.payment.saved);
   };
 
-  const handleSaveJobUpdates = () => {
+  const saveSignatures = () => {
     updateJob(job.id, {
-      resolution: jobDraft.resolution.trim() || undefined,
-      billingCode: jobDraft.billingCode.trim() || undefined,
-      followUpRequired: jobDraft.followUpRequired,
-      followUpNotes: jobDraft.followUpNotes.trim() || undefined,
+      completionSignature: customerSignature,
+      techSignature: technicianSignature,
+      completionSignedBy: customerSignature ? (job.contactName || job.customerName) : job.completionSignedBy,
     });
-    toast('success', 'Job updates saved');
+    addNote(job.id, copy.signatureSaved, 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    toast('success', copy.signatureSaved);
   };
 
-  const handleAddTimeEntry = () => {
-    if (!timeDraft.date || !timeDraft.startTime) return;
-
-    addTimeEntry({
-      jobId: job.id,
-      technicianId: job.technicianId || user?.technicianId || 'tech-unassigned',
-      technicianName: job.technicianName || user?.name || 'Unassigned',
-      type: timeDraft.type,
-      date: timeDraft.date,
-      startTime: timeDraft.startTime,
-      endTime: timeDraft.endTime || undefined,
-      duration: Number(timeDraft.duration) || 0,
-      notes: timeDraft.notes.trim() || undefined,
-      billable: timeDraft.billable,
-    });
-    setTimeDraft({ ...EMPTY_MOBILE_TIME_DRAFT, date: job.scheduledDate || EMPTY_MOBILE_TIME_DRAFT.date });
-    toast('success', 'Time entry added');
+  const handlePickFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    setPendingFiles((current) => [...current, ...files]);
+    event.target.value = '';
   };
 
-  const handleAddPart = () => {
-    const quantity = Number(partDraft.quantity) || 0;
-    const unitCost = Number(partDraft.unitCost) || 0;
-    if (!partDraft.itemName.trim() || quantity <= 0) return;
+  const handleSaveJournalEntry = async () => {
+    if (!journalText.trim() && pendingFiles.length === 0) return;
 
-    addPart({
-      jobId: job.id,
-      itemId: `item-${Date.now()}`,
-      itemName: partDraft.itemName.trim(),
-      partNumber: partDraft.partNumber.trim() || undefined,
-      description: partDraft.description.trim() || undefined,
+    setIsSavingJournal(true);
+    const createdAt = new Date().toISOString();
+
+    try {
+      let savedNames: string[] = [];
+      if (pendingFiles.length > 0) {
+        const preparedFiles = await Promise.all(
+          pendingFiles.map(async (file) => ({
+            file,
+            url: await readFileAsDataUrl(file),
+          })),
+        );
+
+        preparedFiles.forEach(({ file, url }) => {
+          addAttachment({
+            customerId: job.customerId,
+            jobId: job.id,
+            jobNumber: job.jobNumber,
+            soId: linkedSalesOrder?.id,
+            soNumber: linkedSalesOrder?.soNumber,
+            name: file.name,
+            type: file.type || 'application/octet-stream',
+            size: file.size,
+            url,
+            source: 'JOB',
+            uploadedBy: user.name,
+            createdAt,
+          });
+        });
+        savedNames = preparedFiles.map((entry) => entry.file.name);
+      }
+
+      const message = journalText.trim() || `Added attachments: ${savedNames.join(', ')}`;
+      addNote(job.id, message, 'TECHNICIAN', user.id, user.name, {
+        createdAt,
+        visibility: 'TECHNICIAN_ONLY',
+      });
+
+      setJournalText('');
+      setPendingFiles([]);
+      toast('success', copy.journalSaved);
+    } catch (error) {
+      toast('error', error instanceof Error ? error.message : 'Unable to save this entry.');
+    } finally {
+      setIsSavingJournal(false);
+    }
+  };
+
+  const handleAddApprovedLine = () => {
+    if (!linkedSalesOrder) {
+      toast('warning', copy.salesEmpty);
+      return;
+    }
+
+    const quantity = Math.max(1, Number(selectedQuantity) || 1);
+    addSOLine(linkedSalesOrder.id, {
+      itemId: selectedCatalogItem.id,
+      itemName: selectedCatalogItem.label,
+      description: [selectedCatalogItem.description, selectedLineNote.trim()].filter(Boolean).join(' • '),
       quantity,
-      unitCost,
-      totalCost: Math.round(quantity * unitCost * 100) / 100,
-      warranty: partDraft.warranty,
+      rate: selectedCatalogItem.rate,
+      amount: quantity * selectedCatalogItem.rate,
     });
-    setPartDraft(EMPTY_MOBILE_PART_DRAFT);
-    toast('success', 'Part added');
+    addNote(
+      job.id,
+      `${copy.lineAdded} ${selectedCatalogItem.label} x${quantity}${selectedLineNote.trim() ? ` • ${selectedLineNote.trim()}` : ''}`,
+      'ACTIVITY',
+      user.id,
+      user.name,
+      { visibility: 'TECHNICIAN_ONLY' },
+    );
+    setSelectedQuantity('1');
+    setSelectedLineNote('');
+    toast('success', copy.lineAdded);
   };
 
-  const handleReschedule = () => {
-    if (!rescheduleDraft.scheduledDate) return;
-
-    rescheduleJob(job.id, {
-      scheduledDate: rescheduleDraft.scheduledDate,
-      scheduledStart: rescheduleDraft.scheduledStart || undefined,
-      scheduledEnd: rescheduleDraft.scheduledEnd || undefined,
-      reason: rescheduleDraft.reason.trim() || undefined,
-    });
-    setRescheduleDraft((current) => ({ ...current, reason: '' }));
-    toast('success', 'Job rescheduled');
+  const handleReadyForSignature = () => {
+    addNote(job.id, copy.readyForSignatureNote, 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    setActiveTab('closeout');
+    toast('success', copy.readyForSignatureNote);
   };
 
-  const handleCreateSalesOrder = () => {
-    const salesOrder = createSO({
-      customerId: job.customerId,
-      customerName: job.customerName,
-      linkedJobId: job.id,
-      linkedJobNumber: job.jobNumber,
-      memo: `Work order ${job.jobNumber} — ${job.description}`,
-      billingCode: job.billingCode,
-    });
-    toast('success', `Sales order ${salesOrder.soNumber} created`);
-    onOpenSalesOrder(salesOrder.id);
-  };
-
-  const handleAddFile = () => {
-    if (!fileDraft.name.trim()) return;
-    if (fileDraft.source === 'SALES_ORDER' && !primarySalesOrder) {
-      toast('error', 'Create a sales order before attaching SO files');
+  const handleCompleteJob = () => {
+    if (!completionReady) {
+      toast('warning', copy.cannotComplete);
       return;
     }
 
-    addAttachment({
-      customerId: job.customerId,
-      jobId: fileDraft.source === 'JOB' ? job.id : undefined,
-      jobNumber: fileDraft.source === 'JOB' ? job.jobNumber : undefined,
-      soId: fileDraft.source === 'SALES_ORDER' ? primarySalesOrder?.id : undefined,
-      soNumber: fileDraft.source === 'SALES_ORDER' ? primarySalesOrder?.soNumber : undefined,
-      name: fileDraft.name.trim(),
-      type: fileDraft.type,
-      size: 128000,
-      url: '#',
-      source: fileDraft.source,
-      uploadedBy: user?.name || 'System',
+    updateJob(job.id, {
+      resolution: reportText.trim(),
+      completionSignature: customerSignature,
+      techSignature: technicianSignature,
+      completionSignedBy: job.contactName || job.customerName,
+      actualEnd: new Date().toISOString(),
     });
-    setFileDraft(EMPTY_MOBILE_FILE_DRAFT);
-    toast('success', 'File attached');
-  };
-
-  const handleBillingReady = () => {
-    if (!allBillingValid) return;
-    markBillingReady(job.id);
-    toast('success', 'Job marked billing ready');
-  };
-
-  const handleBillingHold = () => {
-    if (job.billingHold) {
-      removeBillingHold(job.id);
-      setHoldReason('');
-      toast('success', 'Billing hold removed');
-      return;
-    }
-
-    if (!holdReason.trim()) return;
-    setBillingHold(job.id, holdReason.trim());
-    toast('success', 'Billing hold applied');
-  };
-
-  const handleGenerateInvoice = () => {
-    const result = generateInvoice(job.id);
-    if (result) {
-      toast('success', `Invoice ${result.invoiceNumber} generated`);
-    }
+    updateStatus(job.id, 'COMPLETED');
+    addNote(job.id, copy.jobCompleted, 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    toast('success', copy.jobCompleted);
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-shrink-0">
-        <button onClick={onBack} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
-          ‹
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-brand-300">{job.jobNumber}</span>
-            <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full">{STATUS_LABELS[job.status]}</span>
+    <div className="flex h-full flex-col bg-[#08111b]">
+      <div className="border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl border border-white/12 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/78 transition-colors hover:border-white/20 hover:bg-white/10"
+          >
+            {copy.buttons.back}
+          </button>
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">{job.jobNumber}</div>
+            <div className="truncate text-lg font-semibold tracking-[-0.03em] text-white">{job.customerName}</div>
           </div>
-          <div className="text-sm font-semibold truncate">{job.customerName}</div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/64">
+          <span className="rounded-full border border-white/12 px-3 py-1">{getLocalizedStatus(language, job.status)}</span>
+          <span className="rounded-full border border-white/12 px-3 py-1">{formatShortDateForLanguage(language, job.scheduledDate)} • {job.scheduledStart || '--:--'}</span>
+          <a href={getMapsLink(job)} target="_blank" rel="noreferrer" className="rounded-full border border-brand-400/30 px-3 py-1 font-semibold text-brand-200 hover:border-brand-300/60">
+            {copy.directions}
+          </a>
         </div>
       </div>
 
-      {(job.slaBreached || job.status === 'ON_HOLD' || job.warranty) && (
-        <div className="space-y-2 px-4 py-3">
-          {job.slaBreached && (
-            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              SLA breached. This job needs immediate attention.
-            </div>
-          )}
-          {job.status === 'ON_HOLD' && (
-            <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-              Job is currently on hold.
-            </div>
-          )}
-          {job.warranty && (
-            <div className="rounded-2xl border border-brand-300/20 bg-brand-400/10 px-4 py-3 text-sm text-brand-100">
-              Warranty job. Billing validation is bypassed.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Action buttons */}
-      {nextStatuses.length > 0 && (
-        <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide flex-shrink-0">
-          {nextStatuses.map(s => (
-            <button key={s} onClick={() => handleStatusChange(s)}
-              className="flex-shrink-0 px-3 py-2 bg-brand-500 text-white text-xs font-semibold rounded-xl hover:bg-brand-600 transition-colors">
-              → {STATUS_LABELS[s]}
+      <div className="border-b border-white/10 px-4 py-3">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {([
+            { id: 'overview', label: copy.sections.summary },
+            { id: 'journal', label: copy.sections.fieldJournal },
+            { id: 'sales', label: copy.sections.salesOrder },
+            { id: 'closeout', label: copy.sections.closeout },
+          ] as Array<{ id: MobileJobTab; label: string }>).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors',
+                activeTab === tab.id ? 'bg-brand-500 text-white' : 'bg-white/8 text-white/58 hover:bg-white/12 hover:text-white/84',
+              )}
+            >
+              {tab.label}
             </button>
           ))}
         </div>
-      )}
-
-      {/* Tab bar */}
-      <div className="flex gap-1 px-4 py-2 overflow-x-auto scrollbar-hide flex-shrink-0">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={cn('px-3 py-1.5 rounded-xl text-xs font-medium flex-shrink-0 transition-all',
-              activeTab === t.id ? 'bg-brand-500 text-white' : 'bg-white/10 text-white/60'
-            )}>
-            {t.label}
-          </button>
-        ))}
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
-        {activeTab === 'info' && (
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Scheduled', value: job.scheduledDate ? `${formatDate(job.scheduledDate)} ${job.scheduledStart || ''}`.trim() : 'Unscheduled' },
-                { label: 'Sales Order', value: primarySalesOrder?.soNumber || job.salesOrderNumber || 'Not linked' },
-                { label: 'Time Logged', value: `${totalTimeHours.toFixed(1)}h` },
-                { label: 'Billable', value: job.warranty ? 'Warranty' : formatCurrency(job.billableAmount ?? job.totalCost ?? 0) },
-              ].map((item) => (
-                <div key={item.label} className="rounded-2xl bg-white/8 p-3">
-                  <div className="text-[10px] uppercase tracking-wide text-white/40">{item.label}</div>
-                  <div className="mt-2 text-sm font-semibold">{item.value}</div>
-                </div>
-              ))}
-            </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-32 pt-4">
+        {activeTab === 'overview' && (
+          <div className="space-y-4">
+            <InfoCard title={copy.sections.summary}>
+              <InfoRow label={copy.labels.customer} value={job.customerName} />
+              <InfoRow label={copy.labels.contact} value={job.contactName} />
+              <InfoRow label={copy.labels.phone} value={job.contactPhone} link={job.contactPhone ? `tel:${job.contactPhone}` : undefined} />
+              <InfoRow label={copy.labels.email} value={job.contactEmail} link={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} />
+              <InfoRow label={copy.labels.address} value={getAddressLine(job)} />
+              <InfoRow label={copy.labels.serviceType} value={getLocalizedServiceType(language, job.serviceType)} />
+              <InfoRow label={copy.labels.priority} value={PRIORITY_LABELS_BY_LANGUAGE[language][job.priority]} />
+              <InfoRow label={copy.labels.scheduled} value={`${formatDateForLanguage(language, job.scheduledDate)} ${job.scheduledStart || ''}`.trim()} />
+              <InfoRow label={copy.sections.salesOrder} value={linkedSalesOrder?.soNumber || job.salesOrderNumber || '—'} />
+            </InfoCard>
 
-            <InfoBlock>
-              <InfoRow label="Job #" value={job.jobNumber} />
-              <InfoRow label="Customer" value={job.customerName} />
-              <InfoRow label="Contact" value={job.contactName} />
-              <InfoRow label="Phone" value={job.contactPhone} link={`tel:${job.contactPhone}`} />
-              <InfoRow label="Email" value={job.contactEmail} link={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} />
-              <InfoRow label="Address" value={`${job.serviceAddress.street}, ${job.serviceAddress.city}`} />
-              <InfoRow label="Type" value={SERVICE_TYPE_LABELS[job.serviceType]} />
-              <InfoRow label="Priority" value={job.priority} />
-              <InfoRow label="Status" value={STATUS_LABELS[job.status]} />
-              <InfoRow label="Technician" value={job.technicianName} />
-              <InfoRow label="Scheduled Date" value={job.scheduledDate ? formatDate(job.scheduledDate) : undefined} />
-              <InfoRow label="Start" value={job.scheduledStart} />
-              <InfoRow label="End" value={job.scheduledEnd} />
-              <InfoRow label="Billing Code" value={job.billingCode} />
-              <InfoRow label="Sales Order" value={job.salesOrderNumber} />
-              <InfoRow label="Invoice" value={job.invoiceNumber} />
-              <InfoRow label="Asset" value={job.assetName} />
-              <InfoRow label="Warranty Ref" value={job.warrantyRef} />
-            </InfoBlock>
-            <InfoBlock title="Description">
-              <p className="text-sm opacity-80 leading-relaxed">{job.description}</p>
-            </InfoBlock>
-            {job.internalNotes && (
-              <InfoBlock title="Dispatcher Notes">
-                <p className="text-sm text-amber-300 leading-relaxed">{job.internalNotes}</p>
-              </InfoBlock>
-            )}
-            {job.resolution && (
-              <InfoBlock title="Resolution">
-                <p className="text-sm opacity-80 leading-relaxed">{job.resolution}</p>
-              </InfoBlock>
-            )}
-            <InfoBlock title="Technician Updates">
-              <div className="space-y-3">
-                <MobileField label="Resolution Summary">
-                  <textarea
-                    className="mobile-input min-h-[88px]"
-                    value={jobDraft.resolution}
-                    onChange={(event) => setJobDraft((current) => ({ ...current, resolution: event.target.value }))}
-                    placeholder="What was done on site?"
-                  />
-                </MobileField>
-                <MobileField label="Billing Code">
-                  <input
-                    className="mobile-input"
-                    value={jobDraft.billingCode}
-                    onChange={(event) => setJobDraft((current) => ({ ...current, billingCode: event.target.value }))}
-                    placeholder="Enter billing code"
-                  />
-                </MobileField>
-                <label className="flex items-center gap-3 rounded-2xl bg-white/6 px-3 py-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={jobDraft.followUpRequired}
-                    onChange={(event) => setJobDraft((current) => ({ ...current, followUpRequired: event.target.checked }))}
-                  />
-                  Follow-up required
-                </label>
-                <MobileField label="Follow-up Notes">
-                  <textarea
-                    className="mobile-input min-h-[72px]"
-                    value={jobDraft.followUpNotes}
-                    onChange={(event) => setJobDraft((current) => ({ ...current, followUpNotes: event.target.value }))}
-                    placeholder="Anything the office should know?"
-                  />
-                </MobileField>
-                <button onClick={handleSaveJobUpdates} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                  Save Updates
-                </button>
-              </div>
-            </InfoBlock>
+            <InfoCard title={copy.sections.dispatcherNotes}>
+              <p className="text-sm leading-relaxed text-white/72">{job.internalNotes || copy.auditLocked}</p>
+            </InfoCard>
+
+            <InfoCard title={copy.sections.report}>
+              <textarea
+                className="mobile-input min-h-[150px]"
+                value={reportText}
+                onChange={(event) => setReportText(event.target.value)}
+                placeholder={copy.labels.reportPlaceholder}
+              />
+              <button
+                type="button"
+                onClick={saveReport}
+                className="mt-3 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+              >
+                {copy.buttons.saveReport}
+              </button>
+            </InfoCard>
           </div>
         )}
 
-        {activeTab === 'schedule' && (
-          <div className="space-y-3 pt-2">
-            <InfoBlock title="Current Schedule">
-              <InfoRow label="Date" value={job.scheduledDate ? formatDate(job.scheduledDate) : 'Not scheduled'} />
-              <InfoRow label="Start" value={job.scheduledStart} />
-              <InfoRow label="End" value={job.scheduledEnd} />
-              <InfoRow label="Estimated" value={job.estimatedDuration ? `${job.estimatedDuration}h` : undefined} />
-              <InfoRow label="Actual Start" value={job.actualStart ? new Date(job.actualStart).toLocaleString() : undefined} />
-              <InfoRow label="Actual End" value={job.actualEnd ? new Date(job.actualEnd).toLocaleString() : undefined} />
-            </InfoBlock>
-
-            <InfoBlock title="Reschedule Job">
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <MobileField label="Date">
-                    <input
-                      className="mobile-input"
-                      type="date"
-                      value={rescheduleDraft.scheduledDate}
-                      onChange={(event) => setRescheduleDraft((current) => ({ ...current, scheduledDate: event.target.value }))}
-                    />
-                  </MobileField>
-                  <MobileField label="Start">
-                    <input
-                      className="mobile-input"
-                      type="time"
-                      value={rescheduleDraft.scheduledStart}
-                      onChange={(event) => setRescheduleDraft((current) => ({ ...current, scheduledStart: event.target.value }))}
-                    />
-                  </MobileField>
-                  <MobileField label="End">
-                    <input
-                      className="mobile-input"
-                      type="time"
-                      value={rescheduleDraft.scheduledEnd}
-                      onChange={(event) => setRescheduleDraft((current) => ({ ...current, scheduledEnd: event.target.value }))}
-                    />
-                  </MobileField>
-                </div>
-                <MobileField label="Reason">
-                  <textarea
-                    className="mobile-input min-h-[72px]"
-                    value={rescheduleDraft.reason}
-                    onChange={(event) => setRescheduleDraft((current) => ({ ...current, reason: event.target.value }))}
-                    placeholder="Why is the appointment moving?"
-                  />
-                </MobileField>
-                <button onClick={handleReschedule} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                  Save Schedule
+        {activeTab === 'journal' && (
+          <div className="space-y-4">
+            <InfoCard title={copy.sections.fieldJournal}>
+              <textarea
+                className="mobile-input min-h-[120px]"
+                value={journalText}
+                onChange={(event) => setJournalText(event.target.value)}
+                placeholder={copy.labels.journalPlaceholder}
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 rounded-xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/78"
+                >
+                  {copy.buttons.addFromCamera}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 rounded-xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/78"
+                >
+                  {copy.buttons.addFiles}
                 </button>
               </div>
-            </InfoBlock>
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
+              <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
+
+              {pendingFiles.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.attachmentsReady}</div>
+                  <div className="mt-3 space-y-2">
+                    {pendingFiles.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-white/6 px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <div className="truncate text-white/90">{file.name}</div>
+                          <div className="text-xs text-white/45">{formatFileSize(file.size)}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                          className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55"
+                        >
+                          {copy.buttons.clear}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void handleSaveJournalEntry()}
+                disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
+                className="mt-4 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400 disabled:opacity-50"
+              >
+                {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
+              </button>
+            </InfoCard>
+
+            <InfoCard title={copy.sections.fieldJournal}>
+              <div className="mb-3 rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3 text-sm text-white/58">
+                {copy.auditLocked}
+              </div>
+              {journalGroups.length === 0 ? (
+                <EmptyMobileState label={copy.journalEmpty} />
+              ) : journalGroups.map((group) => (
+                <JournalGroupCard key={group.createdAt} group={group} language={language} />
+              ))}
+            </InfoCard>
           </div>
         )}
 
         {activeTab === 'sales' && (
-          <div className="space-y-3 pt-2">
-            {salesOrders.length === 0 ? (
-              <InfoBlock title="Sales Order">
-                <div className="space-y-3 text-center">
-                  <div className="rounded-2xl bg-white/6 px-4 py-6 text-sm text-white/40">
-                    No sales order is linked to this job yet.
+          <div className="space-y-4">
+            <InfoCard title={copy.sections.salesOrder}>
+              <div className="rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3 text-sm text-white/58">
+                {copy.salesRestricted}
+              </div>
+              {!linkedSalesOrder ? (
+                <EmptyMobileState label={copy.salesEmpty} />
+              ) : (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <MetricCard label="SO" value={linkedSalesOrder.soNumber} compact />
+                    <MetricCard label="Total" value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} compact />
+                    <MetricCard label="Balance" value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} compact />
+                    <MetricCard label={copy.labels.paymentMethod} value={linkedSalesOrder.paymentMode || copy.payment.unknown} compact />
                   </div>
-                  <button onClick={handleCreateSalesOrder} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                    Create Sales Order
-                  </button>
-                </div>
-              </InfoBlock>
-            ) : salesOrders.map((salesOrder) => (
-              <MobileSalesOrderCard key={salesOrder.id} salesOrder={salesOrder} onSelect={() => onOpenSalesOrder(salesOrder.id)} />
-            ))}
-            {salesOrders.length > 0 && (
-              <button onClick={handleCreateSalesOrder} className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white/80">
-                Create Another Sales Order
-              </button>
-            )}
-          </div>
-        )}
 
-        {activeTab === 'time' && (
-          <div className="space-y-3 pt-2">
-            <InfoBlock title="Add Time Entry">
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <MobileField label="Type">
-                    <select className="mobile-input" value={timeDraft.type} onChange={(event) => setTimeDraft((current) => ({ ...current, type: event.target.value as TimeEntry['type'] }))}>
-                      {['REGULAR', 'TRAVEL', 'OVERTIME', 'EMERGENCY', 'TRAINING', 'ADMINISTRATIVE'].map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </MobileField>
-                  <MobileField label="Date">
-                    <input className="mobile-input" type="date" value={timeDraft.date} onChange={(event) => setTimeDraft((current) => ({ ...current, date: event.target.value }))} />
-                  </MobileField>
-                  <MobileField label="Start">
-                    <input className="mobile-input" type="time" value={timeDraft.startTime} onChange={(event) => setTimeDraft((current) => ({ ...current, startTime: event.target.value }))} />
-                  </MobileField>
-                  <MobileField label="End">
-                    <input className="mobile-input" type="time" value={timeDraft.endTime} onChange={(event) => setTimeDraft((current) => ({ ...current, endTime: event.target.value }))} />
-                  </MobileField>
-                  <MobileField label="Duration (hrs)">
-                    <input className="mobile-input" type="number" step="0.25" value={timeDraft.duration} onChange={(event) => setTimeDraft((current) => ({ ...current, duration: event.target.value }))} />
-                  </MobileField>
-                </div>
-                <MobileField label="Notes">
-                  <textarea className="mobile-input min-h-[72px]" value={timeDraft.notes} onChange={(event) => setTimeDraft((current) => ({ ...current, notes: event.target.value }))} placeholder="Travel, labor, access notes..." />
-                </MobileField>
-                <label className="flex items-center gap-3 rounded-2xl bg-white/6 px-3 py-3 text-sm">
-                  <input type="checkbox" checked={timeDraft.billable} onChange={(event) => setTimeDraft((current) => ({ ...current, billable: event.target.checked }))} />
-                  Billable entry
-                </label>
-                <button onClick={handleAddTimeEntry} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                  Add Time Entry
-                </button>
-              </div>
-            </InfoBlock>
-
-            {timeEntries.length === 0 ? (
-              <div className="text-center py-8 text-white/30 text-sm">No time entries</div>
-            ) : timeEntries.map(te => (
-              <InfoBlock key={te.id}>
-                <InfoRow label="Type" value={te.type} />
-                <InfoRow label="Duration" value={`${te.duration}h`} />
-                <InfoRow label="Date" value={formatDate(te.date)} />
-                <InfoRow label="Time" value={`${te.startTime}${te.endTime ? ` - ${te.endTime}` : ''}`} />
-                <InfoRow label="Billable" value={te.billable ? 'Yes' : 'No'} />
-                {te.notes && <p className="mt-2 text-sm text-white/70">{te.notes}</p>}
-              </InfoBlock>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'parts' && (
-          <div className="space-y-3 pt-2">
-            <InfoBlock title="Add Part">
-              <div className="space-y-3">
-                <MobileField label="Item Name">
-                  <input className="mobile-input" value={partDraft.itemName} onChange={(event) => setPartDraft((current) => ({ ...current, itemName: event.target.value }))} placeholder="Part or material" />
-                </MobileField>
-                <div className="grid grid-cols-2 gap-3">
-                  <MobileField label="Part Number">
-                    <input className="mobile-input" value={partDraft.partNumber} onChange={(event) => setPartDraft((current) => ({ ...current, partNumber: event.target.value }))} placeholder="Optional" />
-                  </MobileField>
-                  <MobileField label="Quantity">
-                    <input className="mobile-input" type="number" min="1" step="1" value={partDraft.quantity} onChange={(event) => setPartDraft((current) => ({ ...current, quantity: event.target.value }))} />
-                  </MobileField>
-                  <MobileField label="Unit Cost">
-                    <input className="mobile-input" type="number" step="0.01" value={partDraft.unitCost} onChange={(event) => setPartDraft((current) => ({ ...current, unitCost: event.target.value }))} />
-                  </MobileField>
-                </div>
-                <MobileField label="Description">
-                  <textarea className="mobile-input min-h-[72px]" value={partDraft.description} onChange={(event) => setPartDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Installed material details" />
-                </MobileField>
-                <label className="flex items-center gap-3 rounded-2xl bg-white/6 px-3 py-3 text-sm">
-                  <input type="checkbox" checked={partDraft.warranty} onChange={(event) => setPartDraft((current) => ({ ...current, warranty: event.target.checked }))} />
-                  Warranty-covered part
-                </label>
-                <button onClick={handleAddPart} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                  Add Part
-                </button>
-              </div>
-            </InfoBlock>
-
-            {parts.length === 0 ? (
-              <div className="text-center py-8 text-white/30 text-sm">No parts added</div>
-            ) : parts.map(p => (
-              <InfoBlock key={p.id}>
-                <InfoRow label="Item" value={p.itemName} />
-                <InfoRow label="Part #" value={p.partNumber} />
-                <InfoRow label="Qty" value={String(p.quantity)} />
-                <InfoRow label="Unit Cost" value={formatCurrency(p.unitCost)} />
-                <InfoRow label="Total" value={formatCurrency(p.totalCost)} />
-                <InfoRow label="Warranty" value={p.warranty ? 'Yes' : 'No'} />
-                {p.description && <p className="mt-2 text-sm text-white/70">{p.description}</p>}
-              </InfoBlock>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'checklist' && (
-          <div className="space-y-3 pt-2">
-            <InfoBlock title="Completion Progress">
-              <div className="mb-3 flex items-center justify-between text-sm">
-                <span className="text-white/60">Completed items</span>
-                <span className="font-semibold">{checklistCompleted} / {checklist.length}</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/8">
-                <div
-                  className="h-2 rounded-full bg-brand-500 transition-all"
-                  style={{ width: `${checklist.length ? (checklistCompleted / checklist.length) * 100 : 0}%` }}
-                />
-              </div>
-            </InfoBlock>
-
-            {checklist.map(({ item, response }) => (
-              <InfoBlock key={item.id}>
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold">{item.label}</div>
-                      <div className="mt-1 text-[11px] uppercase tracking-wide text-white/40">
-                        {item.type}{item.required ? ' • Required' : ' • Optional'}
+                  <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.sections.approvedItems}</div>
+                    <div className="mt-3 space-y-3">
+                      <label className="block">
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">Catalog</div>
+                        <select
+                          className="mobile-input"
+                          value={selectedCatalogItemId}
+                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
+                        >
+                          {APPROVED_ITEM_CATALOG.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="rounded-2xl bg-white/6 px-3 py-3 text-sm text-white/70">
+                        <div className="font-semibold text-white/92">{selectedCatalogItem.label}</div>
+                        <div className="mt-1">{selectedCatalogItem.description}</div>
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.qty}</div>
+                          <input className="mobile-input" type="number" min="1" value={selectedQuantity} onChange={(event) => setSelectedQuantity(event.target.value)} />
+                        </label>
+                        <label className="block">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.rate}</div>
+                          <input className="mobile-input" value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)} readOnly />
+                        </label>
+                      </div>
+                      <label className="block">
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.note}</div>
+                        <textarea className="mobile-input min-h-[88px]" value={selectedLineNote} onChange={(event) => setSelectedLineNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddApprovedLine}
+                        className="w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+                      >
+                        {copy.buttons.addLine}
+                      </button>
                     </div>
-                    <label className="flex items-center gap-2 rounded-full bg-white/8 px-3 py-1 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(response?.checked)}
-                        onChange={(event) => upsertChecklistResponse(job.id, item.id, {
-                          checked: event.target.checked,
-                          notes: response?.notes,
-                          technicianId: user?.technicianId,
-                          completedAt: event.target.checked ? new Date().toISOString() : undefined,
-                        })}
-                      />
-                      Done
-                    </label>
                   </div>
-                  <textarea
-                    className="mobile-input min-h-[72px]"
-                    value={response?.notes || ''}
-                    onChange={(event) => upsertChecklistResponse(job.id, item.id, {
-                      checked: response?.checked || false,
-                      notes: event.target.value,
-                      technicianId: user?.technicianId,
-                    })}
-                    placeholder="Add checklist notes"
-                  />
-                </div>
-              </InfoBlock>
-            ))}
-          </div>
-        )}
 
-        {activeTab === 'files' && (
-          <div className="space-y-3 pt-2">
-            <InfoBlock title="Attach File">
-              <div className="space-y-3">
-                <MobileField label="File Name">
-                  <input className="mobile-input" value={fileDraft.name} onChange={(event) => setFileDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Photo, PDF, invoice backup..." />
-                </MobileField>
-                <div className="grid grid-cols-2 gap-3">
-                  <MobileField label="File Type">
-                    <select className="mobile-input" value={fileDraft.type} onChange={(event) => setFileDraft((current) => ({ ...current, type: event.target.value }))}>
-                      {[
-                        'application/pdf',
-                        'image/jpeg',
-                        'image/png',
-                        'text/plain',
-                      ].map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                  <div className="rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.sections.lineItems}</div>
+                    <div className="mt-3 space-y-2">
+                      {linkedSalesOrder.lines.length === 0 ? (
+                        <EmptyMobileState label={copy.lineRestricted} />
+                      ) : linkedSalesOrder.lines.map((line) => (
+                        <SalesOrderLineCard key={line.id} line={line} language={language} />
                       ))}
-                    </select>
-                  </MobileField>
-                  <MobileField label="Attach To">
-                    <select className="mobile-input" value={fileDraft.source} onChange={(event) => setFileDraft((current) => ({ ...current, source: event.target.value as Attachment['source'] }))}>
-                      <option value="JOB">Job</option>
-                      <option value="SALES_ORDER" disabled={!primarySalesOrder}>Sales Order</option>
-                    </select>
-                  </MobileField>
-                </div>
-                <button onClick={handleAddFile} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">
-                  Attach File
-                </button>
-              </div>
-            </InfoBlock>
-
-            {files.length === 0 ? (
-              <div className="text-center py-8 text-white/30 text-sm">No files attached yet</div>
-            ) : files.map((file) => (
-              <InfoBlock key={file.id}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{file.name}</div>
-                    <div className="mt-1 text-xs text-white/45">
-                      {file.source === 'JOB' ? (file.jobNumber || 'Job file') : (file.soNumber || 'Sales order file')}
                     </div>
                   </div>
-                  <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-wide text-white/60">{file.source}</span>
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-white/45">
-                  <span>{file.type}</span>
-                  <span>{new Date(file.createdAt).toLocaleDateString()}</span>
-                </div>
-              </InfoBlock>
-            ))}
+                </>
+              )}
+            </InfoCard>
           </div>
         )}
 
-        {activeTab === 'billing' && (
-          <div className="space-y-3 pt-2">
-            {job.invoiceNumber ? (
-              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                Invoice {job.invoiceNumber} has been generated for this job.
+        {activeTab === 'closeout' && (
+          <div className="space-y-4">
+            <InfoCard title={copy.sections.closeout}>
+              <div className="space-y-3">
+                <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
+                <RequirementRow label={copy.signatureRequired} complete={signatureOnFile} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
               </div>
-            ) : job.billingHold ? (
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-                Billing on hold: {job.billingHoldReason || 'No reason provided'}
-              </div>
-            ) : billingReady ? (
-              <div className="rounded-2xl border border-brand-300/20 bg-brand-400/10 px-4 py-3 text-sm text-brand-100">
-                Billing ready and waiting for invoice generation.
-              </div>
-            ) : job.status === 'COMPLETED' ? (
-              <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/70">
-                Review the checklist below, then mark this job billing ready.
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/55">
-                Billing review opens after the job is completed.
-              </div>
-            )}
+            </InfoCard>
 
-            <InfoBlock title="Billing Snapshot">
-              <InfoRow label="Labor Cost" value={formatCurrency(job.laborCost || 0)} />
-              <InfoRow label="Parts Cost" value={formatCurrency(totalPartsCost || 0)} />
-              <InfoRow label="Time Logged" value={`${totalTimeHours.toFixed(1)}h`} />
-              <InfoRow label="Billable Amount" value={job.warranty ? 'N/A (Warranty)' : formatCurrency(job.billableAmount ?? job.totalCost ?? 0)} />
-            </InfoBlock>
-
-            {!job.warranty && !job.invoiceNumber && (
-              <InfoBlock title="Billing Actions">
-                <div className="space-y-3">
-                  <MobileField label="Hold Reason">
-                    <textarea
-                      className="mobile-input min-h-[72px]"
-                      value={holdReason}
-                      onChange={(event) => setHoldReason(event.target.value)}
-                      placeholder="Why is billing on hold?"
-                    />
-                  </MobileField>
-                  <div className="flex flex-wrap gap-2">
-                    {job.status === 'COMPLETED' && !billingReady && !job.billingHold && (
-                      <button onClick={handleBillingReady} disabled={!allBillingValid} className="rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">
-                        Mark Billing Ready
-                      </button>
-                    )}
-                    {billingReady && (
-                      <button onClick={handleGenerateInvoice} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white">
-                        Generate Invoice
-                      </button>
-                    )}
-                    <button onClick={handleBillingHold} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">
-                      {job.billingHold ? 'Remove Hold' : 'Put on Hold'}
+            <InfoCard title={copy.sections.payment}>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'unknown', label: copy.payment.unknown },
+                    { id: 'no', label: copy.payment.no },
+                    { id: 'yes', label: copy.payment.yes },
+                  ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setPaymentChoice(option.id)}
+                      className={cn(
+                        'rounded-xl px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors',
+                        paymentChoice === option.id ? 'bg-brand-500 text-white' : 'bg-white/6 text-white/58 hover:bg-white/12 hover:text-white/84',
+                      )}
+                    >
+                      {option.label}
                     </button>
-                  </div>
+                  ))}
                 </div>
-              </InfoBlock>
-            )}
 
-            <InfoBlock title="Billing Validation">
-              <div className="space-y-2">
-                {billingValidations.map((validation) => (
-                  <div key={validation.label} className="flex items-center gap-3 rounded-2xl bg-white/6 px-3 py-3">
-                    <span>{validation.ok ? '✓' : '!'}</span>
-                    <span className={cn('text-sm', validation.ok ? 'text-white/80' : 'text-red-300')}>{validation.label}</span>
-                  </div>
-                ))}
-              </div>
-            </InfoBlock>
-          </div>
-        )}
+                {paymentChoice === 'yes' && (
+                  <label className="block">
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.paymentMethod}</div>
+                    <select className="mobile-input" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                      {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
+                        <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
-        {activeTab === 'notes' && (
-          <div className="space-y-3 pt-2">
-            {/* Add note */}
-            <div className="bg-white/10 rounded-2xl p-3">
-              <textarea
-                className="w-full bg-transparent text-sm outline-none resize-none text-white placeholder-white/30"
-                rows={3}
-                placeholder="Add a note…"
-                value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-              />
-              <div className="flex justify-end mt-2">
-                <button onClick={handleAddNote} disabled={!noteText.trim()}
-                  className="bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-brand-600 disabled:opacity-30 transition-colors">
-                  Save Note
+                <label className="block">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.paymentNote}</div>
+                  <textarea className="mobile-input min-h-[88px]" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={savePayment}
+                  className="w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+                >
+                  {copy.buttons.savePayment}
                 </button>
               </div>
-            </div>
+            </InfoCard>
 
-            {notes.map(n => (
-              <div key={n.id} className="bg-white/5 rounded-2xl p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-brand-300 font-medium">{n.authorName}</span>
-                  <span className="text-[10px] opacity-40">{new Date(n.createdAt).toLocaleDateString()}</span>
+            <InfoCard title={copy.sections.signatures}>
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.customerSignature}</div>
+                  <SignaturePad height={128} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
                 </div>
-                <p className="text-sm opacity-80">{n.text}</p>
+                <div>
+                  <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.techSignature}</div>
+                  <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
+                </div>
+                <button
+                  type="button"
+                  onClick={saveSignatures}
+                  className="w-full rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:border-white/20 hover:bg-white/10"
+                >
+                  {copy.signatureSaved}
+                </button>
               </div>
-            ))}
+            </InfoCard>
           </div>
         )}
+      </div>
 
-        {activeTab === 'signoff' && (
-          <div className="space-y-4 pt-2">
-            <InfoBlock title="Customer Sign-off">
-              <SignaturePad
-                height={120}
-                value={job.completionSignature}
-                onChange={(signature) => updateJob(job.id, { completionSignature: signature })}
-              />
-            </InfoBlock>
+      <div className="sticky bottom-0 border-t border-white/10 bg-[#0d1723]/96 px-4 py-3 backdrop-blur-xl">
+        <div className="grid gap-2">
+          {stageButton && (
+            <button
+              type="button"
+              onClick={() => {
+                updateStatus(job.id, stageButton.status);
+                toast('success', getLocalizedStatus(language, stageButton.status));
+              }}
+              className="w-full rounded-2xl bg-brand-500 px-4 py-4 text-base font-semibold text-white transition-colors hover:bg-brand-400"
+            >
+              {stageButton.label}
+            </button>
+          )}
 
-            <InfoBlock title="Technician Sign-off">
-              <SignaturePad
-                height={80}
-                value={job.techSignature}
-                onChange={(signature) => updateJob(job.id, { techSignature: signature })}
-              />
-            </InfoBlock>
+          {job.status === 'IN_PROGRESS' && (
+            <button
+              type="button"
+              onClick={handleReadyForSignature}
+              className="w-full rounded-2xl border border-white/12 bg-white/6 px-4 py-4 text-base font-semibold text-white/86 transition-colors hover:border-white/20 hover:bg-white/10"
+            >
+              {copy.buttons.readyForSignature}
+            </button>
+          )}
 
-            {job.status === 'IN_PROGRESS' && (
-              <button onClick={() => handleStatusChange('COMPLETED')}
-                className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-bold text-base hover:bg-emerald-600 transition-colors">
-                ✅ Complete Job
-              </button>
-            )}
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={handleCompleteJob}
+            disabled={!completionReady}
+            className="w-full rounded-2xl bg-emerald-500 px-4 py-4 text-base font-semibold text-white transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {copy.buttons.completeJob}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-const MobileSalesOrderDetail: React.FC<{ salesOrderId: string; onBack: () => void }> = ({ salesOrderId, onBack }) => {
-  const { getSO, updateSO, addSOLine, updateSOLine, removeSOLine, toggleBillingHold, removeBillingHold, generateInvoice, syncSOToJob } = useSOStore();
-  const { toast } = useUIStore();
-  const salesOrder = getSO(salesOrderId);
+const MetricCard: React.FC<{ label: string; value: number | string; compact?: boolean }> = ({ label, value, compact }) => (
+  <div className={cn('rounded-[22px] border border-white/10 bg-white/[0.05] p-3', compact && 'rounded-2xl')}>
+    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">{label}</div>
+    <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">{value}</div>
+  </div>
+);
 
-  const [headerDraft, setHeaderDraft] = useState(() => ({
-    memo: salesOrder?.memo || '',
-    billingCode: salesOrder?.billingCode || '',
-    paymentMode: salesOrder?.paymentMode || 'Invoice / Net 30',
-    terms: salesOrder?.terms || 'Net 30',
-    dueDate: salesOrder?.dueDate || '',
-    status: salesOrder?.status || 'Pending Approval',
-  }));
-  const [newLine, setNewLine] = useState({ itemName: '', description: '', quantity: '1', rate: '' });
-  const [editingLineId, setEditingLineId] = useState<string | null>(null);
-  const [editingDraft, setEditingDraft] = useState({ itemName: '', description: '', quantity: '1', rate: '' });
-  const [holdReason, setHoldReason] = useState('');
+const SectionHeading: React.FC<{ label: string; className?: string }> = ({ label, className }) => (
+  <div className={cn('mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/42', className)}>{label}</div>
+);
 
-  React.useEffect(() => {
-    if (!salesOrder) return;
-    setHeaderDraft({
-      memo: salesOrder.memo || '',
-      billingCode: salesOrder.billingCode || '',
-      paymentMode: salesOrder.paymentMode || 'Invoice / Net 30',
-      terms: salesOrder.terms || 'Net 30',
-      dueDate: salesOrder.dueDate || '',
-      status: salesOrder.status || 'Pending Approval',
-    });
-  }, [salesOrder]);
+const EmptyMobileState: React.FC<{ label: string }> = ({ label }) => (
+  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/46">
+    {label}
+  </div>
+);
 
-  if (!salesOrder) return null;
-
-  const handleSaveHeader = () => {
-    updateSO(salesOrder.id, {
-      memo: headerDraft.memo,
-      billingCode: headerDraft.billingCode,
-      paymentMode: headerDraft.paymentMode,
-      terms: headerDraft.terms,
-      dueDate: headerDraft.dueDate,
-      status: headerDraft.status,
-    });
-    toast('success', 'Sales order updated');
-  };
-
-  const handleAddLine = () => {
-    if (!newLine.itemName.trim() || !newLine.rate) return;
-    addSOLine(salesOrder.id, {
-      itemId: `item-${Date.now()}`,
-      itemName: newLine.itemName.trim(),
-      description: newLine.description.trim() || undefined,
-      quantity: Number(newLine.quantity) || 1,
-      rate: Number(newLine.rate) || 0,
-      amount: (Number(newLine.quantity) || 1) * (Number(newLine.rate) || 0),
-    });
-    setNewLine({ itemName: '', description: '', quantity: '1', rate: '' });
-    toast('success', 'Line added');
-  };
-
-  const beginEdit = (lineId: string) => {
-    const line = salesOrder.lines.find((candidate) => candidate.id === lineId);
-    if (!line) return;
-    setEditingLineId(lineId);
-    setEditingDraft({
-      itemName: line.itemName,
-      description: line.description || '',
-      quantity: String(line.quantity),
-      rate: String(line.rate),
-    });
-  };
-
-  const handleSaveLine = () => {
-    if (!editingLineId) return;
-    updateSOLine(salesOrder.id, editingLineId, {
-      itemName: editingDraft.itemName.trim(),
-      description: editingDraft.description.trim() || undefined,
-      quantity: Number(editingDraft.quantity) || 0,
-      rate: Number(editingDraft.rate) || 0,
-    });
-    setEditingLineId(null);
-    toast('success', 'Line updated');
-  };
-
-  const handleHold = () => {
-    if (salesOrder.billingHold) {
-      removeBillingHold(salesOrder.id);
-      toast('success', 'Billing hold removed');
-      return;
-    }
-    toggleBillingHold(salesOrder.id, holdReason || 'Waiting on review');
-    toast('success', 'Billing hold added');
-  };
-
-  const handleInvoice = () => {
-    const result = generateInvoice(salesOrder.id);
-    if (result) toast('success', `Invoice ${result.invoiceNumber} generated`);
-  };
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-        <button onClick={onBack} className="rounded-xl bg-white/10 p-2 transition-colors hover:bg-white/20">‹</button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-brand-300">{salesOrder.soNumber}</span>
-            <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">{salesOrder.status}</span>
-          </div>
-          <div className="truncate text-sm font-semibold">{salesOrder.customerName}</div>
-        </div>
-      </div>
-
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-6 pt-3">
-        {salesOrder.billingHold && (
-          <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-            Billing hold: {salesOrder.billingHoldReason || 'Review required'}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Total', value: formatCurrency(salesOrder.total) },
-            { label: 'Balance', value: formatCurrency(salesOrder.balance || 0) },
-            { label: 'Linked Job', value: salesOrder.linkedJobNumber || '—' },
-            { label: 'Invoice', value: salesOrder.invoiceNumber || 'Pending' },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl bg-white/8 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-white/40">{item.label}</div>
-              <div className="mt-2 text-sm font-semibold">{item.value}</div>
-            </div>
-          ))}
-        </div>
-
-        <InfoBlock title="Sales order header">
-          <div className="space-y-3">
-            <MobileField label="Memo">
-              <textarea className="mobile-input min-h-[88px]" value={headerDraft.memo} onChange={(event) => setHeaderDraft((current) => ({ ...current, memo: event.target.value }))} />
-            </MobileField>
-            <div className="grid grid-cols-2 gap-3">
-              <MobileField label="Billing Code">
-                <input className="mobile-input" value={headerDraft.billingCode} onChange={(event) => setHeaderDraft((current) => ({ ...current, billingCode: event.target.value }))} />
-              </MobileField>
-              <MobileField label="Terms">
-                <input className="mobile-input" value={headerDraft.terms} onChange={(event) => setHeaderDraft((current) => ({ ...current, terms: event.target.value }))} />
-              </MobileField>
-              <MobileField label="Payment">
-                <select className="mobile-input" value={headerDraft.paymentMode} onChange={(event) => setHeaderDraft((current) => ({ ...current, paymentMode: event.target.value }))}>
-                  {['Invoice / Net 30', 'Credit Card', 'E-Transfer', 'Cheque', 'ACH'].map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </MobileField>
-              <MobileField label="Status">
-                <select className="mobile-input" value={headerDraft.status} onChange={(event) => setHeaderDraft((current) => ({ ...current, status: event.target.value }))}>
-                  {['Pending Approval', 'Approved', 'Billed', 'Partially Billed', 'Fully Billed', 'Cancelled'].map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </MobileField>
-              <MobileField label="Due Date">
-                <input className="mobile-input" type="date" value={headerDraft.dueDate} onChange={(event) => setHeaderDraft((current) => ({ ...current, dueDate: event.target.value }))} />
-              </MobileField>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={handleSaveHeader} className="rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white">Save Header</button>
-              <button onClick={() => { syncSOToJob(salesOrder.id); toast('success', 'Synced total to job'); }} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">Sync Total</button>
-            </div>
-          </div>
-        </InfoBlock>
-
-        <InfoBlock title="Billing actions">
-          <div className="space-y-3">
-            <MobileField label="Hold Reason">
-              <textarea className="mobile-input min-h-[72px]" value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Why is billing on hold?" />
-            </MobileField>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={handleHold} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">
-                {salesOrder.billingHold ? 'Remove Hold' : 'Put on Hold'}
-              </button>
-              <button onClick={handleInvoice} disabled={!!salesOrder.invoiceNumber || salesOrder.billingHold} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">
-                Generate Invoice
-              </button>
-            </div>
-          </div>
-        </InfoBlock>
-
-        <InfoBlock title="Line Items">
-          <div className="space-y-3">
-            {salesOrder.lines.map((line) => (
-              <div key={line.id} className="rounded-2xl bg-white/6 p-3">
-                {editingLineId === line.id ? (
-                  <div className="space-y-3">
-                    <input className="mobile-input" value={editingDraft.itemName} onChange={(event) => setEditingDraft((current) => ({ ...current, itemName: event.target.value }))} />
-                    <input className="mobile-input" value={editingDraft.description} onChange={(event) => setEditingDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input className="mobile-input" type="number" step="0.25" value={editingDraft.quantity} onChange={(event) => setEditingDraft((current) => ({ ...current, quantity: event.target.value }))} />
-                      <input className="mobile-input" type="number" step="0.01" value={editingDraft.rate} onChange={(event) => setEditingDraft((current) => ({ ...current, rate: event.target.value }))} />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={handleSaveLine} className="rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white">Save</button>
-                      <button onClick={() => setEditingLineId(null)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/70">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold">{line.itemName}</div>
-                        <div className="mt-1 text-xs text-white/45">{line.description || 'No description'}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold">{formatCurrency(line.amount)}</div>
-                        <div className="text-[10px] text-white/40">{line.quantity} × {formatCurrency(line.rate)}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex gap-3 text-xs">
-                      <button onClick={() => beginEdit(line.id)} className="font-medium text-brand-300">Edit</button>
-                      <button onClick={() => { removeSOLine(salesOrder.id, line.id); toast('success', 'Line removed'); }} className="font-medium text-red-300">Remove</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-
-            <div className="rounded-2xl border border-dashed border-white/15 p-3">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/40">Add line</div>
-              <div className="space-y-3">
-                <input className="mobile-input" value={newLine.itemName} onChange={(event) => setNewLine((current) => ({ ...current, itemName: event.target.value }))} placeholder="Item name" />
-                <input className="mobile-input" value={newLine.description} onChange={(event) => setNewLine((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
-                <div className="grid grid-cols-2 gap-3">
-                  <input className="mobile-input" type="number" step="0.25" value={newLine.quantity} onChange={(event) => setNewLine((current) => ({ ...current, quantity: event.target.value }))} placeholder="Qty" />
-                  <input className="mobile-input" type="number" step="0.01" value={newLine.rate} onChange={(event) => setNewLine((current) => ({ ...current, rate: event.target.value }))} placeholder="Rate" />
-                </div>
-                <button onClick={handleAddLine} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-xs font-semibold text-white">Add Line</button>
-              </div>
-            </div>
-          </div>
-        </InfoBlock>
-      </div>
-    </div>
-  );
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const InfoBlock: React.FC<{ children: React.ReactNode; title?: string }> = ({ children, title }) => (
-  <div className="bg-white/8 rounded-2xl p-3">
-    {title && <div className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">{title}</div>}
+const InfoCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="rounded-[26px] border border-white/10 bg-white/[0.05] p-4">
+    <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">{title}</div>
     {children}
   </div>
 );
 
 const InfoRow: React.FC<{ label: string; value?: string; link?: string }> = ({ label, value, link }) => {
-  if (!value) return null;
+  if (!value || value === '—') return null;
+
   return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-white/40">{label}</span>
+    <div className="flex items-start justify-between gap-3 border-b border-white/6 py-2 text-sm last:border-b-0">
+      <span className="text-white/46">{label}</span>
       {link ? (
-        <a href={link} className="text-xs font-medium text-brand-300 hover:underline">{value}</a>
+        <a href={link} className="max-w-[58%] text-right font-semibold text-brand-200">{value}</a>
       ) : (
-        <span className="text-xs font-medium text-right max-w-44 truncate">{value}</span>
+        <span className="max-w-[58%] text-right font-semibold text-white/88">{value}</span>
       )}
     </div>
   );
 };
 
-const MobileField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <label className="block">
-    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-white/40">{label}</div>
-    {children}
-  </label>
+const JournalGroupCard: React.FC<{ group: JournalGroup; language: AppLanguage }> = ({ group, language }) => {
+  const primaryNote = group.notes[0];
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-white/92">{primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM'}</div>
+        <div className="text-xs text-white/42">{formatDateTimeForLanguage(language, group.createdAt)}</div>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        {group.notes.map((note) => (
+          <p key={note.id} className="text-sm leading-relaxed text-white/74">
+            {getReadableNoteText(language, note)}
+          </p>
+        ))}
+
+        {group.attachments.map((attachment) => (
+          <AttachmentCard key={attachment.id} attachment={attachment} language={language} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }> = ({ attachment, language }) => {
+  const isImage = attachment.type.startsWith('image/');
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/6 p-3">
+      {isImage && (
+        <img src={attachment.url} alt={attachment.name} className="mb-3 h-40 w-full rounded-xl object-cover" />
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-white/90">{attachment.name}</div>
+          <div className="mt-1 text-xs text-white/45">{attachment.type} • {formatFileSize(attachment.size)}</div>
+        </div>
+        <a href={attachment.url} target="_blank" rel="noreferrer" className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-200">
+          {MOBILE_COPY[language].openAttachment}
+        </a>
+      </div>
+    </div>
+  );
+};
+
+const SalesOrderLineCard: React.FC<{ line: SOLine; language: AppLanguage }> = ({ line, language }) => (
+  <div className="rounded-2xl border border-white/8 bg-white/6 p-3">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-white/92">{line.itemName}</div>
+        <div className="mt-1 text-xs text-white/45">{line.description || '—'}</div>
+      </div>
+      <div className="text-right">
+        <div className="text-sm font-semibold text-white">{formatCurrencyForLanguage(language, line.amount)}</div>
+        <div className="text-xs text-white/45">{line.quantity} × {formatCurrencyForLanguage(language, line.rate)}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const RequirementRow: React.FC<{ label: string; complete: boolean; completeLabel: string; pendingLabel?: string }> = ({ label, complete, completeLabel, pendingLabel = 'Pending' }) => (
+  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3">
+    <div className="text-sm text-white/72">{label}</div>
+    <div className={cn('text-xs font-semibold uppercase tracking-[0.16em]', complete ? 'text-emerald-300' : 'text-amber-200')}>
+      {complete ? completeLabel : pendingLabel}
+    </div>
+  </div>
 );
 
 const SignaturePad: React.FC<{
   value?: string;
   onChange: (value?: string) => void;
   height: number;
-}> = ({ value, onChange, height }) => {
+  clearLabel: string;
+}> = ({ value, onChange, height, clearLabel }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
 
@@ -1631,47 +1567,41 @@ const SignaturePad: React.FC<{
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    const ratio = window.devicePixelRatio || 1;
     const width = canvas.clientWidth;
     const canvasHeight = canvas.clientHeight;
-
-    canvas.width = width * devicePixelRatio;
-    canvas.height = canvasHeight * devicePixelRatio;
-
-    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    context.fillStyle = 'rgba(255,255,255,0.05)';
+    canvas.width = width * ratio;
+    canvas.height = canvasHeight * ratio;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.fillStyle = 'rgba(255,255,255,0.03)';
     context.fillRect(0, 0, width, canvasHeight);
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    context.lineWidth = 2;
+    context.lineWidth = 2.5;
     context.strokeStyle = '#f8fafc';
 
     if (!value) return;
 
     const image = new Image();
     image.onload = () => {
-      context.fillStyle = 'rgba(255,255,255,0.05)';
+      context.fillStyle = 'rgba(255,255,255,0.03)';
       context.fillRect(0, 0, width, canvasHeight);
       context.drawImage(image, 0, 0, width, canvasHeight);
     };
     image.src = value;
   }, [value, height]);
 
-  const getPointerPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  const getPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
-
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
   const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
-    const point = getPointerPosition(event);
+    const point = getPoint(event);
     if (!canvas || !context || !point) return;
 
     drawingRef.current = true;
@@ -1680,12 +1610,11 @@ const SignaturePad: React.FC<{
     context.moveTo(point.x, point.y);
   };
 
-  const continueDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  const keepDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return;
-
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
-    const point = getPointerPosition(event);
+    const point = getPoint(event);
     if (!canvas || !context || !point) return;
 
     context.lineTo(point.x, point.y);
@@ -1703,30 +1632,26 @@ const SignaturePad: React.FC<{
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
 
-    context.fillStyle = 'rgba(255,255,255,0.05)';
+    context.fillStyle = 'rgba(255,255,255,0.03)';
     context.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     onChange(undefined);
   };
 
   return (
     <>
-      <div className="bg-white/5 rounded-xl overflow-hidden mb-2" style={{ height }}>
+      <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]" style={{ height }}>
         <canvas
           ref={canvasRef}
-          className="w-full h-full cursor-crosshair touch-none"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
+          className="h-full w-full touch-none"
           onPointerDown={startDrawing}
-          onPointerMove={continueDrawing}
+          onPointerMove={keepDrawing}
           onPointerUp={finishDrawing}
           onPointerLeave={finishDrawing}
           onPointerCancel={finishDrawing}
         />
       </div>
-      <button
-        onClick={clearSignature}
-        className="w-full text-xs text-white/50 hover:text-white/80 text-center py-1 transition-colors"
-      >
-        Clear signature
+      <button type="button" onClick={clearSignature} className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/52">
+        {clearLabel}
       </button>
     </>
   );

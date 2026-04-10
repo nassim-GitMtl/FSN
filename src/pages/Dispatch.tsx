@@ -8,15 +8,128 @@ import { CSS } from '@dnd-kit/utilities';
 import { useAuthStore, useJobStore, useTechStore, useUIStore } from '@/store';
 import { StatusBadge, PriorityBadge, Avatar, Button, Tabs } from '@/components/ui';
 import { cn, getWorkWeekDates, parseDateValue, shiftISODate, toISODate } from '@/lib/utils';
+import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
 import type { Job, Technician } from '@/types';
 
-const PRIORITY_FILTER_OPTIONS = [
-  { value: '', label: 'All priorities' },
-  { value: 'CRITICAL', label: 'Critical' },
-  { value: 'HIGH', label: 'High' },
-  { value: 'MEDIUM', label: 'Medium' },
-  { value: 'LOW', label: 'Low' },
-] as const;
+const PRIORITY_FILTER_OPTIONS: Record<AppLanguage, Array<{ value: string; label: string }>> = {
+  en: [
+    { value: '', label: 'All priorities' },
+    { value: 'CRITICAL', label: 'Critical' },
+    { value: 'HIGH', label: 'High' },
+    { value: 'MEDIUM', label: 'Medium' },
+    { value: 'LOW', label: 'Low' },
+  ],
+  fr: [
+    { value: '', label: 'Toutes les priorites' },
+    { value: 'CRITICAL', label: 'Critique' },
+    { value: 'HIGH', label: 'Haute' },
+    { value: 'MEDIUM', label: 'Moyenne' },
+    { value: 'LOW', label: 'Basse' },
+  ],
+};
+
+const DISPATCH_COPY = {
+  en: {
+    conflict: 'Conflict',
+    viewDetails: 'View details →',
+    dropJobHere: 'Drop job here',
+    unassigned: 'Unassigned',
+    filterPlaceholder: 'Filter...',
+    useBoardRange: 'Use board range',
+    noUnassignedJobs: 'No unassigned jobs',
+    liveRouting: 'Live routing',
+    dispatchBoard: 'Dispatch board',
+    dispatchSubtitle: 'Manage routing, balance field load, and move queued work onto technicians without leaving the board.',
+    techPreview: 'Tech preview',
+    newJob: 'New job',
+    activeJobs: 'Active jobs',
+    scheduledInRange: 'Scheduled in range',
+    availableTechs: 'Available techs',
+    slaRisk: 'SLA risk',
+    today: 'Today',
+    day: 'Day',
+    week: 'Week',
+    from: 'From',
+    to: 'to',
+    mobilePreview: 'Technician mobile preview',
+    todaysJobs: "Today's jobs",
+    noJobsScheduled: 'No jobs scheduled',
+    start: 'Start',
+    moreJobs: (count: number) => `+${count} more jobs`,
+    jobs: (count: number) => `${count} job${count !== 1 ? 's' : ''}`,
+  },
+  fr: {
+    conflict: 'Conflit',
+    viewDetails: 'Voir les details →',
+    dropJobHere: 'Deposer ici',
+    unassigned: 'Non assignes',
+    filterPlaceholder: 'Filtrer...',
+    useBoardRange: 'Utiliser la plage du tableau',
+    noUnassignedJobs: 'Aucun travail non assigne',
+    liveRouting: 'Routage en direct',
+    dispatchBoard: 'Tableau de repartition',
+    dispatchSubtitle: "Gerez le routage, equilibrez la charge terrain et deplacez le travail en file vers les techniciens sans quitter le tableau.",
+    techPreview: 'Apercu tech',
+    newJob: 'Nouveau travail',
+    activeJobs: 'Travaux actifs',
+    scheduledInRange: 'Planifies dans la plage',
+    availableTechs: 'Techniciens disponibles',
+    slaRisk: 'Risque SLA',
+    today: "Aujourd'hui",
+    day: 'Jour',
+    week: 'Semaine',
+    from: 'Du',
+    to: 'au',
+    mobilePreview: 'Apercu mobile technicien',
+    todaysJobs: "Travaux d'aujourd'hui",
+    noJobsScheduled: 'Aucun travail planifie',
+    start: 'Debut',
+    moreJobs: (count: number) => `+${count} autres travaux`,
+    jobs: (count: number) => `${count} travail${count !== 1 ? 'x' : ''}`,
+  },
+} as const;
+
+const STATUS_LABELS_BY_LANGUAGE = {
+  en: {
+    NEW: 'New',
+    SCHEDULED: 'Scheduled',
+    DISPATCHED: 'Dispatched',
+    EN_ROUTE: 'En Route',
+    IN_PROGRESS: 'In Progress',
+    ON_HOLD: 'On Hold',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    BILLING_READY: 'Billing Ready',
+    INVOICED: 'Invoiced',
+  },
+  fr: {
+    NEW: 'Nouveau',
+    SCHEDULED: 'Planifie',
+    DISPATCHED: 'Distribue',
+    EN_ROUTE: 'En route',
+    IN_PROGRESS: 'En execution',
+    ON_HOLD: 'En attente',
+    COMPLETED: 'Termine',
+    CANCELLED: 'Annule',
+    BILLING_READY: 'Pret facturation',
+    INVOICED: 'Facture',
+  },
+} as const;
+
+const PRIORITY_LABELS_BY_LANGUAGE = {
+  en: {
+    CRITICAL: 'Critical',
+    HIGH: 'High',
+    MEDIUM: 'Medium',
+    LOW: 'Low',
+  },
+  fr: {
+    CRITICAL: 'Critique',
+    HIGH: 'Haute',
+    MEDIUM: 'Moyenne',
+    LOW: 'Basse',
+  },
+} as const;
 
 const WORKDAY_START_MINUTES = 6 * 60;
 const WORKDAY_END_MINUTES = 20 * 60;
@@ -128,11 +241,25 @@ function hasSchedulingConflict(job: Job, targetJobs: Job[]): boolean {
   });
 }
 
+function getDispatchLocale(language: AppLanguage) {
+  return language === 'fr' ? 'fr-CA' : 'en-US';
+}
+
+function getDispatchStatusLabel(language: AppLanguage, status: Job['status']) {
+  return STATUS_LABELS_BY_LANGUAGE[language][status] || status;
+}
+
+function getDispatchPriorityLabel(language: AppLanguage, priority: Job['priority']) {
+  return PRIORITY_LABELS_BY_LANGUAGE[language][priority] || priority;
+}
+
 // ── Draggable Job Card ──────────────────────────────────────────────────────
 
 const DraggableJobCard: React.FC<{ job: Job; compact?: boolean }> = ({ job, compact }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id });
   const navigate = useNavigate();
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
 
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
 
@@ -147,20 +274,20 @@ const DraggableJobCard: React.FC<{ job: Job; compact?: boolean }> = ({ job, comp
         compact ? 'p-2' : 'p-3',
       )}
     >
-      <div {...listeners} className="w-full">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-mono text-xs font-bold text-brand-600">{job.jobNumber}</span>
-          <StatusBadge status={job.status} className="text-[10px] py-0 px-1.5" />
-        </div>
-        <div className="text-xs font-medium text-surface-800 truncate">{job.customerName}</div>
-        {!compact && (
-          <div className="text-[10px] text-surface-500 truncate mt-0.5">{job.description.substring(0, 50)}</div>
-        )}
-        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-          <PriorityBadge priority={job.priority} className="text-[10px] py-0 px-1.5" />
-          {job.scheduledStart && (
-            <span className="text-[10px] bg-surface-100 px-1.5 py-0.5 rounded text-surface-600">
-              {job.scheduledStart}
+        <div {...listeners} className="w-full">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-xs font-bold text-brand-600">{job.jobNumber}</span>
+            <StatusBadge status={job.status} label={getDispatchStatusLabel(language, job.status)} className="text-[10px] py-0 px-1.5" />
+          </div>
+          <div className="text-xs font-medium text-surface-800 truncate">{job.customerName}</div>
+          {!compact && (
+            <div className="text-[10px] text-surface-500 truncate mt-0.5">{job.description.substring(0, 50)}</div>
+          )}
+          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+            <PriorityBadge priority={job.priority} label={getDispatchPriorityLabel(language, job.priority)} className="text-[10px] py-0 px-1.5" />
+            {job.scheduledStart && (
+              <span className="text-[10px] bg-surface-100 px-1.5 py-0.5 rounded text-surface-600">
+                {job.scheduledStart}
             </span>
           )}
           {job.estimatedDuration && (
@@ -174,7 +301,7 @@ const DraggableJobCard: React.FC<{ job: Job; compact?: boolean }> = ({ job, comp
         onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${job.id}`); }}
         className="mt-1.5 w-full text-[10px] text-brand-500 hover:text-brand-700 text-left"
       >
-        View details →
+        {copy.viewDetails}
       </button>
     </div>
   );
@@ -188,6 +315,8 @@ const ScheduledJobCard: React.FC<{
 }> = ({ job, compact, onResize, hasConflict }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id });
   const navigate = useNavigate();
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
   const [previewWindow, setPreviewWindow] = useState<TimeWindow | null>(null);
   const previewRef = useRef<TimeWindow | null>(null);
 
@@ -260,10 +389,10 @@ const ScheduledJobCard: React.FC<{
       <div {...listeners} className={cn('w-full cursor-grab active:cursor-grabbing', compact && 'pb-1')}>
         <div className="flex items-center gap-2 mb-1">
           <span className="font-mono text-xs font-bold text-brand-600">{job.jobNumber}</span>
-          <StatusBadge status={job.status} className="text-[10px] py-0 px-1.5" />
+          <StatusBadge status={job.status} label={getDispatchStatusLabel(language, job.status)} className="text-[10px] py-0 px-1.5" />
           {hasConflict && (
             <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800">
-              Conflict
+              {copy.conflict}
             </span>
           )}
         </div>
@@ -290,13 +419,13 @@ const ScheduledJobCard: React.FC<{
               <>
                 <button
                   type="button"
-                  aria-label={`Adjust start time for ${job.jobNumber}`}
+                  aria-label={`${copy.start} ${job.jobNumber}`}
                   onPointerDown={(event) => startResize('start', event)}
                   className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-brand-500/40 hover:bg-brand-500/55 transition-colors"
                 />
                 <button
                   type="button"
-                  aria-label={`Adjust end time for ${job.jobNumber}`}
+                  aria-label={`End ${job.jobNumber}`}
                   onPointerDown={(event) => startResize('end', event)}
                   className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-brand-500/40 hover:bg-brand-500/55 transition-colors"
                 />
@@ -310,7 +439,7 @@ const ScheduledJobCard: React.FC<{
         onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${job.id}`); }}
         className="mt-1.5 w-full text-[10px] text-brand-500 hover:text-brand-700 text-left"
       >
-        View details →
+        {copy.viewDetails}
       </button>
     </div>
   );
@@ -324,6 +453,8 @@ const TechColumn: React.FC<{
   onResize: (job: Job, window: TimeWindow) => void;
 }> = ({ tech, jobs, onResize }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `day:${tech.id}` });
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
   const sortedJobs = useMemo(() => sortJobsBySchedule(jobs), [jobs]);
 
   return (
@@ -337,7 +468,7 @@ const TechColumn: React.FC<{
             tech.status === 'AVAILABLE' ? 'text-emerald-600' :
             tech.status === 'ON_JOB' ? 'text-brand-600' : 'text-amber-600'
           )}>
-            {jobs.length} job{jobs.length !== 1 ? 's' : ''}
+            {copy.jobs(jobs.length)}
           </div>
         </div>
       </div>
@@ -361,7 +492,7 @@ const TechColumn: React.FC<{
         ))}
         {sortedJobs.length === 0 && (
           <div className="h-full flex items-center justify-center">
-            <span className="text-[10px] text-surface-300">Drop job here</span>
+            <span className="text-[10px] text-surface-300">{copy.dropJobHere}</span>
           </div>
         )}
       </div>
@@ -425,14 +556,16 @@ const UnassignedPanel: React.FC<{
   onApplyBoardRange,
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: 'unassigned' });
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
 
   return (
     <div className="w-60 flex-shrink-0 flex flex-col">
       <div className="mb-2">
-        <div className="text-sm font-semibold text-surface-700 mb-1.5">Unassigned ({jobs.length})</div>
+        <div className="text-sm font-semibold text-surface-700 mb-1.5">{copy.unassigned} ({jobs.length})</div>
         <input
           className="w-full px-2.5 py-1.5 text-xs bg-surface-100 rounded-lg border border-transparent focus:outline-none focus:border-brand-400 focus:bg-white placeholder-surface-400 transition-all"
-          placeholder="Filter…"
+          placeholder={copy.filterPlaceholder}
           value={search}
           onChange={e => onSearch(e.target.value)}
         />
@@ -441,7 +574,7 @@ const UnassignedPanel: React.FC<{
           value={priority}
           onChange={(e) => onPriorityChange(e.target.value)}
         >
-          {PRIORITY_FILTER_OPTIONS.map((option) => (
+          {PRIORITY_FILTER_OPTIONS[language].map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
@@ -464,7 +597,7 @@ const UnassignedPanel: React.FC<{
           onClick={onApplyBoardRange}
           className="mt-2 w-full rounded-lg border border-surface-200 px-2.5 py-1.5 text-xs font-medium text-surface-600 hover:bg-surface-100 transition-colors"
         >
-          Use board range
+          {copy.useBoardRange}
         </button>
       </div>
       <div
@@ -476,7 +609,7 @@ const UnassignedPanel: React.FC<{
       >
         {jobs.length === 0 ? (
           <div className="h-20 flex items-center justify-center">
-            <span className="text-xs text-surface-300">No unassigned jobs</span>
+            <span className="text-xs text-surface-300">{copy.noUnassignedJobs}</span>
           </div>
         ) : jobs.map(j => <DraggableJobCard key={j.id} job={j} compact />)}
       </div>
@@ -490,8 +623,9 @@ export const Dispatch: React.FC = () => {
   const { user } = useAuthStore();
   const { jobs, assignTechnician, updateJob } = useJobStore();
   const technicians = useTechStore(s => s.technicians);
-  const { toast } = useUIStore();
+  const { toast, language, setLanguage } = useUIStore();
   const navigate = useNavigate();
+  const copy = DISPATCH_COPY[language];
 
   const today = toISODate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
@@ -647,13 +781,28 @@ export const Dispatch: React.FC = () => {
       <section className="section-shell space-y-4">
         <div className="page-header">
           <div>
-            <div className="eyebrow">Live routing</div>
-            <h1 className="page-title mt-2">Dispatch board</h1>
+            <div className="eyebrow">{copy.liveRouting}</div>
+            <h1 className="page-title mt-2">{copy.dispatchBoard}</h1>
             <p className="page-subtitle max-w-2xl">
-              Manage routing, balance field load, and move queued work onto technicians without leaving the board.
+              {copy.dispatchSubtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-xl border border-surface-200 bg-white p-1">
+              {(['en', 'fr'] as AppLanguage[]).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setLanguage(value)}
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                    language === value ? 'bg-brand-50 text-brand-700' : 'text-surface-500 hover:bg-surface-50 hover:text-surface-800',
+                  )}
+                >
+                  {APP_LANGUAGE_LABELS[value]}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setShowMobilePreview(!showMobilePreview)}
               className={cn(
@@ -661,20 +810,20 @@ export const Dispatch: React.FC = () => {
                 showMobilePreview ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-surface-600 hover:bg-surface-50',
               )}
             >
-              Tech preview
+              {copy.techPreview}
             </button>
             <Button variant="primary" size="sm" onClick={() => navigate('/jobs/new')}>
-              New job
+              {copy.newJob}
             </Button>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: 'Active jobs', value: activeBoardJobs.length },
-            { label: 'Scheduled in range', value: scheduledWindowJobs.length },
-            { label: 'Available techs', value: availableTechCount },
-            { label: 'SLA risk', value: slaRiskJobs },
+            { label: copy.activeJobs, value: activeBoardJobs.length },
+            { label: copy.scheduledInRange, value: scheduledWindowJobs.length },
+            { label: copy.availableTechs, value: availableTechCount },
+            { label: copy.slaRisk, value: slaRiskJobs },
           ].map((item) => (
             <div key={item.label} className="metric-tile">
               <div className="kpi-label">{item.label}</div>
@@ -687,7 +836,7 @@ export const Dispatch: React.FC = () => {
           <div className="flex items-center gap-1 rounded-xl border border-surface-200 bg-surface-50 p-1">
             <button onClick={prevDay} className="rounded-2xl p-2 text-surface-600 transition-colors hover:bg-white hover:text-surface-900">‹</button>
             <button onClick={() => setSelectedDate(today)} className="rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-surface-600 transition-colors hover:bg-white">
-              Today
+              {copy.today}
             </button>
             <input
               type="date"
@@ -702,11 +851,11 @@ export const Dispatch: React.FC = () => {
             variant="pill"
             active={viewMode}
             onChange={(value) => setViewMode(value as 'day' | 'week')}
-            tabs={[{ id: 'day', label: 'Day' }, { id: 'week', label: 'Week' }]}
+            tabs={[{ id: 'day', label: copy.day }, { id: 'week', label: copy.week }]}
           />
 
           <div className="rounded-[22px] border border-surface-200 bg-surface-50/80 px-4 py-3 text-xs text-surface-600">
-            From <span className="font-semibold text-surface-900">{boardDateFrom}</span> to <span className="font-semibold text-surface-900">{boardDateTo}</span>
+            {copy.from} <span className="font-semibold text-surface-900">{boardDateFrom}</span> {copy.to} <span className="font-semibold text-surface-900">{boardDateTo}</span>
           </div>
         </div>
       </section>
@@ -755,7 +904,7 @@ export const Dispatch: React.FC = () => {
                     if (!dt) return null;
                     return (
                       <div key={d} className={cn('flex-1 text-center py-2 rounded-xl text-sm font-medium', isToday ? 'bg-brand-50 text-brand-700' : 'text-surface-600')}>
-                        <div className="text-xs text-surface-400">{dt.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                        <div className="text-xs text-surface-400">{dt.toLocaleDateString(getDispatchLocale(language), { weekday: 'short' })}</div>
                         <div className={cn('text-base font-bold', isToday && 'text-brand-600')}>{dt.getDate()}</div>
                       </div>
                     );
@@ -810,37 +959,39 @@ export const Dispatch: React.FC = () => {
 
 const MobilePreviewPanel: React.FC<{ date: string; cat: string }> = ({ date, cat }) => {
   const { jobs } = useJobStore();
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
   const techJobs = jobs.filter(j => j.scheduledDate === date && j.category === cat && j.technicianName);
 
   return (
     <div className="p-3">
-      <div className="mb-3 text-sm font-semibold text-surface-700">Technician mobile preview</div>
+      <div className="mb-3 text-sm font-semibold text-surface-700">{copy.mobilePreview}</div>
       <div className="rounded-2xl bg-surface-900 p-3 text-white" style={{ minHeight: '500px' }}>
         <div className="mb-4 flex items-center justify-between">
           <div className="text-sm font-bold">FSM</div>
           <div className="text-xs text-white/50">
-            {parseDateValue(date)?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) || date}
+            {parseDateValue(date)?.toLocaleDateString(getDispatchLocale(language), { weekday: 'short', month: 'short', day: 'numeric' }) || date}
           </div>
         </div>
-        <div className="mb-2 text-xs uppercase tracking-wide text-white/50">Today's Jobs</div>
+        <div className="mb-2 text-xs uppercase tracking-wide text-white/50">{copy.todaysJobs}</div>
         {techJobs.length === 0 ? (
-          <div className="text-center py-8 text-white/30 text-xs">No jobs scheduled</div>
+          <div className="text-center py-8 text-white/30 text-xs">{copy.noJobsScheduled}</div>
         ) : techJobs.slice(0, 5).map(j => (
           <div key={j.id} className="bg-white/10 rounded-xl p-3 mb-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-bold text-brand-300">{j.jobNumber}</span>
-              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{j.status}</span>
+              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{getDispatchStatusLabel(language, j.status)}</span>
             </div>
             <div className="text-sm font-medium truncate">{j.customerName}</div>
             <div className="text-xs text-white/60 truncate">{j.serviceAddress.city}</div>
             <div className="text-xs text-white/40 mt-1 truncate">{j.description.substring(0, 50)}</div>
             {j.scheduledStart && (
-              <div className="mt-1 text-xs text-brand-300">Start {j.scheduledStart}</div>
+              <div className="mt-1 text-xs text-brand-300">{copy.start} {j.scheduledStart}</div>
             )}
           </div>
         ))}
         {techJobs.length > 5 && (
-          <div className="text-center text-xs text-white/40">+{techJobs.length - 5} more jobs</div>
+          <div className="text-center text-xs text-white/40">{copy.moreJobs(techJobs.length - 5)}</div>
         )}
       </div>
     </div>
