@@ -9,7 +9,7 @@ import { useAuthStore, useJobStore, useTechStore, useUIStore } from '@/store';
 import { StatusBadge, PriorityBadge, Avatar, Button, Tabs } from '@/components/ui';
 import { cn, getWorkWeekDates, parseDateValue, shiftISODate, toISODate } from '@/lib/utils';
 import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
-import type { Job, Technician } from '@/types';
+import type { Job, JobStatus, Technician } from '@/types';
 
 const PRIORITY_FILTER_OPTIONS: Record<AppLanguage, Array<{ value: string; label: string }>> = {
   en: [
@@ -89,13 +89,14 @@ const DISPATCH_COPY = {
   },
 } as const;
 
-const STATUS_LABELS_BY_LANGUAGE = {
+const STATUS_LABELS_BY_LANGUAGE: Record<AppLanguage, Record<JobStatus, string>> = {
   en: {
     NEW: 'New',
     SCHEDULED: 'Scheduled',
     DISPATCHED: 'Dispatched',
     EN_ROUTE: 'En Route',
     IN_PROGRESS: 'In Progress',
+    WAITING_FOR_PARTS: 'Waiting for Parts',
     READY_FOR_SIGNATURE: 'Ready for Signature',
     ON_HOLD: 'On Hold',
     COMPLETED: 'Completed',
@@ -109,6 +110,7 @@ const STATUS_LABELS_BY_LANGUAGE = {
     DISPATCHED: 'Réparti',
     EN_ROUTE: 'En route',
     IN_PROGRESS: 'En exécution',
+    WAITING_FOR_PARTS: 'En attente de pièces',
     READY_FOR_SIGNATURE: 'Prêt pour signature',
     ON_HOLD: 'En attente',
     COMPLETED: 'Terminé',
@@ -116,7 +118,7 @@ const STATUS_LABELS_BY_LANGUAGE = {
     BILLING_READY: 'Prêt facturation',
     INVOICED: 'Facturé',
   },
-} as const;
+};
 
 const PRIORITY_LABELS_BY_LANGUAGE = {
   en: {
