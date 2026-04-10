@@ -31,6 +31,7 @@ export type JobStatus =
   | 'DISPATCHED'
   | 'EN_ROUTE'
   | 'IN_PROGRESS'
+  | 'READY_FOR_SIGNATURE'
   | 'ON_HOLD'
   | 'COMPLETED'
   | 'CANCELLED'

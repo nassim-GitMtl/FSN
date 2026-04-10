@@ -249,7 +249,7 @@ export const useJobStore = create<JobState>()(persist((set, get) => ({
     );
 
     if (job.technicianId) {
-      const nextTechStatus = ['EN_ROUTE', 'IN_PROGRESS'].includes(status)
+      const nextTechStatus = ['EN_ROUTE', 'IN_PROGRESS', 'READY_FOR_SIGNATURE'].includes(status)
         ? 'ON_JOB'
         : status === 'COMPLETED'
           ? 'AVAILABLE'

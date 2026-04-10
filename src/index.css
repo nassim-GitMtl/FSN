@@ -27,6 +27,7 @@
   body {
     font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
     background: #f3f5f7;
+    overscroll-behavior-y: none;
     @apply text-surface-900;
   }
 
@@ -215,6 +216,12 @@
 
   .mobile-input option {
     color: #0f172a;
+  }
+
+  .mobile-tap {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    @apply transition-all duration-150 ease-out active:scale-[0.985] active:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08111b];
   }
 }
 
