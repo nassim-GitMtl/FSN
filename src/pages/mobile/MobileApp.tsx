@@ -33,7 +33,7 @@ type ApprovedCatalogItem = {
 };
 
 const CLOSED_JOB_STATUSES: JobStatus[] = ['COMPLETED', 'BILLING_READY', 'INVOICED'];
-const ACTIVE_JOB_STATUSES: JobStatus[] = ['SCHEDULED', 'DISPATCHED', 'EN_ROUTE', 'IN_PROGRESS', 'READY_FOR_SIGNATURE', 'ON_HOLD'];
+const ACTIVE_JOB_STATUSES: JobStatus[] = ['SCHEDULED', 'DISPATCHED', 'EN_ROUTE', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'READY_FOR_SIGNATURE', 'ON_HOLD'];
 const PAYMENT_NOTE_PREFIX = '__FSM_PAYMENT__';
 const MAX_ATTACHMENT_SIZE_BYTES = 8 * 1024 * 1024;
 
@@ -123,6 +123,8 @@ const MOBILE_COPY = {
       addLine: 'Add approved line',
       startJob: 'Start job',
       moveInProgress: 'In progress',
+      waitingForParts: 'Waiting for parts',
+      resumeWork: 'Resume work',
       readyForSignature: 'Ready for signature',
       completeJob: 'Complete',
       back: 'Back',
@@ -238,6 +240,8 @@ const MOBILE_COPY = {
       addLine: 'Ajouter une ligne approuvée',
       startJob: 'Débuter',
       moveInProgress: 'En exécution',
+      waitingForParts: 'En attente de pièces',
+      resumeWork: 'Reprendre le travail',
       readyForSignature: 'Prêt pour signature',
       completeJob: 'Terminer',
       back: 'Retour',
@@ -290,6 +294,7 @@ const STATUS_LABELS_BY_LANGUAGE: Record<AppLanguage, Record<JobStatus, string>> 
     DISPATCHED: 'Dispatched',
     EN_ROUTE: 'En route',
     IN_PROGRESS: 'In progress',
+    WAITING_FOR_PARTS: 'Waiting for parts',
     READY_FOR_SIGNATURE: 'Ready for signature',
     ON_HOLD: 'On hold',
     COMPLETED: 'Completed',
@@ -303,6 +308,7 @@ const STATUS_LABELS_BY_LANGUAGE: Record<AppLanguage, Record<JobStatus, string>> 
     DISPATCHED: 'Réparti',
     EN_ROUTE: 'En route',
     IN_PROGRESS: 'En exécution',
+    WAITING_FOR_PARTS: 'En attente de pièces',
     READY_FOR_SIGNATURE: 'Prêt pour signature',
     ON_HOLD: 'En attente',
     COMPLETED: 'Terminé',
@@ -551,13 +557,21 @@ function buildJournalGroups(notes: JobNote[], attachments: Attachment[]) {
   return Array.from(groups.values()).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-function getStageButton(job: Job, copy: { startJob: string; moveInProgress: string }) {
+function getStageButton(job: Job, copy: { startJob: string; moveInProgress: string; waitingForParts: string; resumeWork: string }) {
   if (job.status === 'SCHEDULED' || job.status === 'DISPATCHED' || job.status === 'NEW') {
-    return { status: 'EN_ROUTE' as JobStatus, label: copy.startJob };
+    return { status: 'EN_ROUTE' as JobStatus, label: copy.startJob, variant: 'primary' };
   }
 
   if (job.status === 'EN_ROUTE' || job.status === 'ON_HOLD') {
-    return { status: 'IN_PROGRESS' as JobStatus, label: copy.moveInProgress };
+    return { status: 'IN_PROGRESS' as JobStatus, label: copy.moveInProgress, variant: 'primary' };
+  }
+
+  if (job.status === 'IN_PROGRESS') {
+    return { status: 'WAITING_FOR_PARTS' as JobStatus, label: copy.waitingForParts, variant: 'secondary' };
+  }
+
+  if (job.status === 'WAITING_FOR_PARTS') {
+    return { status: 'IN_PROGRESS' as JobStatus, label: copy.resumeWork, variant: 'primary' };
   }
 
   return null;
