@@ -5,6 +5,31 @@ import { useJobStore, useCustomerStore, useTechStore, useSOStore, useAuthStore, 
 import { Card, Button, Input, Select, Textarea, Alert } from '@/components/ui';
 import { cn, formatCurrency, formatDate, PRIORITY_LABELS, SERVICE_TYPE_LABELS } from '@/lib/utils';
 
+const CATALOG_ITEMS = [
+  { itemId: 'LAB-REG',    itemName: 'Regular Labor',            description: 'Standard diagnostic and repair',                rate: 125  },
+  { itemId: 'LAB-EMR',    itemName: 'Emergency Labor',          description: 'Emergency diagnostic and repair',               rate: 195  },
+  { itemId: 'LAB-AH',     itemName: 'After-Hours Labor',        description: 'After-hours emergency response labor',          rate: 195  },
+  { itemId: 'LAB-REP',    itemName: 'Repair Labor',             description: 'Diagnostics and replacement labor',             rate: 145  },
+  { itemId: 'LAB-TRAV',   itemName: 'Travel Charge',            description: 'Trip/travel fee',                               rate: 75   },
+  { itemId: 'PM-HVAC',    itemName: 'PM – HVAC',                description: 'Quarterly rooftop preventive maintenance',      rate: 360  },
+  { itemId: 'PM-MAU',     itemName: 'PM – Make-Up Air',         description: 'MAU: filters, belts, combustion review',        rate: 540  },
+  { itemId: 'INSP-STD',   itemName: 'Standard Inspection',      description: 'Scheduled inspection and written report',       rate: 185  },
+  { itemId: 'INSP-BOI',   itemName: 'Boiler Inspection',        description: 'Annual combustion report',                      rate: 195  },
+  { itemId: 'CTL-RESET',  itemName: 'Controls Reset',           description: 'BMS recommissioning',                           rate: 220  },
+  { itemId: 'VFD-TUNE',   itemName: 'VFD Tuning',               description: 'Controller tune and verification',              rate: 280  },
+  { itemId: 'AIR-BAL',    itemName: 'Air Balance Service',      description: 'Exhaust balancing and pressure verification',   rate: 760  },
+  { itemId: 'STARTUP',    itemName: 'Startup & Commissioning',  description: 'Install startup package',                       rate: 980  },
+  { itemId: 'FLT-SET',    itemName: 'Filter Set (MERV 13)',     description: 'MERV 13 replacement filters (each)',            rate: 58   },
+  { itemId: 'COMP-01',    itemName: 'Compressor Replacement',   description: 'Compressor swap and installation',              rate: 1240 },
+  { itemId: 'FAN-EVAP',   itemName: 'Evaporator Fan Motor',     description: 'Evaporator fan motor swap',                     rate: 420  },
+  { itemId: 'IGN-MOD',    itemName: 'Ignition Module',          description: 'Heating ignition module replacement',           rate: 235  },
+  { itemId: 'REF-404A',   itemName: 'Refrigerant R-404A',       description: 'R-404A refrigerant refill (per lb)',            rate: 42   },
+  { itemId: 'REF-410A',   itemName: 'Refrigerant R-410A',       description: 'R-410A refrigerant refill (per lb)',            rate: 35   },
+  { itemId: 'MISC-PARTS', itemName: 'Misc. Parts & Materials',  description: 'Miscellaneous parts and materials',             rate: 0    },
+];
+
+type InlineSOLine = { id: string; itemId: string; itemName: string; description: string; quantity: number; rate: number; };
+
 type FormData = {
   customerId: string;
   description: string;
@@ -46,6 +71,7 @@ export const JobForm: React.FC = () => {
   const [showCustomerDrop, setShowCustomerDrop] = useState(false);
   const [salesOrderMode, setSalesOrderMode] = useState<'existing' | 'new'>(() => (job?.salesOrderId ? 'existing' : 'new'));
   const [newSalesOrderMemo, setNewSalesOrderMemo] = useState(job?.description || '');
+  const [newSOLines, setNewSOLines] = useState<InlineSOLine[]>([]);
   const [submissionError, setSubmissionError] = useState('');
   const customerResults = searchCustomers(customerSearch);
 
@@ -104,15 +130,13 @@ export const JobForm: React.FC = () => {
   });
   const customerOpenJobs = customerJobs.filter((customerJob) => !['COMPLETED', 'BILLING_READY', 'INVOICED', 'CANCELLED'].includes(customerJob.status));
   const customerCompletedJobs = customerHistory.filter((customerJob) => ['COMPLETED', 'BILLING_READY', 'INVOICED'].includes(customerJob.status));
-  // All SOs for this customer — used for display (count tile + recent list)
-  const allCustomerSalesOrders = selectedCustomerId
+  // All SOs for this customer — shown in both the display panel AND the Link Existing dropdown.
+  // We show all (including already-linked ones) so dispatchers can re-assign if needed;
+  // the dropdown label notes which SO is already linked to another job.
+  const customerSalesOrders = selectedCustomerId
     ? getSOsForCustomer(selectedCustomerId)
         .sort((a, b) => new Date(b.tranDate).getTime() - new Date(a.tranDate).getTime())
     : [];
-  // Only SOs that are available to link: unlinked, or already linked to THIS job (edit mode)
-  const customerSalesOrders = allCustomerSalesOrders.filter(
-    (salesOrder) => !salesOrder.linkedJobId || salesOrder.linkedJobId === job?.id
-  );
   const selectedSalesOrder = customerSalesOrders.find((salesOrder) => salesOrder.id === selectedSalesOrderId);
 
   useEffect(() => {
@@ -120,6 +144,7 @@ export const JobForm: React.FC = () => {
     if (selectedSalesOrderId && !customerSalesOrders.some((salesOrder) => salesOrder.id === selectedSalesOrderId)) {
       setValue('salesOrderId', '', { shouldDirty: true, shouldValidate: true });
     }
+    // Only auto-switch to 'new' when the customer truly has no SOs yet
     if (customerSalesOrders.length === 0 && salesOrderMode !== 'new') {
       setSalesOrderMode('new');
     }
@@ -194,6 +219,16 @@ export const JobForm: React.FC = () => {
           linkedJobNumber: job?.jobNumber,
           memo: newSalesOrderMemo.trim() || data.description,
           billingCode: data.billingCode,
+          lines: newSOLines.map((l, i) => ({
+            id: `sol-${Date.now()}-${i}`,
+            itemId: l.itemId,
+            itemName: l.itemName,
+            description: l.description || undefined,
+            quantity: l.quantity,
+            rate: l.rate,
+            amount: Math.round(l.quantity * l.rate * 100) / 100,
+            isClosed: false,
+          })),
         });
         nextSalesOrderId = createdSalesOrder.id;
         nextSalesOrderNumber = createdSalesOrder.soNumber;
@@ -229,6 +264,16 @@ export const JobForm: React.FC = () => {
           linkedJobNumber: newJob.jobNumber,
           memo: newSalesOrderMemo.trim() || data.description,
           billingCode: data.billingCode,
+          lines: newSOLines.map((l, i) => ({
+            id: `sol-${Date.now()}-${i}`,
+            itemId: l.itemId,
+            itemName: l.itemName,
+            description: l.description || undefined,
+            quantity: l.quantity,
+            rate: l.rate,
+            amount: Math.round(l.quantity * l.rate * 100) / 100,
+            isClosed: false,
+          })),
         });
         updateJob(newJob.id, {
           salesOrderId: createdSalesOrder.id,
@@ -265,18 +310,20 @@ export const JobForm: React.FC = () => {
       setValue('zip', addr.zip, { shouldDirty: true });
     }
     setValue('salesOrderId', '', { shouldDirty: true, shouldValidate: true });
+    setNewSOLines([]);
     setShowCustomerDrop(false);
     setCustomerSearch(c.companyName);
   };
 
+  // Sync the search label when selectedCustomerId changes (e.g. URL param pre-fill).
+  // customerSearch is intentionally excluded from deps — including it would override
+  // the user's typing every keystroke, making it impossible to change the customer.
   useEffect(() => {
     if (!selectedCustomerId) return;
-
-    const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId);
-    if (selectedCustomer && customerSearch !== selectedCustomer.companyName) {
-      setCustomerSearch(selectedCustomer.companyName);
-    }
-  }, [selectedCustomerId, customers, customerSearch]);
+    const foundCustomer = customers.find((c) => c.id === selectedCustomerId);
+    if (foundCustomer) setCustomerSearch(foundCustomer.companyName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCustomerId, customers]);
 
   useEffect(() => {
     if (isEdit || !requestedCustomerId || selectedCustomerId === requestedCustomerId) return;
@@ -338,7 +385,7 @@ export const JobForm: React.FC = () => {
               {[
                 { label: 'Open Jobs', value: customerOpenJobs.length },
                 { label: 'Completed Visits', value: customerCompletedJobs.length },
-                { label: 'Sales Orders', value: allCustomerSalesOrders.length },
+                { label: 'Sales Orders', value: customerSalesOrders.length },
                 { label: 'Latest Visit', value: customerCompletedJobs[0] ? formatDate(customerCompletedJobs[0].actualEnd || customerCompletedJobs[0].scheduledDate) : '—' },
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3">
@@ -383,9 +430,9 @@ export const JobForm: React.FC = () => {
                   <div className="text-xs text-surface-500">Use an existing order or create a fresh one from this job.</div>
                 </div>
                 <div className="divide-y divide-surface-100">
-                  {allCustomerSalesOrders.length === 0 ? (
+                  {customerSalesOrders.length === 0 ? (
                     <div className="px-4 py-4 text-sm text-surface-500">No sales orders found for this customer yet.</div>
-                  ) : allCustomerSalesOrders.slice(0, 4).map((salesOrder) => (
+                  ) : customerSalesOrders.slice(0, 4).map((salesOrder) => (
                     <Link
                       key={salesOrder.id}
                       to={`/billing/${salesOrder.id}`}
@@ -458,17 +505,22 @@ export const JobForm: React.FC = () => {
                 value={selectedSalesOrderId}
                 onChange={(event) => setValue('salesOrderId', event.target.value, { shouldDirty: true, shouldValidate: true })}
                 options={[
-                  { value: '', label: customerSalesOrders.length ? 'Select a sales order' : 'No available sales orders for this client' },
+                  { value: '', label: customerSalesOrders.length ? 'Select a sales order' : 'No sales orders for this client yet' },
                   ...customerSalesOrders.map((salesOrder) => ({
                     value: salesOrder.id,
-                    label: `${salesOrder.soNumber} · ${salesOrder.status} · ${formatCurrency(salesOrder.total)}`,
+                    label: `${salesOrder.soNumber} · ${salesOrder.status} · ${formatCurrency(salesOrder.total)}${salesOrder.linkedJobNumber && salesOrder.linkedJobId !== job?.id ? ` · linked: ${salesOrder.linkedJobNumber}` : ''}`,
                   })),
                 ]}
               />
               <input type="hidden" {...register('salesOrderId')} />
 
               {selectedSalesOrder && (
-                <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-4">
+                <div className={cn(
+                  'rounded-2xl border px-4 py-4',
+                  selectedSalesOrder.linkedJobId && selectedSalesOrder.linkedJobId !== job?.id
+                    ? 'border-amber-200 bg-amber-50'
+                    : 'border-cyan-200 bg-cyan-50',
+                )}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-xs font-mono font-semibold text-cyan-700">{selectedSalesOrder.soNumber}</div>
@@ -476,6 +528,11 @@ export const JobForm: React.FC = () => {
                       <div className="text-xs text-surface-600 mt-1">
                         {formatDate(selectedSalesOrder.tranDate)} · {selectedSalesOrder.status}
                       </div>
+                      {selectedSalesOrder.linkedJobId && selectedSalesOrder.linkedJobId !== job?.id && (
+                        <div className="text-xs text-amber-700 font-medium mt-1">
+                          ⚠ Currently linked to {selectedSalesOrder.linkedJobNumber} — saving will re-assign it to this job.
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-surface-500">Total</div>
@@ -495,6 +552,72 @@ export const JobForm: React.FC = () => {
                 value={newSalesOrderMemo}
                 onChange={(event) => setNewSalesOrderMemo(event.target.value)}
               />
+
+              {/* Inline line items */}
+              <div>
+                <label className="label">Add Line Items (optional)</label>
+                <select
+                  className="select"
+                  value=""
+                  onChange={(e) => {
+                    const item = CATALOG_ITEMS.find(i => i.itemId === e.target.value);
+                    if (item) {
+                      setNewSOLines(prev => [...prev, {
+                        id: `inline-${Date.now()}-${prev.length}`,
+                        itemId: item.itemId,
+                        itemName: item.itemName,
+                        description: item.description,
+                        quantity: 1,
+                        rate: item.rate,
+                      }]);
+                    }
+                  }}
+                >
+                  <option value="">— Pick from catalog to add a line —</option>
+                  {CATALOG_ITEMS.map(item => (
+                    <option key={item.itemId} value={item.itemId}>
+                      {item.itemName}{item.rate > 0 ? ` · $${item.rate}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {newSOLines.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {newSOLines.map(line => (
+                      <div key={line.id} className="flex items-center gap-2 rounded-xl border border-surface-200 bg-surface-50 px-3 py-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-surface-900 truncate">{line.itemName}</div>
+                          {line.description && <div className="text-xs text-surface-500 truncate">{line.description}</div>}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs text-surface-400">Qty</span>
+                          <input
+                            type="number" min={0.25} step={0.25}
+                            className="input w-16 py-1 text-sm text-center"
+                            value={line.quantity}
+                            onChange={(e) => setNewSOLines(prev => prev.map(l => l.id === line.id ? { ...l, quantity: Number(e.target.value) || 1 } : l))}
+                          />
+                          <span className="text-xs text-surface-400">@ $</span>
+                          <input
+                            type="number" min={0} step={0.01}
+                            className="input w-20 py-1 text-sm text-center"
+                            value={line.rate}
+                            onChange={(e) => setNewSOLines(prev => prev.map(l => l.id === line.id ? { ...l, rate: Number(e.target.value) || 0 } : l))}
+                          />
+                          <span className="w-20 text-right font-semibold text-surface-700">
+                            ${(line.quantity * line.rate).toFixed(2)}
+                          </span>
+                          <button type="button" onClick={() => setNewSOLines(prev => prev.filter(l => l.id !== line.id))} className="ml-1 text-red-400 hover:text-red-600 text-xs font-bold">✕</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="text-right text-sm font-semibold text-surface-800 pr-1">
+                      Subtotal: ${newSOLines.reduce((s, l) => s + l.quantity * l.rate, 0).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Alert type="info" icon="🧾">
                 A new sales order will be created and linked automatically when you save this job.
               </Alert>
