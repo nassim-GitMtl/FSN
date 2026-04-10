@@ -81,21 +81,25 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   iconRight?: React.ReactNode;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, hint, icon, iconRight, className, ...props }) => (
-  <div className="w-full">
-    {label && <label className="label">{label}</label>}
-    <div className="relative">
-      {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">{icon}</span>}
-      <input
-        className={cn('input', icon && 'pl-9', iconRight && 'pr-9', error && 'border-red-400 focus:ring-red-400', className)}
-        {...props}
-      />
-      {iconRight && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400">{iconRight}</span>}
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, hint, icon, iconRight, className, ...props }, ref) => (
+    <div className="w-full">
+      {label && <label className="label">{label}</label>}
+      <div className="relative">
+        {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">{icon}</span>}
+        <input
+          ref={ref}
+          className={cn('input', icon && 'pl-9', iconRight && 'pr-9', error && 'border-red-400 focus:ring-red-400', className)}
+          {...props}
+        />
+        {iconRight && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400">{iconRight}</span>}
+      </div>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-surface-400">{hint}</p>}
     </div>
-    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    {hint && !error && <p className="mt-1 text-xs text-surface-400">{hint}</p>}
-  </div>
+  )
 );
+Input.displayName = 'Input';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SELECT
@@ -107,15 +111,18 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   options: Array<{ value: string; label: string }>;
 }
 
-export const Select: React.FC<SelectProps> = ({ label, error, options, className, ...props }) => (
-  <div className="w-full">
-    {label && <label className="label">{label}</label>}
-    <select className={cn('select', error && 'border-red-400', className)} {...props}>
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-  </div>
+export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ label, error, options, className, ...props }, ref) => (
+    <div className="w-full">
+      {label && <label className="label">{label}</label>}
+      <select ref={ref} className={cn('select', error && 'border-red-400', className)} {...props}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  )
 );
+Select.displayName = 'Select';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TEXTAREA
@@ -126,13 +133,16 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   error?: string;
 }
 
-export const Textarea: React.FC<TextareaProps> = ({ label, error, className, ...props }) => (
-  <div className="w-full">
-    {label && <label className="label">{label}</label>}
-    <textarea className={cn('input resize-none', error && 'border-red-400', className)} {...props} />
-    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-  </div>
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ label, error, className, ...props }, ref) => (
+    <div className="w-full">
+      {label && <label className="label">{label}</label>}
+      <textarea ref={ref} className={cn('input resize-none', error && 'border-red-400', className)} {...props} />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  )
 );
+Textarea.displayName = 'Textarea';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CARD

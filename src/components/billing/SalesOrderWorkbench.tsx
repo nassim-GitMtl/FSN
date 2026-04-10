@@ -2,7 +2,30 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, Button, Card, Input, Textarea } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { useSOStore, useUIStore } from '@/store';
+import { useSOStore, useJobStore, useUIStore } from '@/store';
+
+const CATALOG_ITEMS = [
+  { itemId: 'LAB-REG',   itemName: 'Regular Labor',             description: 'Standard diagnostic and repair',                 rate: 125  },
+  { itemId: 'LAB-EMR',   itemName: 'Emergency Labor',           description: 'Emergency diagnostic and repair',                rate: 195  },
+  { itemId: 'LAB-AH',    itemName: 'After-Hours Labor',         description: 'After-hours emergency response labor',           rate: 195  },
+  { itemId: 'LAB-REP',   itemName: 'Repair Labor',              description: 'Diagnostics and replacement labor',              rate: 145  },
+  { itemId: 'LAB-TRAV',  itemName: 'Travel Charge',             description: 'Trip/travel fee',                                rate: 75   },
+  { itemId: 'PM-HVAC',   itemName: 'PM – HVAC',                 description: 'Quarterly rooftop preventive maintenance',       rate: 360  },
+  { itemId: 'PM-MAU',    itemName: 'PM – Make-Up Air',          description: 'MAU: filters, belts, and combustion review',     rate: 540  },
+  { itemId: 'INSP-STD',  itemName: 'Standard Inspection',       description: 'Scheduled inspection and written report',        rate: 185  },
+  { itemId: 'INSP-BOI',  itemName: 'Boiler Inspection',         description: 'Annual combustion report',                       rate: 195  },
+  { itemId: 'CTL-RESET', itemName: 'Controls Reset',            description: 'BMS recommissioning',                            rate: 220  },
+  { itemId: 'VFD-TUNE',  itemName: 'VFD Tuning',                description: 'Controller tune and verification',               rate: 280  },
+  { itemId: 'AIR-BAL',   itemName: 'Air Balance Service',       description: 'Exhaust balancing and pressure verification',    rate: 760  },
+  { itemId: 'STARTUP',   itemName: 'Startup & Commissioning',   description: 'Install startup package',                        rate: 980  },
+  { itemId: 'FLT-SET',   itemName: 'Filter Set (MERV 13)',      description: 'MERV 13 replacement filters (each)',             rate: 58   },
+  { itemId: 'COMP-01',   itemName: 'Compressor Replacement',    description: 'Compressor swap and installation',               rate: 1240 },
+  { itemId: 'FAN-EVAP',  itemName: 'Evaporator Fan Motor',      description: 'Evaporator fan motor swap',                      rate: 420  },
+  { itemId: 'IGN-MOD',   itemName: 'Ignition Module',           description: 'Heating ignition module replacement',            rate: 235  },
+  { itemId: 'REF-404A',  itemName: 'Refrigerant R-404A',        description: 'R-404A refrigerant refill (per lb)',             rate: 42   },
+  { itemId: 'REF-410A',  itemName: 'Refrigerant R-410A',        description: 'R-410A refrigerant refill (per lb)',             rate: 35   },
+  { itemId: 'MISC-PARTS',itemName: 'Misc. Parts & Materials',   description: 'Miscellaneous parts and materials',              rate: 0    },
+];
 
 const STATUS_TONES: Record<string, string> = {
   'Pending Approval': 'bg-amber-100 text-amber-700',
@@ -33,8 +56,10 @@ export const SalesOrderWorkbench: React.FC<SalesOrderWorkbenchProps> = ({ salesO
     removeBillingHold,
     generateInvoice,
     syncSOToJob,
+    linkSOToJob,
   } = useSOStore();
   const { toast } = useUIStore();
+  const jobs = useJobStore((state) => state.jobs);
   const salesOrder = getSO(salesOrderId);
 
   const [headerDraft, setHeaderDraft] = useState(() => ({
@@ -59,6 +84,8 @@ export const SalesOrderWorkbench: React.FC<SalesOrderWorkbenchProps> = ({ salesO
     rate: '',
   });
   const [holdReason, setHoldReason] = useState('');
+  const [jobLinkSearch, setJobLinkSearch] = useState('');
+  const [jobLinkId, setJobLinkId] = useState('');
 
   React.useEffect(() => {
     if (!salesOrder) return;
@@ -177,6 +204,27 @@ export const SalesOrderWorkbench: React.FC<SalesOrderWorkbenchProps> = ({ salesO
     toast('success', 'Sales order total synced to the linked job');
   };
 
+  const filteredLinkJobs = jobLinkSearch.length >= 2
+    ? jobs
+        .filter(j => {
+          const q = jobLinkSearch.toLowerCase();
+          return (
+            j.jobNumber.toLowerCase().includes(q) ||
+            j.customerName.toLowerCase().includes(q) ||
+            j.description.toLowerCase().includes(q)
+          );
+        })
+        .slice(0, 8)
+    : [];
+
+  const handleLinkJob = () => {
+    if (!jobLinkId) return;
+    linkSOToJob(salesOrder.id, jobLinkId);
+    toast('success', 'Sales order linked to job');
+    setJobLinkSearch('');
+    setJobLinkId('');
+  };
+
   return (
     <div className={className}>
       <Card
@@ -270,6 +318,44 @@ export const SalesOrderWorkbench: React.FC<SalesOrderWorkbenchProps> = ({ salesO
                   Sync total to job
                 </Button>
               </div>
+
+              {!salesOrder.linkedJobId && (
+                <div className="mt-4 pt-4 border-t border-surface-100">
+                  <div className="mb-2 text-sm font-medium text-surface-700">Link to a Job</div>
+                  <div className="relative flex gap-2">
+                    <div className="flex-1 relative">
+                      <input
+                        className="input"
+                        placeholder="Search by job #, customer, or description…"
+                        value={jobLinkSearch}
+                        onChange={(e) => { setJobLinkSearch(e.target.value); setJobLinkId(''); }}
+                      />
+                      {jobLinkSearch.length >= 2 && filteredLinkJobs.length > 0 && !jobLinkId && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-surface-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                          {filteredLinkJobs.map(j => (
+                            <button
+                              type="button"
+                              key={j.id}
+                              onClick={() => { setJobLinkId(j.id); setJobLinkSearch(`${j.jobNumber} – ${j.customerName}`); }}
+                              className="w-full px-3 py-2 text-left hover:bg-surface-50 text-sm border-b border-surface-100 last:border-0"
+                            >
+                              <span className="font-mono font-semibold text-brand-600 text-xs">{j.jobNumber}</span>
+                              <span className="ml-2 text-surface-800">{j.customerName}</span>
+                              <span className="ml-1 text-xs text-surface-400">· {j.description.slice(0, 40)}</span>
+                            </button>
+                          ))}
+                          {filteredLinkJobs.length === 0 && (
+                            <div className="px-4 py-3 text-sm text-surface-500">No jobs found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" disabled={!jobLinkId} onClick={handleLinkJob}>
+                      Link
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="surface-card rounded-[18px] p-4">
@@ -371,15 +457,42 @@ export const SalesOrderWorkbench: React.FC<SalesOrderWorkbenchProps> = ({ salesO
               </table>
             </div>
 
-            <div className="mt-4 grid gap-3 border-t border-surface-100 pt-4 md:grid-cols-[minmax(0,1.4fr)_1fr_120px_120px_auto]">
-              <Input label="Item" value={newLine.itemName} onChange={(event) => setNewLine((current) => ({ ...current, itemName: event.target.value }))} />
-              <Input label="Description" value={newLine.description} onChange={(event) => setNewLine((current) => ({ ...current, description: event.target.value }))} />
-              <Input label="Qty" type="number" step="0.25" value={newLine.quantity} onChange={(event) => setNewLine((current) => ({ ...current, quantity: event.target.value }))} />
-              <Input label="Rate" type="number" step="0.01" value={newLine.rate} onChange={(event) => setNewLine((current) => ({ ...current, rate: event.target.value }))} />
-              <div className="flex items-end">
-                <Button variant="primary" size="sm" className="w-full" onClick={handleAddLine}>
-                  Add line
-                </Button>
+            <div className="mt-4 border-t border-surface-100 pt-4 space-y-3">
+              <div>
+                <label className="label">Quick-add from catalog</label>
+                <select
+                  className="select"
+                  value=""
+                  onChange={(e) => {
+                    const item = CATALOG_ITEMS.find(i => i.itemId === e.target.value);
+                    if (item) {
+                      setNewLine({
+                        itemName: item.itemName,
+                        description: item.description,
+                        quantity: '1',
+                        rate: String(item.rate),
+                      });
+                    }
+                  }}
+                >
+                  <option value="">— Select a catalog item to pre-fill fields —</option>
+                  {CATALOG_ITEMS.map(item => (
+                    <option key={item.itemId} value={item.itemId}>
+                      {item.itemName}{item.rate > 0 ? ` · $${item.rate}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_1fr_120px_120px_auto]">
+                <Input label="Item" value={newLine.itemName} onChange={(event) => setNewLine((current) => ({ ...current, itemName: event.target.value }))} />
+                <Input label="Description" value={newLine.description} onChange={(event) => setNewLine((current) => ({ ...current, description: event.target.value }))} />
+                <Input label="Qty" type="number" step="0.25" value={newLine.quantity} onChange={(event) => setNewLine((current) => ({ ...current, quantity: event.target.value }))} />
+                <Input label="Rate" type="number" step="0.01" value={newLine.rate} onChange={(event) => setNewLine((current) => ({ ...current, rate: event.target.value }))} />
+                <div className="flex items-end">
+                  <Button variant="primary" size="sm" className="w-full" onClick={handleAddLine}>
+                    Add line
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

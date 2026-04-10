@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useSOStore, useJobStore, useAuthStore, useUIStore } from '@/store';
+import { useSOStore, useJobStore, useAuthStore, useUIStore, useCustomerStore } from '@/store';
 import { Button, EmptyState, Input, Modal, Tabs, Textarea } from '@/components/ui';
 import { SalesOrderWorkbench } from '@/components/billing/SalesOrderWorkbench';
 import { formatDate, formatCurrency, cn, SERVICE_TYPE_LABELS } from '@/lib/utils';
@@ -139,12 +139,21 @@ export const BillingList: React.FC = () => {
     removeBillingHold,
   } = useJobStore();
   const salesOrders = useSOStore((state) => state.salesOrders);
+  const createSO = useSOStore((state) => state.createSO);
+  const { searchCustomers } = useCustomerStore();
   const [activeTab, setActiveTab] = useState<BillingTab>('pending');
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [holdDraft, setHoldDraft] = useState({ jobId: '', jobNumber: '', reason: '' });
+  const [createSOOpen, setCreateSOOpen] = useState(false);
+  const [soCustomerSearch, setSOCustomerSearch] = useState('');
+  const [soCustomerId, setSOCustomerId] = useState('');
+  const [soCustomerName, setSOCustomerName] = useState('');
+  const [soMemo, setSOmemo] = useState('');
+  const [showSOCustomerDrop, setShowSOCustomerDrop] = useState(false);
+  const soCustomerResults = searchCustomers(soCustomerSearch);
   const PAGE_SIZE = 25;
   const cat = user?.workspace === 'INSTALLATION' ? 'INSTALLATION' : 'SERVICE';
 
@@ -256,6 +265,22 @@ export const BillingList: React.FC = () => {
       return;
     }
     toast('warning', 'Select at least one billing-ready job first');
+  };
+
+  const handleCreateSO = () => {
+    if (!soCustomerId) return;
+    const newSO = createSO({
+      customerId: soCustomerId,
+      customerName: soCustomerName,
+      memo: soMemo.trim() || undefined,
+    });
+    toast('success', `Sales order ${newSO.soNumber} created`);
+    setCreateSOOpen(false);
+    setSOCustomerSearch('');
+    setSOCustomerId('');
+    setSOCustomerName('');
+    setSOmemo('');
+    navigate(`/billing/${newSO.id}`);
   };
 
   const statusOptions = [
@@ -418,6 +443,7 @@ export const BillingList: React.FC = () => {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
+            <Button variant="primary" onClick={() => setCreateSOOpen(true)}>+ New SO</Button>
           </div>
 
           <div className="surface-card overflow-hidden">
@@ -516,6 +542,53 @@ export const BillingList: React.FC = () => {
           onChange={(event) => setHoldDraft((current) => ({ ...current, reason: event.target.value }))}
           placeholder="Why is this job on billing hold?"
         />
+      </Modal>
+
+      <Modal
+        open={createSOOpen}
+        onClose={() => { setCreateSOOpen(false); setSOCustomerSearch(''); setSOCustomerId(''); setSOCustomerName(''); setSOmemo(''); setShowSOCustomerDrop(false); }}
+        title="New Sales Order"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => { setCreateSOOpen(false); setSOCustomerSearch(''); setSOCustomerId(''); setSOCustomerName(''); setSOmemo(''); }}>Cancel</Button>
+            <Button variant="primary" disabled={!soCustomerId} onClick={handleCreateSO}>Create Sales Order</Button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <div className="relative">
+            <label className="label">Customer *</label>
+            <input
+              className="input"
+              placeholder="Search customers…"
+              value={soCustomerSearch}
+              onChange={(e) => { setSOCustomerSearch(e.target.value); setSOCustomerId(''); setShowSOCustomerDrop(true); }}
+              onFocus={() => setShowSOCustomerDrop(true)}
+            />
+            {showSOCustomerDrop && soCustomerSearch.length >= 1 && soCustomerResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-surface-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                {soCustomerResults.slice(0, 6).map(c => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onClick={() => { setSOCustomerId(c.id); setSOCustomerName(c.companyName); setSOCustomerSearch(c.companyName); setShowSOCustomerDrop(false); }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-surface-50 text-sm border-b border-surface-100 last:border-0"
+                  >
+                    <div className="font-medium">{c.companyName}</div>
+                    <div className="text-xs text-surface-400">{c.defaultAddress}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <Textarea
+            label="Memo"
+            rows={3}
+            placeholder="Brief summary for this sales order…"
+            value={soMemo}
+            onChange={(e) => setSOmemo(e.target.value)}
+          />
+        </div>
       </Modal>
     </div>
   );
