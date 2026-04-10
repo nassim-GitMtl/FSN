@@ -104,11 +104,15 @@ export const JobForm: React.FC = () => {
   });
   const customerOpenJobs = customerJobs.filter((customerJob) => !['COMPLETED', 'BILLING_READY', 'INVOICED', 'CANCELLED'].includes(customerJob.status));
   const customerCompletedJobs = customerHistory.filter((customerJob) => ['COMPLETED', 'BILLING_READY', 'INVOICED'].includes(customerJob.status));
-  const customerSalesOrders = selectedCustomerId
+  // All SOs for this customer — used for display (count tile + recent list)
+  const allCustomerSalesOrders = selectedCustomerId
     ? getSOsForCustomer(selectedCustomerId)
-        .filter((salesOrder) => !salesOrder.linkedJobId || salesOrder.linkedJobId === job?.id)
         .sort((a, b) => new Date(b.tranDate).getTime() - new Date(a.tranDate).getTime())
     : [];
+  // Only SOs that are available to link: unlinked, or already linked to THIS job (edit mode)
+  const customerSalesOrders = allCustomerSalesOrders.filter(
+    (salesOrder) => !salesOrder.linkedJobId || salesOrder.linkedJobId === job?.id
+  );
   const selectedSalesOrder = customerSalesOrders.find((salesOrder) => salesOrder.id === selectedSalesOrderId);
 
   useEffect(() => {
@@ -334,7 +338,7 @@ export const JobForm: React.FC = () => {
               {[
                 { label: 'Open Jobs', value: customerOpenJobs.length },
                 { label: 'Completed Visits', value: customerCompletedJobs.length },
-                { label: 'Sales Orders', value: customerSalesOrders.length },
+                { label: 'Sales Orders', value: allCustomerSalesOrders.length },
                 { label: 'Latest Visit', value: customerCompletedJobs[0] ? formatDate(customerCompletedJobs[0].actualEnd || customerCompletedJobs[0].scheduledDate) : '—' },
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3">
@@ -379,9 +383,9 @@ export const JobForm: React.FC = () => {
                   <div className="text-xs text-surface-500">Use an existing order or create a fresh one from this job.</div>
                 </div>
                 <div className="divide-y divide-surface-100">
-                  {customerSalesOrders.length === 0 ? (
+                  {allCustomerSalesOrders.length === 0 ? (
                     <div className="px-4 py-4 text-sm text-surface-500">No sales orders found for this customer yet.</div>
-                  ) : customerSalesOrders.slice(0, 4).map((salesOrder) => (
+                  ) : allCustomerSalesOrders.slice(0, 4).map((salesOrder) => (
                     <Link
                       key={salesOrder.id}
                       to={`/billing/${salesOrder.id}`}
