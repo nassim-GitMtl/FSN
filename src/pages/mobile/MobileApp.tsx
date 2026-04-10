@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
 import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
-import { cn, SERVICE_TYPE_LABELS, formatFileSize, parseDateValue, toISODate } from '@/lib/utils';
+import { cn, SERVICE_TYPE_LABELS, formatDuration, formatFileSize, parseDateValue, toISODate } from '@/lib/utils';
 import type { Attachment, Job, JobNote, JobStatus, SalesOrder, SOLine, Technician } from '@/types';
 
 type MobileTab = 'home' | 'jobs' | 'profile';
@@ -78,11 +78,11 @@ const MOBILE_COPY = {
     sections: {
       summary: 'Summary',
       dispatcherNotes: 'Dispatcher notes',
-      fieldJournal: 'Field journal',
-      salesOrder: 'Linked sales order',
+      fieldJournal: 'Notes & photos',
+      salesOrder: 'Approved parts',
       closeout: 'Closeout',
       report: 'Work report',
-      payment: 'Payment capture',
+      payment: 'Payment received',
       signatures: 'Signatures',
       customerSignature: 'Customer signature',
       techSignature: 'Technician sign-off',
@@ -105,6 +105,8 @@ const MOBILE_COPY = {
       catalog: 'Catalog',
       total: 'Total',
       balance: 'Balance',
+      subtotal: 'Subtotal',
+      tax: 'Tax',
       reportPlaceholder: 'Describe the work completed, findings, and any follow-up needed.',
       journalPlaceholder: 'Add a field note for the office, customer context, or onsite findings.',
       paymentMethod: 'Payment method',
@@ -120,7 +122,7 @@ const MOBILE_COPY = {
       addFromCamera: 'Camera',
       addFiles: 'Files',
       clear: 'Clear',
-      addLine: 'Add approved line',
+      addLine: 'Add from approved catalog',
       startJob: 'Start job',
       moveInProgress: 'In progress',
       waitingForParts: 'Waiting for parts',
@@ -140,8 +142,8 @@ const MOBILE_COPY = {
     signatureRequired: 'A customer signature is required before completion.',
     lineAdded: 'Approved item added to the linked sales order.',
     lineRestricted: 'Only approved catalog items can be added here.',
-    salesEmpty: 'No linked sales order is available for this job.',
-    salesRestricted: 'Technicians can only add approved items to the existing linked order.',
+    salesEmpty: 'No approved parts order is linked to this job.',
+    salesRestricted: 'Technicians can only add approved catalog items to the linked order for this job.',
     journalEmpty: 'No field notes or attachments have been saved yet.',
     attachmentsReady: 'Selected attachments',
     mobilePreview: 'Technician mobile preview',
@@ -162,6 +164,18 @@ const MOBILE_COPY = {
     openAttachment: 'Open',
     fileTooLarge: 'One or more files were skipped because they are too large for mobile sync.',
     reportUnlocksSignature: 'Save or write the work report before moving to signature.',
+    call: 'Call',
+    email: 'Email',
+    linkedOrderOnly: 'Linked order only',
+    addPartsNote: 'Only approved items can be added here. Pricing and billing stay locked.',
+    paymentLocked: 'Payment can be recorded here, but billing totals stay locked for office staff.',
+    noContactPhone: 'No phone on file',
+    noContactEmail: 'No email on file',
+    stageReportSave: 'Save work report',
+    stageSignaturePending: 'Customer signature required',
+    stageCompleteReady: 'Complete job',
+    stageCompleteLocked: 'Add customer signature to finish the job.',
+    jobClosed: 'Job completed',
   },
   fr: {
     tabs: { home: 'Accueil', jobs: 'Travaux', profile: 'Profil' },
@@ -195,11 +209,11 @@ const MOBILE_COPY = {
     sections: {
       summary: 'Résumé',
       dispatcherNotes: 'Notes du bureau',
-      fieldJournal: 'Journal terrain',
-      salesOrder: 'Commande liée',
+      fieldJournal: 'Notes et photos',
+      salesOrder: 'Pièces approuvées',
       closeout: 'Clôture',
       report: 'Rapport de travail',
-      payment: 'Capture de paiement',
+      payment: 'Paiement reçu',
       signatures: 'Signatures',
       customerSignature: 'Signature du client',
       techSignature: 'Signature du technicien',
@@ -222,6 +236,8 @@ const MOBILE_COPY = {
       catalog: 'Catalogue',
       total: 'Total',
       balance: 'Solde',
+      subtotal: 'Sous-total',
+      tax: 'Taxe',
       reportPlaceholder: 'Décrivez le travail effectué, les constats et le suivi requis.',
       journalPlaceholder: 'Ajoutez une note terrain pour le bureau ou le contexte client.',
       paymentMethod: 'Mode de paiement',
@@ -237,7 +253,7 @@ const MOBILE_COPY = {
       addFromCamera: 'Caméra',
       addFiles: 'Fichiers',
       clear: 'Effacer',
-      addLine: 'Ajouter une ligne approuvée',
+      addLine: 'Ajouter du catalogue approuvé',
       startJob: 'Débuter',
       moveInProgress: 'En exécution',
       waitingForParts: 'En attente de pièces',
@@ -257,8 +273,8 @@ const MOBILE_COPY = {
     signatureRequired: 'Une signature client est obligatoire avant la clôture.',
     lineAdded: 'Article approuvé ajouté à la commande liée.',
     lineRestricted: 'Seuls les articles approuvés peuvent être ajoutés ici.',
-    salesEmpty: "Aucune commande liée n'est disponible pour ce travail.",
-    salesRestricted: "Les techniciens peuvent seulement ajouter des articles approuvés à la commande déjà liée.",
+    salesEmpty: "Aucune commande de pièces approuvées n'est liée à ce travail.",
+    salesRestricted: "Les techniciens peuvent seulement ajouter des articles approuvés à la commande liée à ce travail.",
     journalEmpty: "Aucune note terrain ni pièce jointe n'a encore été sauvegardée.",
     attachmentsReady: 'Pièces sélectionnées',
     mobilePreview: 'Aperçu mobile technicien',
@@ -279,6 +295,18 @@ const MOBILE_COPY = {
     openAttachment: 'Ouvrir',
     fileTooLarge: 'Un ou plusieurs fichiers ont été ignorés parce qu’ils sont trop lourds pour la synchronisation mobile.',
     reportUnlocksSignature: 'Rédigez ou enregistrez le rapport avant de passer à la signature.',
+    call: 'Appeler',
+    email: 'Courriel',
+    linkedOrderOnly: 'Commande liée seulement',
+    addPartsNote: "Seuls les articles approuvés peuvent être ajoutés ici. La tarification et la facturation restent verrouillées.",
+    paymentLocked: "Le paiement peut être noté ici, mais les montants de facturation restent verrouillés pour le bureau.",
+    noContactPhone: 'Aucun téléphone au dossier',
+    noContactEmail: 'Aucun courriel au dossier',
+    stageReportSave: 'Enregistrer le rapport',
+    stageSignaturePending: 'Signature client requise',
+    stageCompleteReady: 'Terminer le travail',
+    stageCompleteLocked: 'Ajoutez la signature du client pour terminer le travail.',
+    jobClosed: 'Travail terminé',
   },
 } as const;
 
@@ -377,6 +405,89 @@ const CameraIcon: React.FC<MobileIconProps> = ({ className }) => (
 const AttachmentIcon: React.FC<MobileIconProps> = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
     <path d="m13.75 6.25-5.8 5.8a3.25 3.25 0 1 0 4.6 4.6l6.15-6.15a5.25 5.25 0 1 0-7.43-7.43L4.9 9.44" />
+  </svg>
+);
+
+const RouteIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M5.25 5.25a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
+    <path d="M18.75 14.25a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
+    <path d="M7.5 7.5h5.25a3.75 3.75 0 0 1 3.75 3.75v3" />
+    <path d="m14.25 12.75 2.25 2.25 2.25-2.25" />
+  </svg>
+);
+
+const PhoneIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M7.25 4.75h2.5l1 4-1.75 1.75a15 15 0 0 0 4.25 4.25L15 13l4 1v2.5a1.75 1.75 0 0 1-1.75 1.75A13.5 13.5 0 0 1 3.75 6.5 1.75 1.75 0 0 1 5.5 4.75h1.75Z" />
+  </svg>
+);
+
+const MailIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M4.5 6.75h15A1.5 1.5 0 0 1 21 8.25v7.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.75v-7.5a1.5 1.5 0 0 1 1.5-1.5Z" />
+    <path d="m4.5 8.25 7.5 5.25 7.5-5.25" />
+  </svg>
+);
+
+const LocationIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M12 20.25s6-5.5 6-10.25a6 6 0 1 0-12 0c0 4.75 6 10.25 6 10.25Z" />
+    <circle cx="12" cy="10" r="2.25" />
+  </svg>
+);
+
+const ClockIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 7.75v4.75l3 1.75" />
+  </svg>
+);
+
+const JobScopeIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M6 5.75h12" />
+    <path d="M6 10.25h12" />
+    <path d="M6 14.75h7.5" />
+    <path d="M5.25 4.5h13.5A1.75 1.75 0 0 1 20.5 6.25v11.5a1.75 1.75 0 0 1-1.75 1.75H5.25A1.75 1.75 0 0 1 3.5 17.75V6.25A1.75 1.75 0 0 1 5.25 4.5Z" />
+  </svg>
+);
+
+const ReportIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M7 4.75h7l3 3v11.5A1.75 1.75 0 0 1 15.25 21h-8.5A1.75 1.75 0 0 1 5 19.25V6.5A1.75 1.75 0 0 1 6.75 4.75Z" />
+    <path d="M14 4.75V8h3" />
+    <path d="M8 12h8M8 15.5h6" />
+  </svg>
+);
+
+const NotesIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M5.25 5h13.5A1.75 1.75 0 0 1 20.5 6.75v8.5A1.75 1.75 0 0 1 18.75 17H11l-4.5 3v-3H5.25A1.75 1.75 0 0 1 3.5 15.25v-8.5A1.75 1.75 0 0 1 5.25 5Z" />
+    <path d="M7.5 9h9M7.5 12.5h6" />
+  </svg>
+);
+
+const PaymentIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <rect x="3.5" y="6.25" width="17" height="11.5" rx="2" />
+    <path d="M3.5 10.25h17" />
+    <path d="M7.5 14.5h3.5" />
+  </svg>
+);
+
+const SignatureIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M4 17.75c1.5 0 2.7-.65 3.6-1.95l1.2-1.7c.7-.95 1.4-1.4 2.1-1.4.9 0 1.35.6 1.35 1.8v.75c0 1.1.55 1.65 1.6 1.65.8 0 1.5-.4 2.15-1.2L20 11.75" />
+    <path d="M4 20h16" />
+  </svg>
+);
+
+const PartsIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="m12 3.75 7.25 4.25v8L12 20.25 4.75 16V8L12 3.75Z" />
+    <path d="M12 3.75V12l7.25 4" />
+    <path d="M12 12 4.75 8" />
   </svg>
 );
 
@@ -481,6 +592,16 @@ function formatCurrencyForLanguage(language: AppLanguage, amount: number) {
     style: 'currency',
     currency: 'USD',
   }).format(amount || 0);
+}
+
+function getScheduleSummary(language: AppLanguage, job: Job) {
+  const parts = [
+    formatDateForLanguage(language, job.scheduledDate),
+    job.scheduledStart || undefined,
+    job.estimatedDuration ? formatDuration(job.estimatedDuration) : undefined,
+  ].filter(Boolean);
+
+  return parts.join(' • ') || '—';
 }
 
 function getAddressLine(job: Job) {
@@ -721,7 +842,7 @@ const MobileHome: React.FC<{
   const copy = MOBILE_COPY[language];
   const today = toISODate(new Date());
   const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
-  const activeJob = visibleJobs.find((job) => ['EN_ROUTE', 'IN_PROGRESS', 'READY_FOR_SIGNATURE', 'ON_HOLD'].includes(job.status));
+  const activeJob = visibleJobs.find((job) => ['EN_ROUTE', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'READY_FOR_SIGNATURE', 'ON_HOLD'].includes(job.status));
   const todayJobs = visibleJobs.filter((job) => job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status));
   const upcomingJobs = visibleJobs.filter((job) => job.scheduledDate && job.scheduledDate > today && !CLOSED_JOB_STATUSES.includes(job.status)).slice(0, 4);
   const completedToday = visibleJobs.filter((job) => CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today);
@@ -1001,7 +1122,6 @@ const MobileJobDetail: React.FC<{
   const updateSO = useSOStore((state) => state.updateSO);
   const user = useAuthStore((state) => state.user);
   const toast = useUIStore((state) => state.toast);
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const copy = MOBILE_COPY[language];
   const job = getJob(jobId);
@@ -1017,10 +1137,9 @@ const MobileJobDetail: React.FC<{
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(APPROVED_ITEM_CATALOG[0].id);
   const [selectedQuantity, setSelectedQuantity] = useState('1');
   const [selectedLineNote, setSelectedLineNote] = useState('');
+  const [showPartsComposer, setShowPartsComposer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const sectionParam = searchParams.get('section');
-  const activeTab: MobileJobTab = isMobileJobTab(sectionParam) ? sectionParam : 'overview';
 
   useEffect(() => {
     if (!job) return;
@@ -1031,25 +1150,24 @@ const MobileJobDetail: React.FC<{
 
   if (!job || !user) return null;
 
-  const setJobTab = (tab: MobileJobTab) => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('job', job.id);
-    nextParams.set('section', tab);
-    setSearchParams(nextParams, { replace: true });
-  };
-
   const notes = getNotes(job.id);
   const attachments = getUnifiedFilesForJob(job.id);
   const linkedSalesOrder = job.salesOrderId ? getSO(job.salesOrderId) : undefined;
   const paymentCapture = getLatestPaymentCapture(notes);
   const journalGroups = buildJournalGroups(notes, attachments);
   const stageButton = getStageButton(job, copy.buttons);
-  const completionReady = Boolean(reportText.trim()) && Boolean(customerSignature);
   const selectedCatalogItem = APPROVED_ITEM_CATALOG.find((item) => item.id === selectedCatalogItemId) || APPROVED_ITEM_CATALOG[0];
+  const draftReportReady = Boolean(reportText.trim());
   const reportOnFile = Boolean(job.resolution?.trim());
-  const signatureOnFile = Boolean(job.completionSignature);
-  const canMoveToSignature = Boolean(reportText.trim());
-  const canCompleteJob = job.status === 'READY_FOR_SIGNATURE' && completionReady;
+  const customerSignatureReady = Boolean(customerSignature);
+  const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
+  const canCompleteJob = job.status === 'READY_FOR_SIGNATURE' && reportOnFile && customerSignatureReady;
+  const linkedOrderBadge = linkedSalesOrder?.soNumber || job.salesOrderNumber;
+  const paymentBadge = paymentCapture
+    ? (paymentCapture.paid ? copy.payment.yes : copy.payment.no)
+    : copy.payment.unknown;
+  const journalCount = notes.filter((note) => note.type === 'TECHNICIAN').length + attachments.length;
+  const scheduleSummary = getScheduleSummary(language, job);
 
   useEffect(() => {
     if (!paymentCapture) return;
@@ -1200,19 +1318,12 @@ const MobileJobDetail: React.FC<{
   };
 
   const handleReadyForSignature = () => {
-    const nextReport = reportText.trim();
-    if (!nextReport) {
+    if (!reportOnFile) {
       toast('warning', copy.reportUnlocksSignature);
-      setJobTab('overview');
       return;
     }
 
-    if (job.resolution !== nextReport) {
-      updateJob(job.id, { resolution: nextReport });
-    }
-
     updateStatus(job.id, 'READY_FOR_SIGNATURE');
-    setJobTab('closeout');
     toast('success', copy.readyForSignatureNote);
   };
 
@@ -1234,370 +1345,545 @@ const MobileJobDetail: React.FC<{
     toast('success', copy.jobCompleted);
   };
 
+  const handleStageStatusUpdate = (status: JobStatus) => {
+    updateStatus(job.id, status);
+    toast('success', getLocalizedStatus(language, status));
+  };
+
+  const handleMarkWaitingForParts = () => {
+    handleStageStatusUpdate('WAITING_FOR_PARTS');
+  };
+
+  const primaryAction = (() => {
+    if (job.status === 'IN_PROGRESS' && !reportOnFile) {
+      return {
+        label: copy.stageReportSave,
+        onClick: saveReport,
+        disabled: !draftReportReady,
+        helper: copy.reportRequired,
+        tone: 'brand' as const,
+      };
+    }
+
+    if (job.status === 'IN_PROGRESS') {
+      return {
+        label: copy.buttons.readyForSignature,
+        onClick: handleReadyForSignature,
+        disabled: false,
+        helper: copy.signatureRequired,
+        tone: 'brand' as const,
+      };
+    }
+
+    if (job.status === 'READY_FOR_SIGNATURE') {
+      return {
+        label: customerSignatureReady ? copy.stageCompleteReady : copy.stageSignaturePending,
+        onClick: handleCompleteJob,
+        disabled: !canCompleteJob,
+        helper: customerSignatureReady ? copy.signatureRequired : copy.stageCompleteLocked,
+        tone: customerSignatureReady ? ('success' as const) : ('brand' as const),
+      };
+    }
+
+    if (job.status === 'WAITING_FOR_PARTS') {
+      return {
+        label: copy.buttons.resumeWork,
+        onClick: () => handleStageStatusUpdate('IN_PROGRESS'),
+        disabled: false,
+        helper: copy.addPartsNote,
+        tone: 'brand' as const,
+      };
+    }
+
+    if (stageButton && stageButton.status !== 'WAITING_FOR_PARTS') {
+      return {
+        label: stageButton.label,
+        onClick: () => handleStageStatusUpdate(stageButton.status),
+        disabled: false,
+        helper: undefined,
+        tone: 'brand' as const,
+      };
+    }
+
+    if (CLOSED_JOB_STATUSES.includes(job.status)) {
+      return {
+        label: copy.jobClosed,
+        onClick: () => undefined,
+        disabled: true,
+        helper: undefined,
+        tone: 'success' as const,
+      };
+    }
+
+    return null;
+  })();
+
+  const primaryActionClassName = cn(
+    'mobile-tap w-full min-h-[80px] rounded-none border-none px-6 text-[1.45rem] font-black tracking-[-0.04em] transition-all disabled:cursor-not-allowed disabled:opacity-45',
+    primaryAction?.tone === 'success'
+      ? 'bg-emerald-500 text-[#09130d]'
+      : 'bg-[#f5a400] text-[#151515]',
+  );
+
   return (
-    <div className="flex h-full flex-col bg-[#08111b]">
-      <div className="border-b border-white/10 px-4 py-3">
-        <div className="flex items-center gap-3">
+    <div className="relative flex h-full flex-col bg-[radial-gradient(circle_at_top_center,rgba(245,164,0,0.07),transparent_28%),linear-gradient(180deg,#050b15_0%,#030811_100%)]">
+      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-[calc(1.35rem+env(safe-area-inset-top))]">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="mobile-tap inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/78"
+            className="mobile-tap inline-flex items-center gap-2 text-[1.05rem] font-semibold text-[#f5a400]"
           >
-            <BackIcon className="h-4 w-4" />
-            {copy.buttons.back}
+            <BackIcon className="h-5 w-5" />
+            <span>{copy.buttons.back}</span>
           </button>
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">{job.jobNumber}</div>
-            <div className="truncate text-lg font-semibold tracking-[-0.03em] text-white">{job.customerName}</div>
-          </div>
+          <MobileStatusPill label={getLocalizedStatus(language, job.status)} status={job.status} />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/64">
-          <span className="rounded-full border border-white/12 px-3 py-1">{getLocalizedStatus(language, job.status)}</span>
-          <span className="rounded-full border border-white/12 px-3 py-1">{formatShortDateForLanguage(language, job.scheduledDate)} • {job.scheduledStart || '--:--'}</span>
-          <a href={getMapsLink(job)} target="_blank" rel="noreferrer" className="mobile-tap rounded-full border border-brand-400/30 px-3 py-1 font-semibold text-brand-200">
-            {copy.directions}
-          </a>
+
+        <section className="mb-6 border-b border-white/10 pb-5">
+          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-white/42">{job.jobNumber}</div>
+          <h1 className="mt-2 text-[2.05rem] font-black tracking-[-0.06em] text-white">{job.customerName}</h1>
+          <p className="mt-2 text-[1.05rem] font-medium text-[#8b94a7]">
+            {getLocalizedServiceType(language, job.serviceType)}
+          </p>
+        </section>
+
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          <MobileQuickAction href={getMapsLink(job)} icon={<RouteIcon className="h-6 w-6" />} label={copy.navigate} disabledLabel={copy.navigate} />
+          <MobileQuickAction href={job.contactPhone ? `tel:${job.contactPhone}` : undefined} icon={<PhoneIcon className="h-6 w-6" />} label={copy.call} disabledLabel={copy.noContactPhone} />
+          <MobileQuickAction href={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} icon={<MailIcon className="h-6 w-6" />} label={copy.email} disabledLabel={copy.noContactEmail} />
         </div>
-      </div>
 
-      <div className="border-b border-white/10 px-4 py-3">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {([
-            { id: 'overview', label: copy.sections.summary },
-            { id: 'journal', label: copy.sections.fieldJournal },
-            { id: 'sales', label: copy.sections.salesOrder },
-            { id: 'closeout', label: copy.sections.closeout },
-          ] as Array<{ id: MobileJobTab; label: string }>).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setJobTab(tab.id)}
-              className={cn(
-                'mobile-tap rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em]',
-                activeTab === tab.id ? 'bg-brand-500 text-white' : 'bg-white/8 text-white/58 hover:bg-white/12 hover:text-white/84',
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <div className="mb-6 rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,#1c2432_0%,#1b2330_100%)] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+          <MobileSummaryLine icon={<LocationIcon className="h-5 w-5" />} value={getAddressLine(job)} />
+          <MobileSummaryLine icon={<ClockIcon className="h-5 w-5" />} value={scheduleSummary} className="mt-4" />
+          <MobileSummaryLine icon={<JobScopeIcon className="h-5 w-5" />} value={job.description} className="mt-4" />
 
-      <div className="flex-1 overflow-y-auto px-4 pb-32 pt-4">
-        {activeTab === 'overview' && (
-          <div className="space-y-4">
-            <InfoCard title={copy.sections.summary}>
-              <InfoRow label={copy.labels.customer} value={job.customerName} />
-              <InfoRow label={copy.labels.contact} value={job.contactName} />
-              <InfoRow label={copy.labels.phone} value={job.contactPhone} link={job.contactPhone ? `tel:${job.contactPhone}` : undefined} />
-              <InfoRow label={copy.labels.email} value={job.contactEmail} link={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} />
-              <InfoRow label={copy.labels.address} value={getAddressLine(job)} />
-              <InfoRow label={copy.labels.serviceType} value={getLocalizedServiceType(language, job.serviceType)} />
-              <InfoRow label={copy.labels.priority} value={PRIORITY_LABELS_BY_LANGUAGE[language][job.priority]} />
-              <InfoRow label={copy.labels.scheduled} value={`${formatDateForLanguage(language, job.scheduledDate)} ${job.scheduledStart || ''}`.trim()} />
-              <InfoRow label={copy.sections.salesOrder} value={linkedSalesOrder?.soNumber || job.salesOrderNumber || '—'} />
-            </InfoCard>
-
-            <InfoCard title={copy.sections.dispatcherNotes}>
-              <p className="text-sm leading-relaxed text-white/72">{job.internalNotes || copy.auditLocked}</p>
-            </InfoCard>
-
-            <InfoCard title={copy.sections.report}>
-              <textarea
-                className="mobile-input min-h-[150px]"
-                value={reportText}
-                onChange={(event) => setReportText(event.target.value)}
-                placeholder={copy.labels.reportPlaceholder}
-              />
-              <button
-                type="button"
-                onClick={saveReport}
-                className="mobile-tap mt-3 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-              >
-                {copy.buttons.saveReport}
-              </button>
-            </InfoCard>
-          </div>
-        )}
-
-        {activeTab === 'journal' && (
-          <div className="space-y-4">
-            <InfoCard title={copy.sections.fieldJournal}>
-              <textarea
-                className="mobile-input min-h-[120px]"
-                value={journalText}
-                onChange={(event) => setJournalText(event.target.value)}
-                placeholder={copy.labels.journalPlaceholder}
-              />
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="mobile-tap inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/78"
-                >
-                  <CameraIcon className="h-4 w-4" />
-                  {copy.buttons.addFromCamera}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mobile-tap inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/78"
-                >
-                  <AttachmentIcon className="h-4 w-4" />
-                  {copy.buttons.addFiles}
-                </button>
-              </div>
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
-              <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
-
-              {pendingFiles.length > 0 && (
-                <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.attachmentsReady}</div>
-                  <div className="mt-3 space-y-2">
-                    {pendingFiles.map((file, index) => (
-                      <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-white/6 px-3 py-2 text-sm">
-                        <div className="min-w-0">
-                          <div className="truncate text-white/90">{file.name}</div>
-                          <div className="text-xs text-white/45">{formatFileSize(file.size)}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                          className="mobile-tap text-xs font-semibold uppercase tracking-[0.14em] text-white/55"
-                        >
-                          {copy.buttons.clear}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => void handleSaveJournalEntry()}
-                disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
-                className="mobile-tap mt-4 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
-              </button>
-            </InfoCard>
-
-            <InfoCard title={copy.sections.fieldJournal}>
-              <div className="mb-3 rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3 text-sm text-white/58">
-                {copy.auditLocked}
-              </div>
-              {journalGroups.length === 0 ? (
-                <EmptyMobileState label={copy.journalEmpty} />
-              ) : journalGroups.map((group) => (
-                <JournalGroupCard key={group.createdAt} group={group} language={language} />
-              ))}
-            </InfoCard>
-          </div>
-        )}
-
-        {activeTab === 'sales' && (
-          <div className="space-y-4">
-            <InfoCard title={copy.sections.salesOrder}>
-              <div className="rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3 text-sm text-white/58">
-                {copy.salesRestricted}
-              </div>
-              {!linkedSalesOrder ? (
-                <EmptyMobileState label={copy.salesEmpty} />
-              ) : (
-                <>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <MetricCard label={copy.sections.salesOrder} value={linkedSalesOrder.soNumber} compact />
-                    <MetricCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} compact />
-                    <MetricCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} compact />
-                    <MetricCard label={copy.labels.paymentMethod} value={linkedSalesOrder.paymentMode || copy.payment.unknown} compact />
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.sections.approvedItems}</div>
-                    <div className="mt-3 space-y-3">
-                      <label className="block">
-                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.catalog}</div>
-                        <select
-                          className="mobile-input"
-                          value={selectedCatalogItemId}
-                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
-                        >
-                          {APPROVED_ITEM_CATALOG.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="rounded-2xl bg-white/6 px-3 py-3 text-sm text-white/70">
-                        <div className="font-semibold text-white/92">{selectedCatalogItem.label}</div>
-                        <div className="mt-1">{selectedCatalogItem.description}</div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="block">
-                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.qty}</div>
-                          <input className="mobile-input" type="number" min="1" value={selectedQuantity} onChange={(event) => setSelectedQuantity(event.target.value)} />
-                        </label>
-                        <label className="block">
-                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.rate}</div>
-                          <input className="mobile-input" value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)} readOnly />
-                        </label>
-                      </div>
-                      <label className="block">
-                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.note}</div>
-                        <textarea className="mobile-input min-h-[88px]" value={selectedLineNote} onChange={(event) => setSelectedLineNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleAddApprovedLine}
-                        className="mobile-tap w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-                      >
-                        {copy.buttons.addLine}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/8 bg-[#0d1723] p-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{copy.sections.lineItems}</div>
-                    <div className="mt-3 space-y-2">
-                      {linkedSalesOrder.lines.length === 0 ? (
-                        <EmptyMobileState label={copy.lineRestricted} />
-                      ) : linkedSalesOrder.lines.map((line) => (
-                        <SalesOrderLineCard key={line.id} line={line} language={language} />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </InfoCard>
-          </div>
-        )}
-
-        {activeTab === 'closeout' && (
-          <div className="space-y-4">
-            <InfoCard title={copy.sections.closeout}>
-              <div className="space-y-3">
-                <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
-                <RequirementRow label={copy.signatureRequired} complete={signatureOnFile} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
-              </div>
-            </InfoCard>
-
-            <InfoCard title={copy.sections.payment}>
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { id: 'unknown', label: copy.payment.unknown },
-                    { id: 'no', label: copy.payment.no },
-                    { id: 'yes', label: copy.payment.yes },
-                  ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setPaymentChoice(option.id)}
-                      className={cn(
-                        'mobile-tap rounded-xl px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em]',
-                        paymentChoice === option.id ? 'bg-brand-500 text-white' : 'bg-white/6 text-white/58 hover:bg-white/12 hover:text-white/84',
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                {paymentChoice === 'yes' && (
-                  <label className="block">
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.paymentMethod}</div>
-                    <select className="mobile-input" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
-                      {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
-                        <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-
-                <label className="block">
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">{copy.labels.paymentNote}</div>
-                  <textarea className="mobile-input min-h-[88px]" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={savePayment}
-                  className="mobile-tap w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-                >
-                  {copy.buttons.savePayment}
-                </button>
-              </div>
-            </InfoCard>
-
-            <InfoCard title={copy.sections.signatures}>
-              <div className="space-y-4">
-                <div>
-                  <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.customerSignature}</div>
-                  <SignaturePad height={128} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
-                </div>
-                <div>
-                  <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.techSignature}</div>
-                  <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
-                </div>
-                <button
-                  type="button"
-                  onClick={saveSignatures}
-                  className="mobile-tap w-full rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white/80"
-                >
-                  {copy.signatureSaved}
-                </button>
-              </div>
-            </InfoCard>
-          </div>
-        )}
-      </div>
-
-      <div className="sticky bottom-0 border-t border-white/10 bg-[#0d1723]/96 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <WorkflowChip label={getLocalizedStatus(language, job.status)} tone="neutral" />
-          <WorkflowChip label={reportOnFile ? copy.reportSavedLabel : copy.reportRequired} tone={reportOnFile ? 'success' : 'pending'} />
-          <WorkflowChip label={signatureOnFile ? copy.signatureSavedLabel : copy.signatureRequired} tone={signatureOnFile ? 'success' : 'pending'} />
-        </div>
-        <div className="grid gap-2">
-          {stageButton && (
-            <button
-              type="button"
-              onClick={() => {
-                updateStatus(job.id, stageButton.status);
-                toast('success', getLocalizedStatus(language, stageButton.status));
-              }}
-              className="mobile-tap w-full rounded-2xl bg-brand-500 px-4 py-4 text-base font-semibold text-white"
-            >
-              {stageButton.label}
-            </button>
+          {job.internalNotes && (
+            <div className="mt-5 rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.sections.dispatcherNotes}</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/72">{job.internalNotes}</p>
+            </div>
           )}
 
           {job.status === 'IN_PROGRESS' && (
             <button
               type="button"
-              onClick={handleReadyForSignature}
-              disabled={!canMoveToSignature}
-              className="mobile-tap w-full rounded-2xl border border-white/12 bg-white/6 px-4 py-4 text-base font-semibold text-white/86 disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={handleMarkWaitingForParts}
+              className="mobile-tap mt-5 inline-flex items-center rounded-full border border-[#f5a400]/20 bg-[#2a1d0d] px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#f5a400]"
             >
-              {copy.buttons.readyForSignature}
+              {copy.buttons.waitingForParts}
             </button>
+          )}
+        </div>
+
+        <MobileSectionCard
+          icon={<ReportIcon className="h-7 w-7" />}
+          title={copy.sections.report}
+          badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
+        >
+          <textarea
+            className="mobile-input min-h-[150px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
+            value={reportText}
+            onChange={(event) => setReportText(event.target.value)}
+            placeholder={copy.labels.reportPlaceholder}
+          />
+          <button
+            type="button"
+            onClick={saveReport}
+            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
+          >
+            {copy.buttons.saveReport}
+          </button>
+        </MobileSectionCard>
+
+        <MobileSectionCard
+          icon={<NotesIcon className="h-7 w-7" />}
+          title={copy.sections.fieldJournal}
+          badge={journalCount > 0 ? String(journalCount) : copy.pending}
+        >
+          <textarea
+            className="mobile-input min-h-[120px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
+            value={journalText}
+            onChange={(event) => setJournalText(event.target.value)}
+            placeholder={copy.labels.journalPlaceholder}
+          />
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="mobile-tap inline-flex min-h-[76px] items-center justify-center gap-2 rounded-[22px] bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] px-4 text-[1rem] font-bold text-white"
+            >
+              <CameraIcon className="h-5 w-5 text-[#f5a400]" />
+              {copy.buttons.addFromCamera}
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mobile-tap inline-flex min-h-[76px] items-center justify-center gap-2 rounded-[22px] bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] px-4 text-[1rem] font-bold text-white"
+            >
+              <AttachmentIcon className="h-5 w-5 text-[#f5a400]" />
+              {copy.buttons.addFiles}
+            </button>
+          </div>
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
+          <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
+
+          {pendingFiles.length > 0 && (
+            <div className="mt-4 rounded-[20px] border border-white/8 bg-[#131a26] p-3">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.attachmentsReady}</div>
+              <div className="mt-3 space-y-2">
+                {pendingFiles.map((file, index) => (
+                  <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-[18px] bg-white/[0.05] px-3 py-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-white/90">{file.name}</div>
+                      <div className="mt-1 text-xs text-white/42">{formatFileSize(file.size)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                      className="mobile-tap text-xs font-semibold uppercase tracking-[0.16em] text-[#f5a400]"
+                    >
+                      {copy.buttons.clear}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <button
             type="button"
-            onClick={handleCompleteJob}
-            disabled={!canCompleteJob}
-            className="mobile-tap w-full rounded-2xl bg-emerald-500 px-4 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={() => void handleSaveJournalEntry()}
+            disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
+            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400] disabled:opacity-50"
           >
-            {copy.buttons.completeJob}
+            {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
           </button>
-        </div>
+
+          <div className="mt-5 rounded-[20px] border border-white/8 bg-[#121926] p-4">
+            <div className="mb-3 text-sm text-white/58">{copy.auditLocked}</div>
+            {journalGroups.length === 0 ? (
+              <EmptyMobileState label={copy.journalEmpty} />
+            ) : (
+              <div className="space-y-3">
+                {journalGroups.map((group) => (
+                  <JournalGroupCard key={group.createdAt} group={group} language={language} />
+                ))}
+              </div>
+            )}
+          </div>
+        </MobileSectionCard>
+
+        <MobileSectionCard
+          icon={<PaymentIcon className="h-7 w-7" />}
+          title={copy.sections.payment}
+          badge={paymentBadge}
+        >
+          <div className="rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
+            {copy.paymentLocked}
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {([
+              { id: 'unknown', label: copy.payment.unknown },
+              { id: 'no', label: copy.payment.no },
+              { id: 'yes', label: copy.payment.yes },
+            ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setPaymentChoice(option.id)}
+                className={cn(
+                  'mobile-tap rounded-[18px] px-3 py-3 text-[0.72rem] font-bold uppercase tracking-[0.12em]',
+                  paymentChoice === option.id
+                    ? 'bg-[#2d2111] text-[#f5a400]'
+                    : 'bg-white/[0.05] text-white/58',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {paymentChoice === 'yes' && (
+            <label className="mt-4 block">
+              <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.paymentMethod}</div>
+              <select className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
+                  <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="mt-4 block">
+            <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.paymentNote}</div>
+            <textarea className="mobile-input min-h-[94px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
+          </label>
+
+          <button
+            type="button"
+            onClick={savePayment}
+            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
+          >
+            {copy.buttons.savePayment}
+          </button>
+        </MobileSectionCard>
+
+        <MobileSectionCard
+          icon={<SignatureIcon className="h-7 w-7" />}
+          title={copy.sections.signatures}
+          badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
+        >
+          <div className="space-y-3">
+            <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
+            <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.customerSignature}</div>
+            <SignaturePad height={124} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.techSignature}</div>
+            <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
+          </div>
+
+          <button
+            type="button"
+            onClick={saveSignatures}
+            className="mobile-tap mt-4 w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 text-base font-bold text-white/82"
+          >
+            {copy.signatureSaved}
+          </button>
+        </MobileSectionCard>
+
+        <MobileSectionCard
+          icon={<PartsIcon className="h-7 w-7" />}
+          title={copy.sections.salesOrder}
+          badge={linkedOrderBadge}
+        >
+          <div className="flex flex-wrap items-center gap-2 text-sm text-white/55">
+            <span>{copy.linkedOrderOnly}</span>
+            {linkedSalesOrder?.createdAt && (
+              <>
+                <span>•</span>
+                <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
+              </>
+            )}
+          </div>
+
+          <div className="mt-4 rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
+            {copy.salesRestricted}
+          </div>
+
+          {!linkedSalesOrder ? (
+            <div className="mt-4">
+              <EmptyMobileState label={copy.salesEmpty} />
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
+                <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
+              </div>
+
+              {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
+                <div className="mt-4 rounded-[18px] border border-white/8 bg-[#121926] px-4 py-3 text-xs text-white/42">
+                  <div className="flex items-center justify-between">
+                    <span>{copy.labels.subtotal}</span>
+                    <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
+                  </div>
+                  {linkedSalesOrder.taxAmount ? (
+                    <div className="mt-1 flex items-center justify-between">
+                      <span>{copy.labels.tax}</span>
+                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              <div className="mt-4 space-y-3">
+                {linkedSalesOrder.lines.length === 0 ? (
+                  <EmptyMobileState label={copy.lineRestricted} />
+                ) : (
+                  linkedSalesOrder.lines.map((line) => (
+                    <SalesOrderLineCard key={line.id} line={line} language={language} />
+                  ))
+                )}
+              </div>
+
+              <div className="mt-5 rounded-[22px] border border-white/8 bg-[#121926] p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPartsComposer((current) => !current)}
+                  className="mobile-tap inline-flex min-h-[68px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#2d2111] px-4 text-base font-extrabold text-[#f5a400]"
+                >
+                  <span className="text-[1.6rem] leading-none">+</span>
+                  <span>{copy.buttons.addLine}</span>
+                </button>
+
+                {showPartsComposer && (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
+                      {copy.addPartsNote}
+                    </div>
+                    <label className="block">
+                      <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.catalog}</div>
+                      <select
+                        className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
+                        value={selectedCatalogItemId}
+                        onChange={(event) => setSelectedCatalogItemId(event.target.value)}
+                      >
+                        {APPROVED_ITEM_CATALOG.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/72">
+                      <div className="font-semibold text-white/92">{selectedCatalogItem.label}</div>
+                      <div className="mt-2">{selectedCatalogItem.description}</div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.qty}</div>
+                        <input className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" type="number" min="1" value={selectedQuantity} onChange={(event) => setSelectedQuantity(event.target.value)} />
+                      </label>
+                      <label className="block">
+                        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.rate}</div>
+                        <input className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)} readOnly />
+                      </label>
+                    </div>
+
+                    <label className="block">
+                      <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.note}</div>
+                      <textarea className="mobile-input min-h-[88px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={selectedLineNote} onChange={(event) => setSelectedLineNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleAddApprovedLine}
+                      className="mobile-tap w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
+                    >
+                      {copy.buttons.addLine}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </MobileSectionCard>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-white/10 bg-[rgba(4,10,17,0.96)] backdrop-blur-xl">
+        {primaryAction?.helper && (
+          <div className="px-5 pb-2 pt-3 text-center text-[0.84rem] text-white/48">{primaryAction.helper}</div>
+        )}
+        {primaryAction && (
+          <button
+            type="button"
+            onClick={primaryAction.onClick}
+            disabled={primaryAction.disabled}
+            className={primaryActionClassName}
+          >
+            {primaryAction.label}
+          </button>
+        )}
       </div>
     </div>
   );
 };
+
+const MobileStatusPill: React.FC<{ label: string; status: JobStatus }> = ({ label, status }) => {
+  const tone =
+    status === 'COMPLETED' || status === 'BILLING_READY' || status === 'INVOICED'
+      ? 'bg-emerald-500'
+      : status === 'ON_HOLD' || status === 'WAITING_FOR_PARTS'
+        ? 'bg-[#f5a400]'
+        : 'bg-[#f5a400]';
+
+  return (
+    <div className="inline-flex items-center gap-3 rounded-full bg-[#2a1d0d] px-4 py-2.5 text-sm font-bold text-[#f5a400] shadow-[inset_0_0_0_1px_rgba(245,164,0,0.08)]">
+      <span className={cn('h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(245,164,0,0.08)]', tone)} />
+      <span>{label}</span>
+    </div>
+  );
+};
+
+const MobileQuickAction: React.FC<{
+  href?: string;
+  icon: React.ReactNode;
+  label: string;
+  disabledLabel: string;
+}> = ({ href, icon, label, disabledLabel }) => {
+  const className = cn(
+    'mobile-tap flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-[22px] px-3 text-center shadow-[0_24px_60px_rgba(0,0,0,0.28)]',
+    href
+      ? 'bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] text-white'
+      : 'bg-[linear-gradient(180deg,#1b2431_0%,#141b27_100%)] text-white/35',
+  );
+
+  const content = (
+    <>
+      <span className={cn('flex items-center justify-center', href ? 'text-[#f5a400]' : 'text-white/20')}>{icon}</span>
+      <span className="text-base font-bold">{label}</span>
+      {!href ? <span className="text-[0.68rem] font-medium text-white/28">{disabledLabel}</span> : null}
+    </>
+  );
+
+  if (!href) {
+    return (
+      <button type="button" disabled className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noreferrer' : undefined} className={className}>
+      {content}
+    </a>
+  );
+};
+
+const MobileSummaryLine: React.FC<{ icon: React.ReactNode; value: string; className?: string }> = ({ icon, value, className }) => (
+  <div className={cn('flex items-start gap-4 text-[1rem] leading-[1.45] text-[#8b94a7]', className)}>
+    <div className="mt-0.5 flex h-6 w-6 items-center justify-center text-[#8b94a7]">{icon}</div>
+    <div className="min-w-0">{value}</div>
+  </div>
+);
+
+const MobileSectionCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  badge?: string;
+  children: React.ReactNode;
+}> = ({ icon, title, badge, children }) => (
+  <section className="mb-5 overflow-hidden rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,#1c2432_0%,#1b2330_100%)] shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+    <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="text-[#f5a400]">{icon}</div>
+        <h2 className="truncate text-[1.38rem] font-black tracking-[-0.04em] text-white">{title}</h2>
+        {badge ? <span className="rounded-full bg-[#313b4b] px-3 py-1 text-xs font-bold text-[#c7cfdd]">{badge}</span> : null}
+      </div>
+    </div>
+    <div className="border-t border-white/8 px-5 pb-5 pt-4">{children}</div>
+  </section>
+);
+
+const MobileMetaCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4">
+    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{label}</div>
+    <div className="mt-2 text-lg font-bold text-white">{value}</div>
+  </div>
+);
 
 const MetricCard: React.FC<{ label: string; value: number | string; compact?: boolean }> = ({ label, value, compact }) => (
   <div className={cn('rounded-[22px] border border-white/10 bg-white/[0.05] p-3', compact && 'rounded-2xl')}>
@@ -1642,7 +1928,7 @@ const JournalGroupCard: React.FC<{ group: JournalGroup; language: AppLanguage }>
   const primaryNote = group.notes[0];
 
   return (
-    <div className="rounded-2xl border border-white/8 bg-[#0d1723] p-3">
+    <div className="rounded-[20px] border border-white/8 bg-[#0d1723] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-semibold text-white/92">{primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM'}</div>
         <div className="text-xs text-white/42">{formatDateTimeForLanguage(language, group.createdAt)}</div>
@@ -1667,7 +1953,7 @@ const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }
   const isImage = attachment.type.startsWith('image/');
 
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/6 p-3">
+    <div className="rounded-[18px] border border-white/8 bg-white/[0.05] p-3">
       {isImage && (
         <img src={attachment.url} alt={attachment.name} className="mb-3 h-40 w-full rounded-xl object-cover" />
       )}
@@ -1685,15 +1971,28 @@ const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }
 };
 
 const SalesOrderLineCard: React.FC<{ line: SOLine; language: AppLanguage }> = ({ line, language }) => (
-  <div className="rounded-2xl border border-white/8 bg-white/6 p-3">
+  <div className="rounded-[20px] border border-white/8 bg-[#121926] p-4">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-white/92">{line.itemName}</div>
-        <div className="mt-1 text-xs text-white/45">{line.description || '—'}</div>
+        <div className="text-base font-bold text-white">{line.itemName}</div>
+        <div className="mt-2 inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/45">
+          {line.itemId}
+        </div>
+        {line.description ? <div className="mt-3 text-sm leading-relaxed text-white/58">{line.description}</div> : null}
       </div>
-      <div className="text-right">
-        <div className="text-sm font-semibold text-white">{formatCurrencyForLanguage(language, line.amount)}</div>
-        <div className="text-xs text-white/45">{line.quantity} × {formatCurrencyForLanguage(language, line.rate)}</div>
+      <div className="rounded-full bg-[#2a1d0d] px-3 py-1 text-xs font-bold text-[#f5a400]">
+        x{line.quantity}
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3">
+        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/38">{MOBILE_COPY[language].labels.rate}</div>
+        <div className="mt-1 text-sm font-semibold text-white/78">{formatCurrencyForLanguage(language, line.rate)}</div>
+      </div>
+      <div className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3">
+        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/38">{MOBILE_COPY[language].labels.total}</div>
+        <div className="mt-1 text-base font-bold text-white">{formatCurrencyForLanguage(language, line.amount)}</div>
       </div>
     </div>
   </div>
