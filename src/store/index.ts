@@ -621,6 +621,7 @@ interface CustomerState {
   customers: Customer[];
   getCustomer: (id: string) => Customer | undefined;
   searchCustomers: (q: string) => Customer[];
+  createCustomer: (data: Partial<Customer>) => Customer;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
 }
 
@@ -646,6 +647,26 @@ export const useCustomerStore = create<CustomerState>()(persist((set, get) => ({
         a.zip.includes(lower)
       )
     );
+  },
+
+  createCustomer: (data) => {
+    const now = new Date().toISOString();
+    const customer: Customer = {
+      id: createRecordId('cust'),
+      entityId: createRecordNumber('CUST'),
+      companyName: '',
+      addresses: [],
+      isActive: true,
+      createdAt: now,
+      _dirty: true,
+      ...data,
+    };
+
+    set((state) => ({
+      customers: [customer, ...state.customers],
+    }));
+    scheduleAutoSync();
+    return customer;
   },
 
   updateCustomer: (id, data) => {

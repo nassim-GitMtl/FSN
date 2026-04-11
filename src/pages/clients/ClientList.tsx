@@ -1,21 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCustomerStore, useJobStore, useUIStore } from '@/store';
-import { Card, Input, EmptyState, Button, Badge } from '@/components/ui';
+import { Input, EmptyState, Button, Modal } from '@/components/ui';
 import { formatDate, cn } from '@/lib/utils';
 import { getDesktopCopy } from '@/lib/desktop-copy';
+import { ClientEditorFields } from '@/components/clients/ClientEditorFields';
+import { buildCustomerDraft, buildCustomerPayloadFromDraft } from '@/lib/customer-form';
 
 export const ClientList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const customers = useCustomerStore(s => s.customers);
+  const createCustomer = useCustomerStore((state) => state.createCustomer);
   const jobs = useJobStore(s => s.jobs);
+  const toast = useUIStore((state) => state.toast);
   const language = useUIStore((state) => state.language);
   const copy = getDesktopCopy(language);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [sortBy, setSortBy] = useState<'companyName' | 'createdAt'>('companyName');
   const [page, setPage] = useState(1);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [draft, setDraft] = useState(() => buildCustomerDraft());
   const PAGE_SIZE = 24;
 
   useEffect(() => {
@@ -49,6 +55,23 @@ export const ClientList: React.FC = () => {
 
   const categories = [...new Set(customers.map(c => c.category).filter(Boolean))];
 
+  const openCreateModal = () => {
+    setDraft(buildCustomerDraft());
+    setShowCreateModal(true);
+  };
+
+  const handleCreateClient = () => {
+    if (!draft.companyName.trim()) {
+      toast('warning', 'Enter a company name before saving the client.');
+      return;
+    }
+
+    const customer = createCustomer(buildCustomerPayloadFromDraft(draft));
+    setShowCreateModal(false);
+    toast('success', `${customer.companyName} created`);
+    navigate(`/clients/${customer.id}`);
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="page-header">
@@ -56,6 +79,7 @@ export const ClientList: React.FC = () => {
           <h1 className="page-title">{copy.clients.clients}</h1>
           <p className="page-subtitle">{results.length} {copy.clients.customers}</p>
         </div>
+        <Button variant="primary" onClick={openCreateModal}>+ New Client</Button>
       </div>
 
       {/* Filters */}
@@ -144,6 +168,21 @@ export const ClientList: React.FC = () => {
           <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="p-2 rounded-xl text-surface-500 hover:bg-surface-100 disabled:opacity-30">›</button>
         </div>
       )}
+
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="New Client"
+        size="xl"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleCreateClient}>Create Client</Button>
+          </>
+        )}
+      >
+        <ClientEditorFields draft={draft} onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))} />
+      </Modal>
     </div>
   );
 };

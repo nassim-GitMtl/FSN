@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuthStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
+import { useAuthStore, useCustomerStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
 import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn, SERVICE_TYPE_LABELS, formatDuration, formatFileSize, parseDateValue, toISODate } from '@/lib/utils';
-import type { Attachment, Job, JobNote, JobStatus, SOLine, Technician } from '@/types';
+import type { Attachment, Customer, Job, JobNote, JobStatus, Priority, SOLine, ServiceType, Technician } from '@/types';
+import { buildCustomerDraft, buildCustomerPayloadFromDraft, type CustomerDraft } from '@/lib/customer-form';
+import { SALES_ORDER_CATALOG, createInlineSalesOrderLine, type InlineSalesOrderLineDraft } from '@/lib/sales-order-catalog';
 
 type MobileTab = 'home' | 'jobs' | 'profile';
+type MobileCreateMode = 'client' | 'job';
 type MobileJobFilter = 'active' | 'today' | 'upcoming' | 'completed';
 type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'OTHER';
 
@@ -24,26 +27,10 @@ type JournalGroup = {
   attachments: Attachment[];
 };
 
-type ApprovedCatalogItem = {
-  id: string;
-  label: string;
-  description: string;
-  rate: number;
-  category: 'SERVICE' | 'INVENTORY';
-};
-
 const CLOSED_JOB_STATUSES: JobStatus[] = ['COMPLETED', 'BILLING_READY', 'INVOICED'];
 const ACTIVE_JOB_STATUSES: JobStatus[] = ['SCHEDULED', 'DISPATCHED', 'EN_ROUTE', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'READY_FOR_SIGNATURE', 'ON_HOLD'];
 const PAYMENT_NOTE_PREFIX = '__FSM_PAYMENT__';
 const MAX_ATTACHMENT_SIZE_BYTES = 8 * 1024 * 1024;
-
-const APPROVED_ITEM_CATALOG: ApprovedCatalogItem[] = [
-  { id: 'svc-diagnostics', label: 'Diagnostic Visit', description: 'Approved onsite diagnostic service', rate: 165, category: 'SERVICE' },
-  { id: 'svc-emergency', label: 'Emergency Response', description: 'After-hours service response', rate: 225, category: 'SERVICE' },
-  { id: 'inv-filter-kit', label: 'Filter Kit', description: 'Approved consumable filter kit', rate: 48, category: 'INVENTORY' },
-  { id: 'inv-thermostat', label: 'Programmable Thermostat', description: 'Approved thermostat replacement', rate: 129, category: 'INVENTORY' },
-  { id: 'inv-valve-pack', label: 'Valve Service Pack', description: 'Approved valve repair pack', rate: 86, category: 'INVENTORY' },
-];
 
 const MOBILE_COPY = {
   en: {
@@ -550,6 +537,10 @@ function isMobileTab(value: string | null): value is MobileTab {
   return value === 'home' || value === 'jobs' || value === 'profile';
 }
 
+function isMobileCreateMode(value: string | null): value is MobileCreateMode {
+  return value === 'client' || value === 'job';
+}
+
 function getPreviewTechnicianId(
   user: { workspace: 'SERVICE' | 'INSTALLATION'; technicianId?: string } | null,
   technicians: Technician[],
@@ -684,6 +675,10 @@ function getAddressLine(job: Job) {
   ].filter(Boolean).join(', ');
 }
 
+function getCustomerPrimaryAddress(customer?: Customer) {
+  return customer?.addresses.find((address) => address.isDefault) || customer?.addresses[0];
+}
+
 function getMapsLink(job: Job) {
   const query = encodeURIComponent(getAddressLine(job) || job.customerName);
   if (typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Mac/i.test(navigator.userAgent)) {
@@ -809,16 +804,23 @@ export const MobileApp: React.FC = () => {
   const tabParam = searchParams.get('tab');
   const activeTab: MobileTab = isMobileTab(tabParam) ? tabParam : 'home';
   const selectedJobId = searchParams.get('job');
+  const createModeParam = searchParams.get('create');
+  const activeCreateMode: MobileCreateMode | null = isMobileCreateMode(createModeParam) ? createModeParam : null;
+  const preselectedCustomerId = searchParams.get('customerId') || undefined;
 
   const handleSelectTab = (tab: MobileTab) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', tab);
     nextParams.delete('job');
+    nextParams.delete('create');
+    nextParams.delete('customerId');
     setSearchParams(nextParams, { replace: true });
   };
 
   const handleSelectJob = (jobId: string) => {
     const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('create');
+    nextParams.delete('customerId');
     nextParams.set('job', jobId);
     setSearchParams(nextParams);
   };
@@ -826,6 +828,51 @@ export const MobileApp: React.FC = () => {
   const handleBackToQueue = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('job');
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleOpenCreateClient = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('job');
+    nextParams.set('create', 'client');
+    nextParams.delete('customerId');
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleOpenCreateJob = (customerId?: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('job');
+    nextParams.set('create', 'job');
+    if (customerId) {
+      nextParams.set('customerId', customerId);
+    } else {
+      nextParams.delete('customerId');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleCloseCreate = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('create');
+    nextParams.delete('customerId');
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleClientCreated = (customerId: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', 'jobs');
+    nextParams.set('create', 'job');
+    nextParams.set('customerId', customerId);
+    nextParams.delete('job');
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleJobCreated = (jobId: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', 'jobs');
+    nextParams.delete('create');
+    nextParams.delete('customerId');
+    nextParams.set('job', jobId);
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -846,19 +893,57 @@ export const MobileApp: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {selectedJobId ? (
+        {activeCreateMode === 'client' ? (
+          <MobileClientForm
+            language={language}
+            onBack={handleCloseCreate}
+            onCreated={handleClientCreated}
+          />
+        ) : activeCreateMode === 'job' ? (
+          <MobileTaskForm
+            language={language}
+            previewTechnicianId={previewTechnicianId}
+            preselectedCustomerId={preselectedCustomerId}
+            onBack={handleCloseCreate}
+            onOpenCreateClient={handleOpenCreateClient}
+            onCreated={handleJobCreated}
+          />
+        ) : selectedJobId ? (
           <MobileJobDetail jobId={selectedJobId} onBack={handleBackToQueue} language={language} />
         ) : (
           <>
-            {activeTab === 'home' && <MobileHome previewTechnicianId={previewTechnicianId} language={language} onSelectJob={handleSelectJob} />}
-            {activeTab === 'jobs' && <MobileJobList previewTechnicianId={previewTechnicianId} language={language} onSelectJob={handleSelectJob} />}
-            {activeTab === 'profile' && <MobileProfile previewTechnicianId={previewTechnicianId} language={language} />}
+            {activeTab === 'home' && (
+              <MobileHome
+                previewTechnicianId={previewTechnicianId}
+                language={language}
+                onSelectJob={handleSelectJob}
+                onCreateJob={handleOpenCreateJob}
+                onCreateClient={handleOpenCreateClient}
+              />
+            )}
+            {activeTab === 'jobs' && (
+              <MobileJobList
+                previewTechnicianId={previewTechnicianId}
+                language={language}
+                onSelectJob={handleSelectJob}
+                onCreateJob={handleOpenCreateJob}
+                onCreateClient={handleOpenCreateClient}
+              />
+            )}
+            {activeTab === 'profile' && (
+              <MobileProfile
+                previewTechnicianId={previewTechnicianId}
+                language={language}
+                onCreateJob={handleOpenCreateJob}
+                onCreateClient={handleOpenCreateClient}
+              />
+            )}
           </>
         )}
       </div>
 
       {/* Bottom nav */}
-      {!selectedJobId && (
+      {!selectedJobId && !activeCreateMode && (
         <div className="grid grid-cols-3 border-t border-surface-100 bg-white/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1 backdrop-blur-md">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -896,7 +981,9 @@ const MobileHome: React.FC<{
   previewTechnicianId?: string;
   language: AppLanguage;
   onSelectJob: (jobId: string) => void;
-}> = ({ previewTechnicianId, language, onSelectJob }) => {
+  onCreateJob: (customerId?: string) => void;
+  onCreateClient: () => void;
+}> = ({ previewTechnicianId, language, onSelectJob, onCreateJob, onCreateClient }) => {
   const user = useAuthStore((state) => state.user);
   const jobs = useJobStore((state) => state.jobs);
   const syncState = useUIStore((state) => state.syncState);
@@ -932,6 +1019,22 @@ const MobileHome: React.FC<{
               <strong className="text-surface-900">{jobsTodayCount}</strong> {copy.jobsToday}
             </span>
           </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onCreateJob()}
+            className="mobile-tap rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+          >
+            + New Task
+          </button>
+          <button
+            type="button"
+            onClick={onCreateClient}
+            className="mobile-tap rounded-2xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
+          >
+            + New Client
+          </button>
         </div>
       </div>
 
@@ -977,7 +1080,9 @@ const MobileJobList: React.FC<{
   previewTechnicianId?: string;
   language: AppLanguage;
   onSelectJob: (jobId: string) => void;
-}> = ({ previewTechnicianId, language, onSelectJob }) => {
+  onCreateJob: (customerId?: string) => void;
+  onCreateClient: () => void;
+}> = ({ previewTechnicianId, language, onSelectJob, onCreateJob, onCreateClient }) => {
   const jobs = useJobStore((state) => state.jobs);
   const copy = MOBILE_COPY[language];
   const [filter, setFilter] = useState<MobileJobFilter>('today');
@@ -997,6 +1102,20 @@ const MobileJobList: React.FC<{
         <h1 className="text-2xl font-bold tracking-tight text-surface-900">{copy.tabs.jobs}</h1>
         <p className="mt-1 text-sm text-surface-500">{copy.hiddenHistory}</p>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            type="button"
+            onClick={() => onCreateJob()}
+            className="mobile-tap shrink-0 rounded-full bg-brand-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white"
+          >
+            + New Task
+          </button>
+          <button
+            type="button"
+            onClick={onCreateClient}
+            className="mobile-tap shrink-0 rounded-full border border-surface-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-surface-500"
+          >
+            + Client
+          </button>
           {(['active', 'today', 'upcoming', 'completed'] as MobileJobFilter[]).map((value) => (
             <button
               key={value}
@@ -1026,7 +1145,12 @@ const MobileJobList: React.FC<{
   );
 };
 
-const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLanguage }> = ({ previewTechnicianId, language }) => {
+const MobileProfile: React.FC<{
+  previewTechnicianId?: string;
+  language: AppLanguage;
+  onCreateJob: (customerId?: string) => void;
+  onCreateClient: () => void;
+}> = ({ previewTechnicianId, language, onCreateJob, onCreateClient }) => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const jobs = useJobStore((state) => state.jobs);
@@ -1087,6 +1211,23 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
           <ThemeToggle language={language} />
         </div>
 
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onCreateJob()}
+            className="mobile-tap rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+          >
+            + New Task
+          </button>
+          <button
+            type="button"
+            onClick={onCreateClient}
+            className="mobile-tap rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
+          >
+            + New Client
+          </button>
+        </div>
+
         {/* Sync status */}
         <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3 text-sm">
           <div className="flex items-center justify-between">
@@ -1114,6 +1255,551 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
           className="mobile-tap mt-3 w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
         >
           {copy.signOut}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const MobileClientForm: React.FC<{
+  language: AppLanguage;
+  onBack: () => void;
+  onCreated: (customerId: string) => void;
+}> = ({ language, onBack, onCreated }) => {
+  const createCustomer = useCustomerStore((state) => state.createCustomer);
+  const toast = useUIStore((state) => state.toast);
+  const [draft, setDraft] = useState<CustomerDraft>(() => buildCustomerDraft());
+  const inputClass = 'w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm text-surface-800 placeholder:text-surface-400 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100';
+
+  const handleSave = () => {
+    if (!draft.companyName.trim()) {
+      toast('warning', language === 'fr' ? 'Entrez le nom de l’entreprise.' : 'Enter the company name.');
+      return;
+    }
+
+    const customer = createCustomer(buildCustomerPayloadFromDraft(draft));
+    toast('success', language === 'fr' ? 'Client créé.' : 'Client created.');
+    onCreated(customer.id);
+  };
+
+  return (
+    <div className="flex h-full flex-col bg-surface-50">
+      <div className="border-b border-surface-100 bg-white px-4 py-4">
+        <button type="button" onClick={onBack} className="mobile-tap inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600">
+          <BackIcon className="h-4 w-4" />
+          <span>{language === 'fr' ? 'Retour' : 'Back'}</span>
+        </button>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-surface-900">{language === 'fr' ? 'Nouveau client' : 'New Client'}</h1>
+        <p className="mt-1 text-sm text-surface-500">
+          {language === 'fr' ? 'Créez le client puis passez directement au nouveau travail.' : 'Create the client, then continue straight into the new task.'}
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="space-y-4 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+          <label className="block">
+            <div className="eyebrow mb-1.5">Company Name</div>
+            <input className={inputClass} value={draft.companyName} onChange={(event) => setDraft((current) => ({ ...current, companyName: event.target.value }))} />
+          </label>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="block">
+              <div className="eyebrow mb-1.5">Contact Name</div>
+              <input className={inputClass} value={draft.contactName} onChange={(event) => setDraft((current) => ({ ...current, contactName: event.target.value }))} />
+            </label>
+            <label className="block">
+              <div className="eyebrow mb-1.5">Phone</div>
+              <input className={inputClass} value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} />
+            </label>
+            <label className="block md:col-span-2">
+              <div className="eyebrow mb-1.5">Email</div>
+              <input className={inputClass} type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <div className="eyebrow mb-1.5">Street</div>
+              <input className={inputClass} value={draft.street} onChange={(event) => setDraft((current) => ({ ...current, street: event.target.value }))} />
+            </label>
+            <label className="block">
+              <div className="eyebrow mb-1.5">City</div>
+              <input className={inputClass} value={draft.city} onChange={(event) => setDraft((current) => ({ ...current, city: event.target.value }))} />
+            </label>
+            <label className="block">
+              <div className="eyebrow mb-1.5">State / Province</div>
+              <input className={inputClass} value={draft.state} onChange={(event) => setDraft((current) => ({ ...current, state: event.target.value }))} />
+            </label>
+            <label className="block">
+              <div className="eyebrow mb-1.5">Postal / ZIP</div>
+              <input className={inputClass} value={draft.zip} onChange={(event) => setDraft((current) => ({ ...current, zip: event.target.value }))} />
+            </label>
+            <label className="block">
+              <div className="eyebrow mb-1.5">Category</div>
+              <input className={inputClass} value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} />
+            </label>
+          </div>
+
+          <label className="block">
+            <div className="eyebrow mb-1.5">Notes</div>
+            <textarea className={cn(inputClass, 'min-h-[96px] resize-none')} value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} />
+          </label>
+        </div>
+      </div>
+
+      <div className="border-t border-surface-100 bg-white px-4 py-4">
+        <button type="button" onClick={handleSave} className="mobile-tap w-full rounded-2xl bg-brand-500 px-4 py-4 text-base font-semibold text-white">
+          {language === 'fr' ? 'Enregistrer et créer le travail' : 'Save and Create Task'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const MobileTaskForm: React.FC<{
+  language: AppLanguage;
+  previewTechnicianId?: string;
+  preselectedCustomerId?: string;
+  onBack: () => void;
+  onOpenCreateClient: () => void;
+  onCreated: (jobId: string) => void;
+}> = ({ language, previewTechnicianId, preselectedCustomerId, onBack, onOpenCreateClient, onCreated }) => {
+  const user = useAuthStore((state) => state.user);
+  const customers = useCustomerStore((state) => state.customers);
+  const searchCustomers = useCustomerStore((state) => state.searchCustomers);
+  const createJob = useJobStore((state) => state.createJob);
+  const updateJob = useJobStore((state) => state.updateJob);
+  const createSO = useSOStore((state) => state.createSO);
+  const updateSO = useSOStore((state) => state.updateSO);
+  const getSOsForCustomer = useSOStore((state) => state.getSOsForCustomer);
+  const technicians = useTechStore((state) => state.technicians);
+  const toast = useUIStore((state) => state.toast);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<Priority>('MEDIUM');
+  const [serviceType, setServiceType] = useState<ServiceType>('REPAIR');
+  const [scheduledDate, setScheduledDate] = useState(toISODate(new Date()));
+  const [scheduledStart, setScheduledStart] = useState('');
+  const [scheduledEnd, setScheduledEnd] = useState('');
+  const [estimatedDuration, setEstimatedDuration] = useState('2');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [stateValue, setStateValue] = useState('');
+  const [zip, setZip] = useState('');
+  const [internalNotes, setInternalNotes] = useState('');
+  const [billingCode, setBillingCode] = useState('1');
+  const [warranty, setWarranty] = useState(false);
+  const [salesOrderMode, setSalesOrderMode] = useState<'existing' | 'new'>('new');
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState('');
+  const [newSalesOrderMemo, setNewSalesOrderMemo] = useState('');
+  const [newSOLines, setNewSOLines] = useState<InlineSalesOrderLineDraft[]>([]);
+  const [catalogItemId, setCatalogItemId] = useState(SALES_ORDER_CATALOG[0]?.itemId || '');
+
+  const inputClass = 'w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm text-surface-800 placeholder:text-surface-400 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100';
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId);
+  const customerResults = searchCustomers(customerSearch);
+  const customerSalesOrders = selectedCustomerId
+    ? getSOsForCustomer(selectedCustomerId).sort((left, right) => new Date(right.tranDate).getTime() - new Date(left.tranDate).getTime())
+    : [];
+  const selectedSalesOrder = customerSalesOrders.find((salesOrder) => salesOrder.id === selectedSalesOrderId);
+  const selectedCatalogItem = SALES_ORDER_CATALOG.find((item) => item.itemId === catalogItemId) || SALES_ORDER_CATALOG[0];
+  const assignedTech = technicians.find((technician) => technician.id === previewTechnicianId);
+
+  const applyCustomerSelection = (customer: Customer) => {
+    setSelectedCustomerId(customer.id);
+    setCustomerSearch(customer.companyName);
+    setShowCustomerResults(false);
+    setContactName(customer.contactName || '');
+    setContactPhone(customer.phone || '');
+    setContactEmail(customer.email || '');
+
+    const address = getCustomerPrimaryAddress(customer);
+    setStreet(address?.street || '');
+    setCity(address?.city || '');
+    setStateValue(address?.state || '');
+    setZip(address?.zip || '');
+    setSelectedSalesOrderId('');
+    setNewSOLines([]);
+  };
+
+  useEffect(() => {
+    if (!preselectedCustomerId) return;
+    const customer = customers.find((candidate) => candidate.id === preselectedCustomerId);
+    if (customer) {
+      applyCustomerSelection(customer);
+    }
+  }, [preselectedCustomerId, customers]);
+
+  useEffect(() => {
+    if (!description.trim() || newSalesOrderMemo.trim()) return;
+    setNewSalesOrderMemo(description);
+  }, [description, newSalesOrderMemo]);
+
+  useEffect(() => {
+    if (salesOrderMode === 'existing' && customerSalesOrders.length === 0) {
+      setSalesOrderMode('new');
+    }
+  }, [customerSalesOrders.length, salesOrderMode]);
+
+  const handleSaveTask = () => {
+    if (!user) return;
+    if (!selectedCustomer) {
+      toast('warning', language === 'fr' ? 'Choisissez un client.' : 'Choose a client.');
+      return;
+    }
+    if (!description.trim()) {
+      toast('warning', language === 'fr' ? 'Ajoutez une description du travail.' : 'Add a task description.');
+      return;
+    }
+    if (salesOrderMode === 'existing' && !selectedSalesOrder) {
+      toast('warning', language === 'fr' ? 'Choisissez une commande existante.' : 'Choose an existing sales order.');
+      return;
+    }
+
+    const category = user.workspace === 'INSTALLATION' ? 'INSTALLATION' : 'SERVICE';
+    const job = createJob({
+      customerId: selectedCustomer.id,
+      customerName: selectedCustomer.companyName,
+      description: description.trim(),
+      priority,
+      serviceType,
+      category,
+      scheduledDate: scheduledDate || undefined,
+      scheduledStart: scheduledStart || undefined,
+      scheduledEnd: scheduledEnd || undefined,
+      estimatedDuration: estimatedDuration ? Number(estimatedDuration) : undefined,
+      technicianId: previewTechnicianId,
+      technicianName: assignedTech?.name,
+      serviceAddress: { street, city, state: stateValue, zip },
+      contactName: contactName || undefined,
+      contactPhone: contactPhone || undefined,
+      contactEmail: contactEmail || undefined,
+      internalNotes: internalNotes || undefined,
+      billingCode,
+      warranty,
+      status: previewTechnicianId ? 'SCHEDULED' : 'NEW',
+    });
+
+    if (salesOrderMode === 'new') {
+      const createdSalesOrder = createSO({
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.companyName,
+        linkedJobId: job.id,
+        linkedJobNumber: job.jobNumber,
+        memo: newSalesOrderMemo.trim() || description.trim(),
+        billingCode,
+        lines: newSOLines.map((line, index) => ({
+          id: `sol-${Date.now()}-${index}`,
+          itemId: line.itemId,
+          itemName: line.itemName,
+          description: line.description || undefined,
+          quantity: line.quantity,
+          rate: line.rate,
+          amount: Math.round(line.quantity * line.rate * 100) / 100,
+          isClosed: false,
+        })),
+      });
+      updateJob(job.id, {
+        salesOrderId: createdSalesOrder.id,
+        salesOrderNumber: createdSalesOrder.soNumber,
+      });
+    } else if (selectedSalesOrder) {
+      updateSO(selectedSalesOrder.id, {
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.companyName,
+        linkedJobId: job.id,
+        linkedJobNumber: job.jobNumber,
+        billingCode,
+        memo: selectedSalesOrder.memo || description.trim(),
+      });
+      updateJob(job.id, {
+        salesOrderId: selectedSalesOrder.id,
+        salesOrderNumber: selectedSalesOrder.soNumber,
+      });
+    }
+
+    toast('success', language === 'fr' ? `Travail ${job.jobNumber} créé.` : `Task ${job.jobNumber} created.`);
+    onCreated(job.id);
+  };
+
+  return (
+    <div className="flex h-full flex-col bg-surface-50">
+      <div className="border-b border-surface-100 bg-white px-4 py-4">
+        <button type="button" onClick={onBack} className="mobile-tap inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600">
+          <BackIcon className="h-4 w-4" />
+          <span>{language === 'fr' ? 'Retour' : 'Back'}</span>
+        </button>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-surface-900">{language === 'fr' ? 'Nouveau travail' : 'New Task'}</h1>
+        <p className="mt-1 text-sm text-surface-500">
+          {language === 'fr' ? 'Même structure que le bureau, y compris la commande client.' : 'Desktop-style task setup, including the sales order inside the job.'}
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-surface-900">Customer</h2>
+                <p className="mt-1 text-sm text-surface-500">Select an existing customer or create a new one.</p>
+              </div>
+              <button type="button" onClick={onOpenCreateClient} className="mobile-tap rounded-xl border border-surface-200 bg-surface-50 px-3 py-2 text-xs font-semibold text-surface-700">
+                + Client
+              </button>
+            </div>
+
+            <div className="relative mt-4">
+              <input
+                className={inputClass}
+                placeholder="Search customers…"
+                value={customerSearch}
+                onChange={(event) => {
+                  setCustomerSearch(event.target.value);
+                  setShowCustomerResults(true);
+                }}
+                onFocus={() => setShowCustomerResults(true)}
+              />
+              {showCustomerResults && customerSearch.length >= 1 ? (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-2xl border border-surface-200 bg-white shadow-card">
+                  {customerResults.slice(0, 8).map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => applyCustomerSelection(customer)}
+                      className="w-full border-b border-surface-100 px-4 py-3 text-left last:border-b-0"
+                    >
+                      <div className="text-sm font-semibold text-surface-900">{customer.companyName}</div>
+                      <div className="mt-1 text-xs text-surface-500">{customer.defaultAddress || getCustomerPrimaryAddress(customer)?.street || '—'}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-surface-900">Task Details</h2>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <div className="eyebrow mb-1.5">Description</div>
+                <textarea className={cn(inputClass, 'min-h-[100px] resize-none')} value={description} onChange={(event) => setDescription(event.target.value)} />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="eyebrow mb-1.5">Priority</div>
+                  <select className={inputClass} value={priority} onChange={(event) => setPriority(event.target.value as Priority)}>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="CRITICAL">Critical</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <div className="eyebrow mb-1.5">Service Type</div>
+                  <select className={inputClass} value={serviceType} onChange={(event) => setServiceType(event.target.value as ServiceType)}>
+                    {(['REPAIR', 'MAINTENANCE', 'INSTALLATION', 'INSPECTION', 'WARRANTY_REPAIR', 'EMERGENCY', 'PREVENTIVE_MAINTENANCE', 'DECOMMISSION'] as ServiceType[]).map((value) => (
+                      <option key={value} value={value}>{SERVICE_TYPE_LABELS[value] || value}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="eyebrow mb-1.5">Scheduled Date</div>
+                  <input className={inputClass} type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} />
+                </label>
+                <label className="block">
+                  <div className="eyebrow mb-1.5">Estimated Hours</div>
+                  <input className={inputClass} type="number" min="0.5" step="0.5" value={estimatedDuration} onChange={(event) => setEstimatedDuration(event.target.value)} />
+                </label>
+                <label className="block">
+                  <div className="eyebrow mb-1.5">Start Time</div>
+                  <input className={inputClass} type="time" value={scheduledStart} onChange={(event) => setScheduledStart(event.target.value)} />
+                </label>
+                <label className="block">
+                  <div className="eyebrow mb-1.5">End Time</div>
+                  <input className={inputClass} type="time" value={scheduledEnd} onChange={(event) => setScheduledEnd(event.target.value)} />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-surface-900">Contact & Site</h2>
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <input className={inputClass} placeholder="Contact name" value={contactName} onChange={(event) => setContactName(event.target.value)} />
+              <input className={inputClass} placeholder="Phone" value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
+              <input className={inputClass} type="email" placeholder="Email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
+              <input className={inputClass} placeholder="Street" value={street} onChange={(event) => setStreet(event.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <input className={inputClass} placeholder="City" value={city} onChange={(event) => setCity(event.target.value)} />
+                <input className={inputClass} placeholder="State / Province" value={stateValue} onChange={(event) => setStateValue(event.target.value)} />
+              </div>
+              <input className={inputClass} placeholder="Postal / ZIP" value={zip} onChange={(event) => setZip(event.target.value)} />
+              <textarea className={cn(inputClass, 'min-h-[96px] resize-none')} placeholder="Internal notes" value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-surface-900">Sales Order</h2>
+            <p className="mt-1 text-sm text-surface-500">Link an existing order or build one inside this new task.</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSalesOrderMode('existing')}
+                disabled={!selectedCustomerId}
+                className={cn(
+                  'mobile-tap rounded-2xl border px-4 py-3 text-left',
+                  salesOrderMode === 'existing' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-surface-700',
+                  !selectedCustomerId && 'opacity-50',
+                )}
+              >
+                <div className="text-sm font-semibold">Link Existing</div>
+                <div className="mt-1 text-xs text-surface-500">Attach a customer sales order already on file.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSalesOrderMode('new');
+                  setSelectedSalesOrderId('');
+                }}
+                disabled={!selectedCustomerId}
+                className={cn(
+                  'mobile-tap rounded-2xl border px-4 py-3 text-left',
+                  salesOrderMode === 'new' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-surface-700',
+                  !selectedCustomerId && 'opacity-50',
+                )}
+              >
+                <div className="text-sm font-semibold">Create New</div>
+                <div className="mt-1 text-xs text-surface-500">Create and link a fresh sales order from this task.</div>
+              </button>
+            </div>
+
+            {selectedCustomerId && salesOrderMode === 'existing' ? (
+              <div className="mt-4 space-y-3">
+                <select className={inputClass} value={selectedSalesOrderId} onChange={(event) => setSelectedSalesOrderId(event.target.value)}>
+                  <option value="">{customerSalesOrders.length ? 'Select a sales order' : 'No sales orders for this customer yet'}</option>
+                  {customerSalesOrders.map((salesOrder) => (
+                    <option key={salesOrder.id} value={salesOrder.id}>
+                      {salesOrder.soNumber} · {salesOrder.status} · ${salesOrder.total.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+                {selectedSalesOrder ? (
+                  <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3">
+                    <div className="text-xs font-mono font-semibold text-cyan-700">{selectedSalesOrder.soNumber}</div>
+                    <div className="mt-1 text-sm font-semibold text-surface-900">{selectedSalesOrder.memo || 'No memo added yet'}</div>
+                    <div className="mt-1 text-xs text-surface-600">
+                      {formatDateForLanguage(language, selectedSalesOrder.tranDate)} · {selectedSalesOrder.status}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {selectedCustomerId && salesOrderMode === 'new' ? (
+              <div className="mt-4 space-y-3">
+                <input className={inputClass} placeholder="Sales order memo" value={newSalesOrderMemo} onChange={(event) => setNewSalesOrderMemo(event.target.value)} />
+                <select
+                  className={inputClass}
+                  value=""
+                  onChange={(event) => {
+                    const item = SALES_ORDER_CATALOG.find((candidate) => candidate.itemId === event.target.value);
+                    if (!item) return;
+                    setNewSOLines((current) => [...current, createInlineSalesOrderLine(item)]);
+                    setCatalogItemId(item.itemId);
+                  }}
+                >
+                  <option value="">Add catalog line…</option>
+                  {SALES_ORDER_CATALOG.map((item) => (
+                    <option key={item.itemId} value={item.itemId}>
+                      {item.itemName}{item.rate > 0 ? ` · $${item.rate}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedCatalogItem ? (
+                  <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-600">
+                    <div className="font-semibold text-surface-900">{selectedCatalogItem.itemName}</div>
+                    <div className="mt-1">{selectedCatalogItem.description}</div>
+                  </div>
+                ) : null}
+
+                {newSOLines.length > 0 ? (
+                  <div className="space-y-2">
+                    {newSOLines.map((line) => (
+                      <div key={line.id} className="rounded-2xl border border-surface-100 bg-surface-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-surface-900">{line.itemName}</div>
+                            <div className="mt-1 text-xs text-surface-500">{line.itemId}</div>
+                          </div>
+                          <button type="button" onClick={() => setNewSOLines((current) => current.filter((candidate) => candidate.id !== line.id))} className="text-xs font-bold text-red-500">
+                            Remove
+                          </button>
+                        </div>
+                        <div className="mt-3 grid grid-cols-[72px_1fr_84px] gap-2">
+                          <input
+                            className={inputClass}
+                            type="number"
+                            min="0.25"
+                            step="0.25"
+                            value={line.quantity}
+                            onChange={(event) => setNewSOLines((current) => current.map((candidate) => candidate.id === line.id ? { ...candidate, quantity: Number(event.target.value) || 1 } : candidate))}
+                          />
+                          <input
+                            className={inputClass}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={line.rate}
+                            onChange={(event) => setNewSOLines((current) => current.map((candidate) => candidate.id === line.id ? { ...candidate, rate: Number(event.target.value) || 0 } : candidate))}
+                          />
+                          <div className="flex items-center justify-end rounded-xl border border-surface-200 bg-white px-3 text-sm font-semibold text-surface-900">
+                            {formatAmountForLanguage(language, line.quantity * line.rate)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="text-right text-sm font-semibold text-surface-800">
+                      Subtotal: {formatAmountForLanguage(language, newSOLines.reduce((sum, line) => sum + line.quantity * line.rate, 0))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-surface-900">Billing</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <input className={inputClass} placeholder="Billing code" value={billingCode} onChange={(event) => setBillingCode(event.target.value)} />
+              <button
+                type="button"
+                onClick={() => setWarranty((current) => !current)}
+                className={cn(
+                  'mobile-tap rounded-xl border px-4 py-3 text-sm font-semibold',
+                  warranty ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-surface-700',
+                )}
+              >
+                {warranty ? 'Warranty Job' : 'Billable Job'}
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div className="border-t border-surface-100 bg-white px-4 py-4">
+        <button type="button" onClick={handleSaveTask} className="mobile-tap w-full rounded-2xl bg-brand-500 px-4 py-4 text-base font-semibold text-white">
+          {language === 'fr' ? 'Créer le travail' : 'Create Task'}
         </button>
       </div>
     </div>
@@ -1239,7 +1925,7 @@ const MobileJobDetail: React.FC<{
   const [paymentChoice, setPaymentChoice] = useState<'unknown' | 'no' | 'yes'>('unknown');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
   const [paymentNote, setPaymentNote] = useState('');
-  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(APPROVED_ITEM_CATALOG[0].id);
+  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(SALES_ORDER_CATALOG[0]?.itemId || '');
   const [selectedQuantity, setSelectedQuantity] = useState('1');
   const [selectedLineNote, setSelectedLineNote] = useState('');
   const [showPartsComposer, setShowPartsComposer] = useState(false);
@@ -1266,7 +1952,7 @@ const MobileJobDetail: React.FC<{
   const paymentCapture = getLatestPaymentCapture(notes);
   const journalGroups = buildJournalGroups(notes, attachments);
   const stageButton = getStageButton(job, copy.buttons);
-  const selectedCatalogItem = APPROVED_ITEM_CATALOG.find((item) => item.id === selectedCatalogItemId) || APPROVED_ITEM_CATALOG[0];
+  const selectedCatalogItem = SALES_ORDER_CATALOG.find((item) => item.itemId === selectedCatalogItemId) || SALES_ORDER_CATALOG[0];
   const reportOnFile = Boolean(job.resolution?.trim());
   const customerSignatureReady = Boolean(customerSignature);
   const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
@@ -1432,8 +2118,8 @@ const MobileJobDetail: React.FC<{
 
     const quantity = Math.max(1, Number(selectedQuantity) || 1);
     addSOLine(linkedSalesOrder.id, {
-      itemId: selectedCatalogItem.id,
-      itemName: selectedCatalogItem.label,
+      itemId: selectedCatalogItem.itemId,
+      itemName: selectedCatalogItem.itemName,
       description: [selectedCatalogItem.description, selectedLineNote.trim()].filter(Boolean).join(' • '),
       quantity,
       rate: selectedCatalogItem.rate,
@@ -1441,7 +2127,7 @@ const MobileJobDetail: React.FC<{
     });
     addNote(
       job.id,
-      `${copy.lineAdded} ${selectedCatalogItem.label} x${quantity}${selectedLineNote.trim() ? ` • ${selectedLineNote.trim()}` : ''}`,
+      `${copy.lineAdded} ${selectedCatalogItem.itemName} x${quantity}${selectedLineNote.trim() ? ` • ${selectedLineNote.trim()}` : ''}`,
       'ACTIVITY',
       user.id,
       user.name,
@@ -1833,16 +2519,16 @@ const MobileJobDetail: React.FC<{
                             value={selectedCatalogItemId}
                             onChange={(event) => setSelectedCatalogItemId(event.target.value)}
                           >
-                            {APPROVED_ITEM_CATALOG.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.label} • {formatAmountForLanguage(language, item.rate)}
+                            {SALES_ORDER_CATALOG.map((item) => (
+                              <option key={item.itemId} value={item.itemId}>
+                                {item.itemName} • {formatAmountForLanguage(language, item.rate)}
                               </option>
                             ))}
                           </select>
                         </label>
 
                         <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm">
-                          <div className="font-semibold text-white">{selectedCatalogItem.label}</div>
+                          <div className="font-semibold text-white">{selectedCatalogItem.itemName}</div>
                           <div className="mt-1 text-white/55">{selectedCatalogItem.description}</div>
                         </div>
 

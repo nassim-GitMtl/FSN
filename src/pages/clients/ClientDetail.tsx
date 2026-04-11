@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCustomerStore, useJobStore, useSOStore, useAssetStore, useUIStore } from '@/store';
 import { getDesktopCopy } from '@/lib/desktop-copy';
-import { Card, StatusBadge, PriorityBadge, ServiceTypeBadge, Tabs, EmptyState, Button, Input, Modal, Textarea } from '@/components/ui';
+import { Card, StatusBadge, PriorityBadge, ServiceTypeBadge, Tabs, EmptyState, Button, Modal } from '@/components/ui';
 import { formatDate, formatCurrency, cn, SERVICE_TYPE_LABELS } from '@/lib/utils';
+import { ClientEditorFields } from '@/components/clients/ClientEditorFields';
+import { buildCustomerDraft, buildCustomerPayloadFromDraft, type CustomerDraft } from '@/lib/customer-form';
 
 export const ClientDetail: React.FC = () => {
   const { id } = useParams();
@@ -18,15 +20,7 @@ export const ClientDetail: React.FC = () => {
   const customer = id ? getCustomer(id) : undefined;
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editDraft, setEditDraft] = useState({
-    contactName: '',
-    email: '',
-    phone: '',
-    altPhone: '',
-    website: '',
-    category: '',
-    notes: '',
-  });
+  const [editDraft, setEditDraft] = useState<CustomerDraft>(() => buildCustomerDraft());
 
   if (!customer) {
     return <EmptyState icon="🏢" title={copy.clientDetail.clientNotFound} action={<Button onClick={() => navigate('/clients')}>{copy.clientDetail.backToClients}</Button>} />;
@@ -40,28 +34,16 @@ export const ClientDetail: React.FC = () => {
   const totalRevenue = salesOrders.filter(s => s.status !== 'Cancelled').reduce((sum, so) => sum + so.total, 0);
 
   const openEditModal = () => {
-    setEditDraft({
-      contactName: customer.contactName || '',
-      email: customer.email || '',
-      phone: customer.phone || '',
-      altPhone: customer.altPhone || '',
-      website: customer.website || '',
-      category: customer.category || '',
-      notes: customer.notes || '',
-    });
+    setEditDraft(buildCustomerDraft(customer));
     setShowEditModal(true);
   };
 
   const saveCustomerChanges = () => {
-    updateCustomer(customer.id, {
-      contactName: editDraft.contactName || undefined,
-      email: editDraft.email || undefined,
-      phone: editDraft.phone || undefined,
-      altPhone: editDraft.altPhone || undefined,
-      website: editDraft.website || undefined,
-      category: editDraft.category || undefined,
-      notes: editDraft.notes || undefined,
-    });
+    if (!editDraft.companyName.trim()) {
+      return;
+    }
+
+    updateCustomer(customer.id, buildCustomerPayloadFromDraft(editDraft, customer));
     setShowEditModal(false);
   };
 
@@ -347,47 +329,7 @@ export const ClientDetail: React.FC = () => {
           </>
         )}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Contact Name"
-            value={editDraft.contactName}
-            onChange={(event) => setEditDraft((current) => ({ ...current, contactName: event.target.value }))}
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={editDraft.email}
-            onChange={(event) => setEditDraft((current) => ({ ...current, email: event.target.value }))}
-          />
-          <Input
-            label="Phone"
-            value={editDraft.phone}
-            onChange={(event) => setEditDraft((current) => ({ ...current, phone: event.target.value }))}
-          />
-          <Input
-            label="Alt Phone"
-            value={editDraft.altPhone}
-            onChange={(event) => setEditDraft((current) => ({ ...current, altPhone: event.target.value }))}
-          />
-          <Input
-            label="Website"
-            value={editDraft.website}
-            onChange={(event) => setEditDraft((current) => ({ ...current, website: event.target.value }))}
-          />
-          <Input
-            label="Category"
-            value={editDraft.category}
-            onChange={(event) => setEditDraft((current) => ({ ...current, category: event.target.value }))}
-          />
-          <div className="md:col-span-2">
-            <Textarea
-              label="Notes"
-              rows={4}
-              value={editDraft.notes}
-              onChange={(event) => setEditDraft((current) => ({ ...current, notes: event.target.value }))}
-            />
-          </div>
-        </div>
+        <ClientEditorFields draft={editDraft} onChange={(patch) => setEditDraft((current) => ({ ...current, ...patch }))} />
       </Modal>
     </div>
   );
