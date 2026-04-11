@@ -130,23 +130,24 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-200 bg-surface-100/95 text-surface-900 backdrop-blur-xl transition-[width] duration-200',
+        'fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-800 bg-surface-950 text-white transition-[width] duration-200',
         sidebarCollapsed ? 'w-[88px]' : 'w-[272px]',
       )}
     >
-      <div className="flex h-[76px] items-center gap-3 border-b border-surface-200 px-4">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-surface-950 shadow-sm">
+      {/* Logo row */}
+      <div className="flex h-[76px] items-center gap-3 border-b border-surface-800 px-4">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-bold text-white shadow-sm">
           FM
         </div>
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-surface-900">FSM Command</div>
-            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-500">Field service operations</div>
+            <div className="truncate text-sm font-semibold text-white">FSM Command</div>
+            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-400">Field service operations</div>
           </div>
         )}
         <button
           onClick={toggleSidebar}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl border border-surface-200 text-surface-500 transition-colors hover:bg-surface-50 hover:text-surface-900"
+          className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl border border-surface-700 text-surface-400 transition-colors hover:border-surface-600 hover:bg-surface-800 hover:text-white"
         >
           <svg className={cn('h-4 w-4 transition-transform', sidebarCollapsed && 'rotate-180')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -154,28 +155,30 @@ export const Sidebar: React.FC = () => {
         </button>
       </div>
 
+      {/* Workspace card */}
       {!sidebarCollapsed && (
-        <div className="mx-4 mt-4 rounded-[18px] border border-surface-200 bg-surface-50 px-4 py-4 shadow-sm">
+        <div className="mx-4 mt-4 rounded-2xl border border-surface-800 bg-surface-900 px-4 py-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-500">Workspace</div>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-surface-900">
+            <div className="text-sm font-medium text-white">
               {user.workspace === 'SERVICE' ? 'Service Operations' : 'Installation Operations'}
             </div>
-            <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
+            <span className="h-2 w-2 rounded-full bg-brand-400" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-surface-200 bg-surface-100 px-3 py-3">
-              <div className="text-lg font-semibold text-surface-900">{activeJobs.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">Open jobs</div>
+            <div className="rounded-xl border border-surface-800 bg-surface-800/60 px-3 py-3">
+              <div className="text-lg font-bold text-white">{activeJobs.length}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400">Open jobs</div>
             </div>
-            <div className="rounded-xl border border-surface-200 bg-surface-100 px-3 py-3">
-              <div className="text-lg font-semibold text-surface-900">{unassignedJobs.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">Unassigned</div>
+            <div className="rounded-xl border border-surface-800 bg-surface-800/60 px-3 py-3">
+              <div className="text-lg font-bold text-white">{unassignedJobs.length}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400">Unassigned</div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {filteredNav.map((section) => (
           <div key={section.section} className="mb-5">
@@ -184,7 +187,7 @@ export const Sidebar: React.FC = () => {
                 {section.section}
               </div>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive = item.to === '/dashboard'
                   ? location.pathname === '/dashboard'
@@ -195,17 +198,17 @@ export const Sidebar: React.FC = () => {
                     key={item.to}
                     to={item.to}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors',
+                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
                       sidebarCollapsed ? 'justify-center' : '',
                       isActive
-                        ? 'bg-brand-500 text-surface-950 shadow-sm'
-                        : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
+                        ? 'bg-brand-500/20 text-brand-300'
+                        : 'text-surface-400 hover:bg-surface-800 hover:text-white',
                     )}
                   >
                     <span
                       className={cn(
-                        'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
-                        isActive ? 'bg-surface-950 text-white' : 'bg-surface-200 text-current',
+                        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg',
+                        isActive ? 'bg-brand-500 text-white' : 'bg-surface-800 text-surface-400',
                       )}
                     >
                       <NavIcon icon={item.icon} active={isActive} />
@@ -213,7 +216,7 @@ export const Sidebar: React.FC = () => {
                     {!sidebarCollapsed && (
                       <div className="min-w-0">
                         <div className="truncate font-medium">{item.label}</div>
-                        <div className={cn('truncate text-[11px]', isActive ? 'text-surface-800/80' : 'text-surface-500')}>
+                        <div className={cn('truncate text-[11px]', isActive ? 'text-brand-400/80' : 'text-surface-500')}>
                           {item.caption}
                         </div>
                       </div>
@@ -232,13 +235,14 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div className={cn('border-t border-surface-200 p-4', sidebarCollapsed && 'flex justify-center')}>
+      {/* User footer */}
+      <div className={cn('border-t border-surface-800 p-4', sidebarCollapsed && 'flex justify-center')}>
         {!sidebarCollapsed ? (
-          <div className="rounded-[18px] border border-surface-200 bg-surface-50 px-3 py-3 shadow-sm">
+          <div className="rounded-xl border border-surface-800 bg-surface-900 px-3 py-3">
             <div className="flex items-center gap-3">
               <Avatar initials={user.avatarInitials} size="sm" />
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-surface-900">{user.name}</div>
+                <div className="truncate text-sm font-medium text-white">{user.name}</div>
                 <div className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">{user.role}</div>
               </div>
             </div>
