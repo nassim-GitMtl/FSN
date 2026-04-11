@@ -386,7 +386,7 @@ const ScheduledJobCard: React.FC<{
       {...attributes}
       className={cn(
         'rounded-xl border transition-all select-none',
-        isDragging ? 'opacity-30 shadow-lg' : hasConflict ? 'bg-amber-50 border-amber-300 shadow-card hover:shadow-card-hover' : 'bg-white border-surface-200 shadow-card hover:shadow-card-hover',
+        isDragging ? 'opacity-30 shadow-lg' : hasConflict ? 'border-amber-300 shadow-card hover:shadow-card-hover' : 'bg-white border-surface-200 shadow-card hover:shadow-card-hover',
         compact ? 'p-2' : 'p-3',
       )}
     >
