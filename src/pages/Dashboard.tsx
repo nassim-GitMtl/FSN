@@ -20,50 +20,9 @@ import {
   formatRelative,
   toISODate,
 } from '@/lib/utils';
+import { Navigation, Clock, Zap, RefreshCw, ArrowRight, MapPin, Phone, Mail, Wrench, ChevronRight } from 'lucide-react';
+
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
-
-// Inline SVG icon components
-type IconProps = { size?: number; className?: string };
-
-const NavigationIcon: React.FC<IconProps> = ({ size = 18, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="3 11 22 2 13 21 11 13 3 11" />
-  </svg>
-);
-
-const ClockIcon: React.FC<IconProps> = ({ size = 14, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const ZapIcon: React.FC<IconProps> = ({ size = 14, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </svg>
-);
-
-const RefreshCwIcon: React.FC<IconProps> = ({ size = 10, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="23 4 23 10 17 10" />
-    <polyline points="1 20 1 14 7 14" />
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-  </svg>
-);
-
-const ArrowRightIcon: React.FC<IconProps> = ({ size = 16, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12" />
-    <polyline points="12 5 19 12 12 19" />
-  </svg>
-);
-
-const ChevronRightIcon: React.FC<IconProps> = ({ size = 16, className }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
 
 interface ActionItem {
   title: string;
@@ -159,7 +118,7 @@ const JobCard: React.FC<{ job: any; compact?: boolean; onClick: () => void }> = 
           )}
           <div className="flex items-center gap-3 mt-2">
             <span className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
-              <ClockIcon size={12} />
+              <Clock size={12} />
               {job.scheduledStart || 'Unscheduled'}
             </span>
             {job.estimatedDuration && (
@@ -173,9 +132,9 @@ const JobCard: React.FC<{ job: any; compact?: boolean; onClick: () => void }> = 
             className="w-10 h-10 rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] flex items-center justify-center hover:bg-[hsl(var(--primary)/0.2)] transition-colors"
             aria-label="Navigate"
           >
-            <NavigationIcon size={18} />
+            <Navigation size={18} />
           </button>
-          <ChevronRightIcon size={16} className="text-[hsl(var(--muted-foreground))]" />
+          <ChevronRight size={16} className="text-[hsl(var(--muted-foreground))]" />
         </div>
       </div>
     </button>
@@ -201,7 +160,7 @@ const ActiveJobHero: React.FC<{ job: any; onOpen: () => void }> = ({ job, onOpen
         {job.serviceAddress.street}, {job.serviceAddress.city}
       </p>
       <div className="flex items-center gap-2 mb-4">
-        <ClockIcon size={14} className="text-[hsl(var(--muted-foreground))]" />
+        <Clock size={14} className="text-[hsl(var(--muted-foreground))]" />
         <span className="text-sm text-[hsl(var(--muted-foreground))]">
           {job.scheduledStart || 'Unscheduled'} {job.estimatedDuration ? `· ${job.estimatedDuration}h` : ''}
         </span>
@@ -211,13 +170,13 @@ const ActiveJobHero: React.FC<{ job: any; onOpen: () => void }> = ({ job, onOpen
           onClick={onOpen}
           className="flex-1 h-12 rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
         >
-          Open Job <ArrowRightIcon size={16} />
+          Open Job <ArrowRight size={16} />
         </button>
         <button
           onClick={handleNavigateToMap}
           className="w-12 h-12 rounded-xl bg-[hsl(var(--surface))] border border-[hsl(var(--border))] flex items-center justify-center text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors"
         >
-          <NavigationIcon size={18} />
+          <Navigation size={18} />
         </button>
       </div>
     </div>
@@ -338,7 +297,7 @@ export const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-[hsl(var(--foreground))]">{user?.name?.split(' ')[0] || 'User'}</h1>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-[hsl(var(--muted-foreground))]">
-          <RefreshCwIcon size={10} />
+          <RefreshCw size={10} />
           <span>Synced {syncState?.lastSync ? new Date(syncState.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'never'}</span>
         </div>
       </div>
@@ -346,7 +305,7 @@ export const Dashboard: React.FC = () => {
       {/* Stats row */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))]">
-          <ZapIcon size={14} className="text-[hsl(var(--primary))]" />
+          <Zap size={14} className="text-[hsl(var(--primary))]" />
           <span><strong className="text-[hsl(var(--foreground))]">{kpis?.jobsToday ?? 0}</strong> jobs today</span>
         </div>
         <div className="flex items-center gap-3">
