@@ -708,17 +708,6 @@ function decodePaymentCapture(text: string): PaymentCapture | null {
   }
 }
 
-function getReadableNoteText(language: AppLanguage, note: JobNote) {
-  const payment = decodePaymentCapture(note.text);
-  if (payment) {
-    const copy = MOBILE_COPY[language];
-    const paymentLabel = payment.paid ? copy.payment.yes : copy.payment.no;
-    const methodLabel = payment.method ? PAYMENT_METHOD_LABELS[language][payment.method] : '';
-    return [paymentLabel, methodLabel, payment.note].filter(Boolean).join(' • ');
-  }
-
-  return note.text;
-}
 
 function getLatestPaymentCapture(notes: JobNote[]) {
   for (let index = notes.length - 1; index >= 0; index -= 1) {
@@ -1282,6 +1271,7 @@ const MobileJobDetail: React.FC<{
   const customerSignatureReady = Boolean(customerSignature);
   const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
   const isJobLocked = CLOSED_JOB_STATUSES.includes(job.status);
+  const canSign = reportOnFile && paymentCapture !== null;
   const canCompleteJob = (job.status === 'IN_PROGRESS' || job.status === 'READY_FOR_SIGNATURE') && reportOnFile && customerSignatureReady && paymentCapture !== null;
   const linkedOrderBadge = linkedSalesOrder?.soNumber || job.salesOrderNumber;
   const salesOrderStatusLabel = linkedSalesOrder ? formatSalesOrderStatus(language, linkedSalesOrder.status) : copy.pending;
@@ -1954,19 +1944,23 @@ const MobileJobDetail: React.FC<{
               </>
             )}
 
-            {/* Compact read-only history */}
-            <div className={cn('rounded-xl border border-surface-100 bg-surface-50 p-3', !isJobLocked && 'mt-4')}>
-              {!isJobLocked && <p className="mb-2 text-xs text-surface-400">{copy.auditLocked}</p>}
-              {journalGroups.length === 0 ? (
-                <EmptyMobileState label={copy.journalEmpty} />
-              ) : (
-                <div className="space-y-1.5">
-                  {journalGroups.map((group) => (
-                    <CompactJournalRow key={group.createdAt} group={group} language={language} />
-                  ))}
+            {/* File attachments history — scrollable */}
+            {(() => {
+              const fileGroups = journalGroups.filter((g) => g.attachments.length > 0);
+              return (
+                <div className={cn('rounded-xl border border-surface-100 bg-surface-50 p-3', !isJobLocked && 'mt-4')}>
+                  {fileGroups.length === 0 ? (
+                    <EmptyMobileState label={copy.journalEmpty} />
+                  ) : (
+                    <div className="max-h-52 space-y-1.5 overflow-y-auto">
+                      {fileGroups.map((group) => (
+                        <CompactJournalRow key={group.createdAt} group={group} language={language} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </MobileSectionCard>
 
           {/* Payment */}
@@ -2071,13 +2065,6 @@ const MobileJobDetail: React.FC<{
             badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
             badgeTone={signatureOnFile ? 'success' : 'default'}
           >
-            {/* Completion checklist — always visible */}
-            <div className="mb-4 space-y-2">
-              <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
-              <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
-              <RequirementRow label={copy.choosePaymentState} complete={paymentCapture !== null} completeLabel={paymentBadge} pendingLabel={copy.pending} />
-            </div>
-
             {isJobLocked ? (
               <>
                 {job.completionSignature && (
@@ -2087,9 +2074,16 @@ const MobileJobDetail: React.FC<{
                   </div>
                 )}
               </>
+            ) : !canSign ? (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-700">
+                {[
+                  !reportOnFile && copy.reportRequired,
+                  paymentCapture === null && copy.choosePaymentState,
+                ].filter(Boolean).join(' ')}
+              </div>
             ) : (
               <>
-                <div className="mt-4">
+                <div>
                   <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.customerSignature}</div>
                   <SignaturePad height={120} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
                 </div>
@@ -2112,6 +2106,21 @@ const MobileJobDetail: React.FC<{
 
           {/* Customer history */}
           <CustomerJobHistory customerId={job.customerId} currentJobId={job.id} language={language} />
+
+          {/* Completion requirements — always last */}
+          {!isJobLocked && (
+            <MobileSectionCard
+              icon={<SignatureIcon className="h-5 w-5" />}
+              title={copy.sections.requirements}
+              badgeTone="default"
+            >
+              <div className="space-y-2">
+                <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
+                <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
+                <RequirementRow label={copy.choosePaymentState} complete={paymentCapture !== null} completeLabel={paymentBadge} pendingLabel={copy.pending} />
+              </div>
+            </MobileSectionCard>
+          )}
         </div>
       </div>
 
@@ -2280,27 +2289,26 @@ const InfoRow: React.FC<{ label: string; value?: string; link?: string }> = ({ l
   );
 };
 
-// Compact single-line journal row for read-only history
+// File-only journal row for read-only history
 const CompactJournalRow: React.FC<{ group: JournalGroup; language: AppLanguage }> = ({ group, language }) => {
-  const primaryNote = group.notes[0];
-  const author = primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM';
-  const textLines = group.notes.map((n) => getReadableNoteText(language, n));
-  const attachCount = group.attachments.length;
+  const author = group.attachments[0]?.uploadedBy || group.notes[0]?.authorName || 'FSM';
 
   return (
     <div className="flex items-start gap-2 rounded-lg border border-surface-100 bg-white px-3 py-2">
-      <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-300" />
+      <div className="mt-1 shrink-0 text-brand-400">
+        <AttachmentIcon className="h-3.5 w-3.5" />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-[11px] font-semibold text-surface-500">{author}</span>
           <span className="shrink-0 text-[11px] text-surface-400">{formatDateTimeForLanguage(language, group.createdAt)}</span>
         </div>
-        {textLines.map((text, i) => (
-          <p key={i} className="mt-0.5 line-clamp-2 text-xs text-surface-700">{text}</p>
+        {group.attachments.map((att, i) => (
+          <p key={i} className="mt-0.5 truncate text-xs text-surface-700">
+            {att.name}
+            {att.size ? <span className="ml-1 text-surface-400">({formatFileSize(att.size)})</span> : null}
+          </p>
         ))}
-        {attachCount > 0 && (
-          <p className="mt-0.5 text-xs text-brand-600">{attachCount} attachment{attachCount > 1 ? 's' : ''}</p>
-        )}
       </div>
     </div>
   );
