@@ -4,6 +4,7 @@ import { cn, toISODate } from '@/lib/utils';
 import { useAuthStore, useJobStore, useSearchStore, useUIStore } from '@/store';
 import { Spinner } from '@/components/ui';
 import { ThemeToggle } from './ThemeToggle';
+import type { AppLanguage } from '@/lib/app-language';
 
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
 
@@ -69,7 +70,7 @@ const RESULT_TONES: Record<string, string> = {
 
 export const Header: React.FC = () => {
   const { user, logout, switchWorkspace } = useAuthStore();
-  const { syncState, triggerSync, sidebarCollapsed, language } = useUIStore();
+  const { syncState, triggerSync, sidebarCollapsed, language, setLanguage } = useUIStore();
   const jobs = useJobStore((state) => state.jobs);
   const { query, results, setQuery, search, clear } = useSearchStore();
   const navigate = useNavigate();
@@ -241,6 +242,23 @@ export const Header: React.FC = () => {
                 )}
               >
                 {workspace === 'SERVICE' ? 'Service' : 'Install'}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center rounded-xl border border-surface-200 bg-surface-100 p-1">
+            {(['en', 'fr'] as AppLanguage[]).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                  language === lang
+                    ? 'bg-brand-500 text-surface-950'
+                    : 'text-surface-500 hover:bg-surface-50 hover:text-surface-900',
+                )}
+              >
+                {lang}
               </button>
             ))}
           </div>
