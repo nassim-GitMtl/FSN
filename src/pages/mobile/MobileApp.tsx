@@ -293,7 +293,7 @@ const MOBILE_COPY = {
     journalSaved: 'Entrée terrain enregistrée.',
     choosePaymentState: 'Choisissez si un paiement a été collecté avant de sauvegarder.',
     openAttachment: 'Ouvrir',
-    fileTooLarge: 'Un ou plusieurs fichiers ont été ignorés parce qu’ils sont trop lourds pour la synchronisation mobile.',
+    fileTooLarge: "Un ou plusieurs fichiers ont été ignorés parce qu'ils sont trop lourds pour la synchronisation mobile.",
     reportUnlocksSignature: 'Rédigez ou enregistrez le rapport avant de passer à la signature.',
     call: 'Appeler',
     email: 'Courriel',
@@ -773,13 +773,14 @@ export const MobileApp: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#08111b] text-white">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-50 text-surface-900">
+      {/* Top header */}
+      <div className="flex items-center justify-between border-b border-surface-100 bg-white px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-sm">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">FSM</div>
-          <div className="mt-1 text-sm font-semibold text-white/90">{copy.commandCenter}</div>
+          <div className="eyebrow">FSM</div>
+          <div className="mt-0.5 text-sm font-semibold text-surface-700">{copy.commandCenter}</div>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+        <div className="rounded-full border border-surface-200 bg-surface-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-surface-500">
           {APP_LANGUAGE_LABELS[language]}
         </div>
       </div>
@@ -796,33 +797,33 @@ export const MobileApp: React.FC = () => {
         )}
       </div>
 
+      {/* Bottom nav */}
       {!selectedJobId && (
-        <div className="grid grid-cols-3 border-t border-white/10 bg-[#0d1723]/96 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl">
+        <div className="grid grid-cols-3 border-t border-surface-100 bg-white/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1 backdrop-blur-md">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
+            const isActive = activeTab === item.id;
 
             return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleSelectTab(item.id)}
-              className={cn(
-                'mobile-tap flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em]',
-                activeTab === item.id ? 'text-brand-200' : 'text-white/45',
-              )}
-            >
-              <span
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelectTab(item.id)}
                 className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-2xl border transition-all',
-                  activeTab === item.id
-                    ? 'border-brand-300/30 bg-brand-400/18 text-brand-100 shadow-[0_12px_30px_-18px_rgba(42,120,255,0.8)]'
-                    : 'border-white/8 bg-white/[0.04] text-white/68',
+                  'mobile-tap flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em]',
+                  isActive ? 'text-brand-600' : 'text-surface-400',
                 )}
               >
-                <Icon className="h-[18px] w-[18px]" />
-              </span>
-              <span>{copy.tabs[item.id]}</span>
-            </button>
+                <span
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-xl transition-all',
+                    isActive ? 'bg-brand-50 text-brand-600' : 'text-surface-400',
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+                <span>{copy.tabs[item.id]}</span>
+              </button>
             );
           })}
         </div>
@@ -849,25 +850,28 @@ const MobileHome: React.FC<{
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4">
+      {/* Greeting */}
       <div className="mb-5">
-        <div className="text-sm text-white/55">
+        <div className="text-sm text-surface-400">
           {new Date().getHours() < 12 ? copy.greetingMorning : copy.greetingAfternoon}
         </div>
-        <div className="mt-1 text-3xl font-semibold tracking-[-0.04em]">{user?.name?.split(' ')[0]}</div>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/58">{copy.statusIntro}</p>
+        <div className="mt-1 text-2xl font-bold tracking-tight text-surface-900">{user?.name?.split(' ')[0]}</div>
+        <p className="mt-1.5 text-sm leading-relaxed text-surface-500">{copy.statusIntro}</p>
       </div>
 
-      <div className="mb-5 grid grid-cols-3 gap-3">
+      {/* Metrics */}
+      <div className="mb-4 grid grid-cols-3 gap-2">
         <MetricCard label={copy.todayQueue} value={todayJobs.length} />
         <MetricCard label={copy.assigned} value={visibleJobs.length} />
         <MetricCard label={copy.completedToday} value={completedToday.length} />
       </div>
 
-      <div className="mb-4 rounded-[26px] border border-white/10 bg-white/[0.05] p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/42">{copy.activeNow}</div>
-            <div className="mt-2 text-lg font-semibold text-white/92">
+      {/* Active job */}
+      <div className="mb-4 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="eyebrow mb-1.5">{copy.activeNow}</div>
+            <div className="text-base font-semibold text-surface-900">
               {activeJob ? activeJob.customerName : copy.noActiveJob}
             </div>
           </div>
@@ -875,31 +879,37 @@ const MobileHome: React.FC<{
             <button
               type="button"
               onClick={() => onSelectJob(activeJob.id)}
-              className="mobile-tap rounded-2xl bg-brand-500 px-4 py-2.5 text-xs font-semibold text-white"
+              className="mobile-tap shrink-0 rounded-xl bg-brand-500 px-4 py-2 text-xs font-semibold text-white"
             >
               {copy.openJob}
             </button>
           )}
         </div>
         {activeJob && (
-          <div className="mt-4 space-y-2 text-sm text-white/64">
+          <div className="mt-3 space-y-1.5 text-sm text-surface-500">
             <div>{getLocalizedStatus(language, activeJob.status)} • {activeJob.scheduledStart || '--:--'}</div>
             <div>{getAddressLine(activeJob)}</div>
-            <a href={getMapsLink(activeJob)} target="_blank" rel="noreferrer" className="mobile-tap inline-flex rounded-full border border-white/12 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200">
+            <a
+              href={getMapsLink(activeJob)}
+              target="_blank"
+              rel="noreferrer"
+              className="mobile-tap inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600"
+            >
               {copy.navigate}
             </a>
           </div>
         )}
       </div>
 
-      <div className="mb-4 rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-sm text-white/70">
+      {/* Sync status */}
+      <div className="mb-5 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm text-sm">
         <div className="flex items-center justify-between">
-          <span>{copy.pendingChanges}</span>
-          <span className="font-semibold text-white">{syncState.pendingChanges}</span>
+          <span className="text-surface-500">{copy.pendingChanges}</span>
+          <span className="font-semibold text-surface-900">{syncState.pendingChanges}</span>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span>{copy.lastSaved}</span>
-          <span className="text-white/90">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
+          <span className="text-surface-500">{copy.lastSaved}</span>
+          <span className="text-surface-700">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
         </div>
       </div>
 
@@ -944,18 +954,20 @@ const MobileJobList: React.FC<{
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-white/10 px-4 py-4">
-        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white">{copy.tabs.jobs}</h1>
-        <p className="mt-2 text-sm text-white/58">{copy.hiddenHistory}</p>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="border-b border-surface-100 bg-white px-4 py-4">
+        <h1 className="text-2xl font-bold tracking-tight text-surface-900">{copy.tabs.jobs}</h1>
+        <p className="mt-1 text-sm text-surface-500">{copy.hiddenHistory}</p>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {(['active', 'today', 'upcoming', 'completed'] as MobileJobFilter[]).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setFilter(value)}
               className={cn(
-                'mobile-tap rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em]',
-                filter === value ? 'bg-brand-500 text-white' : 'bg-white/8 text-white/58 hover:bg-white/12 hover:text-white/84',
+                'mobile-tap shrink-0 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]',
+                filter === value
+                  ? 'bg-brand-500 text-white'
+                  : 'border border-surface-200 bg-white text-surface-500',
               )}
             >
               {copy.filters[value]}
@@ -990,34 +1002,39 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4">
-      <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white">{copy.profileTitle}</h1>
-      <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.05] p-4">
+      <h1 className="text-2xl font-bold tracking-tight text-surface-900">{copy.profileTitle}</h1>
+      <div className="mt-4 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+        {/* Avatar + name */}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500/20 text-lg font-semibold text-brand-100">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-base font-bold text-brand-600">
             {user.avatarInitials}
           </div>
           <div>
-            <div className="text-lg font-semibold text-white">{user.name}</div>
-            <div className="text-sm text-white/52">{copy.technicianMode}</div>
+            <div className="text-base font-semibold text-surface-900">{user.name}</div>
+            <div className="text-sm text-surface-400">{copy.technicianMode}</div>
           </div>
         </div>
 
+        {/* Job stats */}
         <div className="mt-4 grid grid-cols-2 gap-3">
           <MetricCard label={copy.todayQueue} value={visibleJobs.filter((job) => job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status)).length} compact />
           <MetricCard label={copy.completedToday} value={visibleJobs.filter((job) => CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today).length} compact />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">{copy.labels.language}</div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        {/* Language */}
+        <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
+          <div className="eyebrow mb-3">{copy.labels.language}</div>
+          <div className="grid grid-cols-2 gap-2">
             {(['en', 'fr'] as AppLanguage[]).map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setLanguage(value)}
                 className={cn(
-                  'mobile-tap rounded-xl px-3 py-2.5 text-sm font-semibold',
-                  language === value ? 'bg-brand-500 text-white' : 'bg-white/6 text-white/65 hover:bg-white/12',
+                  'mobile-tap rounded-lg px-3 py-2.5 text-sm font-semibold transition-all',
+                  language === value
+                    ? 'bg-brand-500 text-white'
+                    : 'border border-surface-200 bg-white text-surface-600',
                 )}
               >
                 {APP_LANGUAGE_LABELS[value]}
@@ -1026,14 +1043,15 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/8 bg-[#0d1723] p-3 text-sm text-white/70">
+        {/* Sync status */}
+        <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span>{copy.lastSaved}</span>
-            <span className="text-white/92">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
+            <span className="text-surface-500">{copy.lastSaved}</span>
+            <span className="text-surface-700">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span>{copy.pendingChanges}</span>
-            <span className="font-semibold text-white">{syncState.pendingChanges}</span>
+            <span className="text-surface-500">{copy.pendingChanges}</span>
+            <span className="font-semibold text-surface-900">{syncState.pendingChanges}</span>
           </div>
         </div>
 
@@ -1041,7 +1059,7 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
           type="button"
           onClick={() => void triggerSync()}
           disabled={syncState.status === 'SYNCING'}
-          className="mobile-tap mt-4 w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="mobile-tap mt-4 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {syncState.status === 'SYNCING' ? copy.syncing : copy.syncNow}
         </button>
@@ -1049,7 +1067,7 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
         <button
           type="button"
           onClick={logout}
-          className="mobile-tap mt-3 w-full rounded-2xl border border-white/12 bg-transparent px-4 py-3 text-sm font-semibold text-white/80"
+          className="mobile-tap mt-3 w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
         >
           {copy.signOut}
         </button>
@@ -1066,21 +1084,21 @@ const MobileJobCard: React.FC<{
   const statusLabel = getLocalizedStatus(language, job.status);
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.6)]">
+    <div className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-200">{job.jobNumber}</div>
-          <div className="mt-1 text-lg font-semibold tracking-[-0.02em] text-white">{job.customerName}</div>
-          <div className="mt-1 text-sm text-white/58">{job.description}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-600">{job.jobNumber}</div>
+          <div className="mt-1 text-base font-semibold text-surface-900">{job.customerName}</div>
+          <div className="mt-0.5 text-sm text-surface-500 line-clamp-1">{job.description}</div>
         </div>
-        <span className="rounded-full border border-white/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+        <span className="shrink-0 rounded-full border border-surface-200 bg-surface-50 px-2.5 py-1 text-[11px] font-semibold text-surface-600">
           {statusLabel}
         </span>
       </div>
 
-      <div className="mt-4 grid gap-2 text-sm text-white/66">
+      <div className="mt-3 space-y-1 text-sm text-surface-500">
         <div>{formatShortDateForLanguage(language, job.scheduledDate)} • {job.scheduledStart || '--:--'}</div>
-        <div>{getAddressLine(job)}</div>
+        <div className="line-clamp-1">{getAddressLine(job)}</div>
         <div>{getLocalizedServiceType(language, job.serviceType)} • {PRIORITY_LABELS_BY_LANGUAGE[language][job.priority]}</div>
       </div>
 
@@ -1088,7 +1106,7 @@ const MobileJobCard: React.FC<{
         <button
           type="button"
           onClick={() => onOpen(job.id)}
-          className="mobile-tap flex-1 rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+          className="mobile-tap flex-1 rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-white"
         >
           {MOBILE_COPY[language].openJob}
         </button>
@@ -1096,7 +1114,7 @@ const MobileJobCard: React.FC<{
           href={getMapsLink(job)}
           target="_blank"
           rel="noreferrer"
-          className="mobile-tap rounded-2xl border border-white/12 px-4 py-3 text-sm font-semibold text-white/76"
+          className="mobile-tap rounded-xl border border-surface-200 px-4 py-2.5 text-sm font-semibold text-surface-700"
         >
           {MOBILE_COPY[language].navigate}
         </a>
@@ -1418,51 +1436,48 @@ const MobileJobDetail: React.FC<{
     return null;
   })();
 
-  const primaryActionClassName = cn(
-    'mobile-tap w-full min-h-[80px] rounded-none border-none px-6 text-[1.45rem] font-black tracking-[-0.04em] transition-all disabled:cursor-not-allowed disabled:opacity-45',
-    primaryAction?.tone === 'success'
-      ? 'bg-emerald-500 text-[#09130d]'
-      : 'bg-[#f5a400] text-[#151515]',
-  );
+  const lightInputClass = 'w-full rounded-xl border border-surface-200 bg-white px-3 py-3 text-sm text-surface-800 placeholder:text-surface-400 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-colors';
 
   return (
-    <div className="relative flex h-full flex-col bg-[radial-gradient(circle_at_top_center,rgba(245,164,0,0.07),transparent_28%),linear-gradient(180deg,#050b15_0%,#030811_100%)]">
-      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-[calc(1.35rem+env(safe-area-inset-top))]">
-        <div className="mb-5 flex items-center justify-between gap-3">
+    <div className="relative flex h-full flex-col bg-surface-50">
+      <div className="flex-1 overflow-y-auto pb-36 pt-3">
+        {/* Back + status row */}
+        <div className="mb-3 flex items-center justify-between gap-3 px-4">
           <button
             type="button"
             onClick={onBack}
-            className="mobile-tap inline-flex items-center gap-2 text-[1.05rem] font-semibold text-[#f5a400]"
+            className="mobile-tap inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600"
           >
-            <BackIcon className="h-5 w-5" />
+            <BackIcon className="h-4 w-4" />
             <span>{copy.buttons.back}</span>
           </button>
           <MobileStatusPill label={getLocalizedStatus(language, job.status)} status={job.status} />
         </div>
 
-        <section className="mb-6 border-b border-white/10 pb-5">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-white/42">{job.jobNumber}</div>
-          <h1 className="mt-2 text-[2.05rem] font-black tracking-[-0.06em] text-white">{job.customerName}</h1>
-          <p className="mt-2 text-[1.05rem] font-medium text-[#8b94a7]">
-            {getLocalizedServiceType(language, job.serviceType)}
-          </p>
-        </section>
-
-        <div className="mb-6 grid grid-cols-3 gap-3">
-          <MobileQuickAction href={getMapsLink(job)} icon={<RouteIcon className="h-6 w-6" />} label={copy.navigate} disabledLabel={copy.navigate} />
-          <MobileQuickAction href={job.contactPhone ? `tel:${job.contactPhone}` : undefined} icon={<PhoneIcon className="h-6 w-6" />} label={copy.call} disabledLabel={copy.noContactPhone} />
-          <MobileQuickAction href={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} icon={<MailIcon className="h-6 w-6" />} label={copy.email} disabledLabel={copy.noContactEmail} />
+        {/* Job identity card */}
+        <div className="mx-4 mb-3 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+          <div className="eyebrow mb-1.5">{job.jobNumber}</div>
+          <h1 className="text-xl font-bold tracking-tight text-surface-900">{job.customerName}</h1>
+          <p className="mt-1 text-sm text-surface-500">{getLocalizedServiceType(language, job.serviceType)}</p>
         </div>
 
-        <div className="mb-6 rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,#1c2432_0%,#1b2330_100%)] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-          <MobileSummaryLine icon={<LocationIcon className="h-5 w-5" />} value={getAddressLine(job)} />
-          <MobileSummaryLine icon={<ClockIcon className="h-5 w-5" />} value={scheduleSummary} className="mt-4" />
-          <MobileSummaryLine icon={<JobScopeIcon className="h-5 w-5" />} value={job.description} className="mt-4" />
+        {/* Quick action buttons */}
+        <div className="mx-4 mb-3 grid grid-cols-3 gap-2">
+          <MobileQuickAction href={getMapsLink(job)} icon={<RouteIcon className="h-5 w-5" />} label={copy.navigate} disabledLabel={copy.navigate} />
+          <MobileQuickAction href={job.contactPhone ? `tel:${job.contactPhone}` : undefined} icon={<PhoneIcon className="h-5 w-5" />} label={copy.call} disabledLabel={copy.noContactPhone} />
+          <MobileQuickAction href={job.contactEmail ? `mailto:${job.contactEmail}` : undefined} icon={<MailIcon className="h-5 w-5" />} label={copy.email} disabledLabel={copy.noContactEmail} />
+        </div>
+
+        {/* Job summary */}
+        <div className="mx-4 mb-4 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+          <MobileSummaryLine icon={<LocationIcon className="h-4 w-4" />} value={getAddressLine(job)} />
+          <MobileSummaryLine icon={<ClockIcon className="h-4 w-4" />} value={scheduleSummary} className="mt-3" />
+          <MobileSummaryLine icon={<JobScopeIcon className="h-4 w-4" />} value={job.description} className="mt-3" />
 
           {job.internalNotes && (
-            <div className="mt-5 rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.sections.dispatcherNotes}</div>
-              <p className="mt-2 text-sm leading-relaxed text-white/72">{job.internalNotes}</p>
+            <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3">
+              <div className="eyebrow mb-1.5">{copy.sections.dispatcherNotes}</div>
+              <p className="text-sm leading-relaxed text-surface-600">{job.internalNotes}</p>
             </div>
           )}
 
@@ -1470,328 +1485,372 @@ const MobileJobDetail: React.FC<{
             <button
               type="button"
               onClick={handleMarkWaitingForParts}
-              className="mobile-tap mt-5 inline-flex items-center rounded-full border border-[#f5a400]/20 bg-[#2a1d0d] px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#f5a400]"
+              className="mobile-tap mt-4 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700"
             >
               {copy.buttons.waitingForParts}
             </button>
           )}
         </div>
 
-        <MobileSectionCard
-          icon={<ReportIcon className="h-7 w-7" />}
-          title={copy.sections.report}
-          badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
-        >
-          <textarea
-            className="mobile-input min-h-[150px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
-            value={reportText}
-            onChange={(event) => setReportText(event.target.value)}
-            placeholder={copy.labels.reportPlaceholder}
-          />
-          <button
-            type="button"
-            onClick={saveReport}
-            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
+        {/* Section cards */}
+        <div className="space-y-3 px-4">
+
+          {/* Work report */}
+          <MobileSectionCard
+            icon={<ReportIcon className="h-5 w-5" />}
+            title={copy.sections.report}
+            badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
+            badgeTone={reportOnFile ? 'success' : 'default'}
           >
-            {copy.buttons.saveReport}
-          </button>
-        </MobileSectionCard>
-
-        <MobileSectionCard
-          icon={<NotesIcon className="h-7 w-7" />}
-          title={copy.sections.fieldJournal}
-          badge={journalCount > 0 ? String(journalCount) : copy.pending}
-        >
-          <textarea
-            className="mobile-input min-h-[120px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
-            value={journalText}
-            onChange={(event) => setJournalText(event.target.value)}
-            placeholder={copy.labels.journalPlaceholder}
-          />
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
+            <textarea
+              className={cn(lightInputClass, 'min-h-[140px] resize-none')}
+              value={reportText}
+              onChange={(event) => setReportText(event.target.value)}
+              placeholder={copy.labels.reportPlaceholder}
+            />
             <button
               type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="mobile-tap inline-flex min-h-[76px] items-center justify-center gap-2 rounded-[22px] bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] px-4 text-[1rem] font-bold text-white"
+              onClick={saveReport}
+              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
             >
-              <CameraIcon className="h-5 w-5 text-[#f5a400]" />
-              {copy.buttons.addFromCamera}
+              {copy.buttons.saveReport}
             </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="mobile-tap inline-flex min-h-[76px] items-center justify-center gap-2 rounded-[22px] bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] px-4 text-[1rem] font-bold text-white"
-            >
-              <AttachmentIcon className="h-5 w-5 text-[#f5a400]" />
-              {copy.buttons.addFiles}
-            </button>
-          </div>
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
-          <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
+          </MobileSectionCard>
 
-          {pendingFiles.length > 0 && (
-            <div className="mt-4 rounded-[20px] border border-white/8 bg-[#131a26] p-3">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.attachmentsReady}</div>
-              <div className="mt-3 space-y-2">
-                {pendingFiles.map((file, index) => (
-                  <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-[18px] bg-white/[0.05] px-3 py-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-white/90">{file.name}</div>
-                      <div className="mt-1 text-xs text-white/42">{formatFileSize(file.size)}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                      className="mobile-tap text-xs font-semibold uppercase tracking-[0.16em] text-[#f5a400]"
-                    >
-                      {copy.buttons.clear}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => void handleSaveJournalEntry()}
-            disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
-            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400] disabled:opacity-50"
+          {/* Field journal */}
+          <MobileSectionCard
+            icon={<NotesIcon className="h-5 w-5" />}
+            title={copy.sections.fieldJournal}
+            badge={journalCount > 0 ? String(journalCount) : copy.pending}
+            badgeTone={journalCount > 0 ? 'brand' : 'default'}
           >
-            {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
-          </button>
+            <textarea
+              className={cn(lightInputClass, 'min-h-[110px] resize-none')}
+              value={journalText}
+              onChange={(event) => setJournalText(event.target.value)}
+              placeholder={copy.labels.journalPlaceholder}
+            />
 
-          <div className="mt-5 rounded-[20px] border border-white/8 bg-[#121926] p-4">
-            <div className="mb-3 text-sm text-white/58">{copy.auditLocked}</div>
-            {journalGroups.length === 0 ? (
-              <EmptyMobileState label={copy.journalEmpty} />
-            ) : (
-              <div className="space-y-3">
-                {journalGroups.map((group) => (
-                  <JournalGroupCard key={group.createdAt} group={group} language={language} />
-                ))}
-              </div>
-            )}
-          </div>
-        </MobileSectionCard>
-
-        <MobileSectionCard
-          icon={<PaymentIcon className="h-7 w-7" />}
-          title={copy.sections.payment}
-          badge={paymentBadge}
-        >
-          <div className="rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
-            {copy.paymentLocked}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {([
-              { id: 'unknown', label: copy.payment.unknown },
-              { id: 'no', label: copy.payment.no },
-              { id: 'yes', label: copy.payment.yes },
-            ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <button
-                key={option.id}
                 type="button"
-                onClick={() => setPaymentChoice(option.id)}
-                className={cn(
-                  'mobile-tap rounded-[18px] px-3 py-3 text-[0.72rem] font-bold uppercase tracking-[0.12em]',
-                  paymentChoice === option.id
-                    ? 'bg-[#2d2111] text-[#f5a400]'
-                    : 'bg-white/[0.05] text-white/58',
-                )}
+                onClick={() => cameraInputRef.current?.click()}
+                className="mobile-tap inline-flex min-h-[64px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
               >
-                {option.label}
+                <CameraIcon className="h-4 w-4 text-brand-500" />
+                {copy.buttons.addFromCamera}
               </button>
-            ))}
-          </div>
-
-          {paymentChoice === 'yes' && (
-            <label className="mt-4 block">
-              <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.paymentMethod}</div>
-              <select className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
-                {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
-                  <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <label className="mt-4 block">
-            <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.paymentNote}</div>
-            <textarea className="mobile-input min-h-[94px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
-          </label>
-
-          <button
-            type="button"
-            onClick={savePayment}
-            className="mobile-tap mt-4 w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
-          >
-            {copy.buttons.savePayment}
-          </button>
-        </MobileSectionCard>
-
-        <MobileSectionCard
-          icon={<SignatureIcon className="h-7 w-7" />}
-          title={copy.sections.signatures}
-          badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
-        >
-          <div className="space-y-3">
-            <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
-            <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
-          </div>
-
-          <div className="mt-5">
-            <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.customerSignature}</div>
-            <SignaturePad height={124} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
-          </div>
-
-          <div className="mt-5">
-            <div className="mb-2 text-sm font-semibold text-white/92">{copy.sections.techSignature}</div>
-            <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
-          </div>
-
-          <button
-            type="button"
-            onClick={saveSignatures}
-            className="mobile-tap mt-4 w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 text-base font-bold text-white/82"
-          >
-            {copy.signatureSaved}
-          </button>
-        </MobileSectionCard>
-
-        <MobileSectionCard
-          icon={<PartsIcon className="h-7 w-7" />}
-          title={copy.sections.salesOrder}
-          badge={linkedOrderBadge}
-        >
-          <div className="flex flex-wrap items-center gap-2 text-sm text-white/55">
-            <span>{copy.linkedOrderOnly}</span>
-            {linkedSalesOrder?.createdAt && (
-              <>
-                <span>•</span>
-                <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
-              </>
-            )}
-          </div>
-
-          <div className="mt-4 rounded-[20px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
-            {copy.salesRestricted}
-          </div>
-
-          {!linkedSalesOrder ? (
-            <div className="mt-4">
-              <EmptyMobileState label={copy.salesEmpty} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mobile-tap inline-flex min-h-[64px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
+              >
+                <AttachmentIcon className="h-4 w-4 text-brand-500" />
+                {copy.buttons.addFiles}
+              </button>
             </div>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
-                <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
-              </div>
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
+            <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
 
-              {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
-                <div className="mt-4 rounded-[18px] border border-white/8 bg-[#121926] px-4 py-3 text-xs text-white/42">
-                  <div className="flex items-center justify-between">
-                    <span>{copy.labels.subtotal}</span>
-                    <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
-                  </div>
-                  {linkedSalesOrder.taxAmount ? (
-                    <div className="mt-1 flex items-center justify-between">
-                      <span>{copy.labels.tax}</span>
-                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+            {pendingFiles.length > 0 && (
+              <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 p-3">
+                <div className="eyebrow mb-2">{copy.attachmentsReady}</div>
+                <div className="space-y-2">
+                  {pendingFiles.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-surface-100 bg-white px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-surface-900">{file.name}</div>
+                        <div className="mt-0.5 text-xs text-surface-400">{formatFileSize(file.size)}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                        className="mobile-tap text-xs font-semibold text-red-500"
+                      >
+                        {copy.buttons.clear}
+                      </button>
                     </div>
-                  ) : null}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void handleSaveJournalEntry()}
+              disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
+              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
+            </button>
+
+            <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
+              <p className="mb-3 text-xs text-surface-400">{copy.auditLocked}</p>
+              {journalGroups.length === 0 ? (
+                <EmptyMobileState label={copy.journalEmpty} />
+              ) : (
+                <div className="space-y-2">
+                  {journalGroups.map((group) => (
+                    <JournalGroupCard key={group.createdAt} group={group} language={language} />
+                  ))}
                 </div>
               )}
+            </div>
+          </MobileSectionCard>
 
-              <div className="mt-4 space-y-3">
-                {linkedSalesOrder.lines.length === 0 ? (
-                  <EmptyMobileState label={copy.lineRestricted} />
-                ) : (
-                  linkedSalesOrder.lines.map((line) => (
-                    <SalesOrderLineCard key={line.id} line={line} language={language} />
-                  ))
-                )}
-              </div>
+          {/* Payment */}
+          <MobileSectionCard
+            icon={<PaymentIcon className="h-5 w-5" />}
+            title={copy.sections.payment}
+            badge={paymentBadge}
+            badgeTone={paymentCapture?.paid ? 'success' : 'default'}
+          >
+            <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
+              {copy.paymentLocked}
+            </div>
 
-              <div className="mt-5 rounded-[22px] border border-white/8 bg-[#121926] p-4">
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {([
+                { id: 'unknown', label: copy.payment.unknown },
+                { id: 'no', label: copy.payment.no },
+                { id: 'yes', label: copy.payment.yes },
+              ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
                 <button
+                  key={option.id}
                   type="button"
-                  onClick={() => setShowPartsComposer((current) => !current)}
-                  className="mobile-tap inline-flex min-h-[68px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#2d2111] px-4 text-base font-extrabold text-[#f5a400]"
+                  onClick={() => setPaymentChoice(option.id)}
+                  className={cn(
+                    'mobile-tap rounded-xl border px-2 py-2.5 text-xs font-semibold',
+                    paymentChoice === option.id
+                      ? 'border-brand-200 bg-brand-50 text-brand-700'
+                      : 'border-surface-200 bg-white text-surface-500',
+                  )}
                 >
-                  <span className="text-[1.6rem] leading-none">+</span>
-                  <span>{copy.buttons.addLine}</span>
+                  {option.label}
                 </button>
+              ))}
+            </div>
 
-                {showPartsComposer && (
-                  <div className="mt-4 space-y-4">
-                    <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/62">
-                      {copy.addPartsNote}
+            {paymentChoice === 'yes' && (
+              <label className="mt-3 block">
+                <div className="eyebrow mb-1.5">{copy.labels.paymentMethod}</div>
+                <select
+                  className={lightInputClass}
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                >
+                  {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
+                    <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label className="mt-3 block">
+              <div className="eyebrow mb-1.5">{copy.labels.paymentNote}</div>
+              <textarea
+                className={cn(lightInputClass, 'min-h-[88px] resize-none')}
+                value={paymentNote}
+                onChange={(event) => setPaymentNote(event.target.value)}
+                placeholder={copy.lineNotePlaceholder}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={savePayment}
+              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+            >
+              {copy.buttons.savePayment}
+            </button>
+          </MobileSectionCard>
+
+          {/* Signatures */}
+          <MobileSectionCard
+            icon={<SignatureIcon className="h-5 w-5" />}
+            title={copy.sections.signatures}
+            badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
+            badgeTone={signatureOnFile ? 'success' : 'default'}
+          >
+            <div className="space-y-2">
+              <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
+              <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.customerSignature}</div>
+              <SignaturePad height={124} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.techSignature}</div>
+              <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
+            </div>
+
+            <button
+              type="button"
+              onClick={saveSignatures}
+              className="mobile-tap mt-4 w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
+            >
+              {copy.signatureSaved}
+            </button>
+          </MobileSectionCard>
+
+          {/* Approved parts / Sales order */}
+          <MobileSectionCard
+            icon={<PartsIcon className="h-5 w-5" />}
+            title={copy.sections.salesOrder}
+            badge={linkedOrderBadge}
+            badgeTone="default"
+          >
+            <div className="flex flex-wrap items-center gap-1.5 text-sm text-surface-500">
+              <span>{copy.linkedOrderOnly}</span>
+              {linkedSalesOrder?.createdAt && (
+                <>
+                  <span>·</span>
+                  <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
+                </>
+              )}
+            </div>
+
+            <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
+              {copy.salesRestricted}
+            </div>
+
+            {!linkedSalesOrder ? (
+              <div className="mt-3">
+                <EmptyMobileState label={copy.salesEmpty} />
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
+                  <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
+                </div>
+
+                {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
+                  <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5 text-xs text-surface-500">
+                    <div className="flex items-center justify-between">
+                      <span>{copy.labels.subtotal}</span>
+                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
                     </div>
-                    <label className="block">
-                      <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.catalog}</div>
-                      <select
-                        className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5"
-                        value={selectedCatalogItemId}
-                        onChange={(event) => setSelectedCatalogItemId(event.target.value)}
-                      >
-                        {APPROVED_ITEM_CATALOG.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.label} • {formatCurrencyForLanguage(language, item.rate)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4 text-sm text-white/72">
-                      <div className="font-semibold text-white/92">{selectedCatalogItem.label}</div>
-                      <div className="mt-2">{selectedCatalogItem.description}</div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block">
-                        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.qty}</div>
-                        <input className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" type="number" min="1" value={selectedQuantity} onChange={(event) => setSelectedQuantity(event.target.value)} />
-                      </label>
-                      <label className="block">
-                        <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.rate}</div>
-                        <input className="mobile-input rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)} readOnly />
-                      </label>
-                    </div>
-
-                    <label className="block">
-                      <div className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{copy.labels.note}</div>
-                      <textarea className="mobile-input min-h-[88px] rounded-[18px] border-white/8 bg-[#131a26] px-4 py-3.5" value={selectedLineNote} onChange={(event) => setSelectedLineNote(event.target.value)} placeholder={copy.lineNotePlaceholder} />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={handleAddApprovedLine}
-                      className="mobile-tap w-full rounded-[22px] bg-[#2d2111] px-4 py-4 text-base font-extrabold text-[#f5a400]"
-                    >
-                      {copy.buttons.addLine}
-                    </button>
+                    {linkedSalesOrder.taxAmount ? (
+                      <div className="mt-1 flex items-center justify-between">
+                        <span>{copy.labels.tax}</span>
+                        <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+                      </div>
+                    ) : null}
                   </div>
                 )}
-              </div>
-            </>
-          )}
-        </MobileSectionCard>
+
+                <div className="mt-3 space-y-2">
+                  {linkedSalesOrder.lines.length === 0 ? (
+                    <EmptyMobileState label={copy.lineRestricted} />
+                  ) : (
+                    linkedSalesOrder.lines.map((line) => (
+                      <SalesOrderLineCard key={line.id} line={line} language={language} />
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartsComposer((current) => !current)}
+                    className="mobile-tap inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+                  >
+                    <span className="text-lg font-bold leading-none">+</span>
+                    <span>{copy.buttons.addLine}</span>
+                  </button>
+
+                  {showPartsComposer && (
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm text-surface-500">
+                        {copy.addPartsNote}
+                      </div>
+                      <label className="block">
+                        <div className="eyebrow mb-1.5">{copy.labels.catalog}</div>
+                        <select
+                          className={lightInputClass}
+                          value={selectedCatalogItemId}
+                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
+                        >
+                          {APPROVED_ITEM_CATALOG.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm">
+                        <div className="font-semibold text-surface-900">{selectedCatalogItem.label}</div>
+                        <div className="mt-1 text-surface-500">{selectedCatalogItem.description}</div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <div className="eyebrow mb-1.5">{copy.labels.qty}</div>
+                          <input
+                            className={lightInputClass}
+                            type="number"
+                            min="1"
+                            value={selectedQuantity}
+                            onChange={(event) => setSelectedQuantity(event.target.value)}
+                          />
+                        </label>
+                        <label className="block">
+                          <div className="eyebrow mb-1.5">{copy.labels.rate}</div>
+                          <input
+                            className={lightInputClass}
+                            value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
+                            readOnly
+                          />
+                        </label>
+                      </div>
+
+                      <label className="block">
+                        <div className="eyebrow mb-1.5">{copy.labels.note}</div>
+                        <textarea
+                          className={cn(lightInputClass, 'min-h-[80px] resize-none')}
+                          value={selectedLineNote}
+                          onChange={(event) => setSelectedLineNote(event.target.value)}
+                          placeholder={copy.lineNotePlaceholder}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={handleAddApprovedLine}
+                        className="mobile-tap w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+                      >
+                        {copy.buttons.addLine}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </MobileSectionCard>
+        </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-white/10 bg-[rgba(4,10,17,0.96)] backdrop-blur-xl">
+      {/* Sticky bottom action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[430px] border-t border-surface-100 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
         {primaryAction?.helper && (
-          <div className="px-5 pb-2 pt-3 text-center text-[0.84rem] text-white/48">{primaryAction.helper}</div>
+          <div className="px-4 pb-2 pt-3 text-center text-xs text-surface-400">{primaryAction.helper}</div>
         )}
         {primaryAction && (
           <button
             type="button"
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}
-            className={primaryActionClassName}
+            className={cn(
+              'mobile-tap w-full min-h-[60px] px-6 text-base font-bold tracking-tight transition-all disabled:cursor-not-allowed disabled:opacity-40',
+              primaryAction.tone === 'success'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-brand-500 text-white',
+            )}
           >
             {primaryAction.label}
           </button>
@@ -1802,16 +1861,24 @@ const MobileJobDetail: React.FC<{
 };
 
 const MobileStatusPill: React.FC<{ label: string; status: JobStatus }> = ({ label, status }) => {
-  const tone =
+  const colorClass =
     status === 'COMPLETED' || status === 'BILLING_READY' || status === 'INVOICED'
-      ? 'bg-emerald-500'
-      : status === 'ON_HOLD' || status === 'WAITING_FOR_PARTS'
-        ? 'bg-[#f5a400]'
-        : 'bg-[#f5a400]';
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : status === 'WAITING_FOR_PARTS'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : status === 'ON_HOLD'
+          ? 'border-orange-200 bg-orange-50 text-orange-700'
+          : status === 'CANCELLED'
+            ? 'border-red-200 bg-red-50 text-red-700'
+            : status === 'EN_ROUTE'
+              ? 'border-sky-200 bg-sky-50 text-sky-700'
+              : status === 'IN_PROGRESS'
+                ? 'border-brand-200 bg-brand-50 text-brand-700'
+                : 'border-surface-200 bg-surface-50 text-surface-600';
 
   return (
-    <div className="inline-flex items-center gap-3 rounded-full bg-[#2a1d0d] px-4 py-2.5 text-sm font-bold text-[#f5a400] shadow-[inset_0_0_0_1px_rgba(245,164,0,0.08)]">
-      <span className={cn('h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(245,164,0,0.08)]', tone)} />
+    <div className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold', colorClass)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
       <span>{label}</span>
     </div>
   );
@@ -1824,17 +1891,16 @@ const MobileQuickAction: React.FC<{
   disabledLabel: string;
 }> = ({ href, icon, label, disabledLabel }) => {
   const className = cn(
-    'mobile-tap flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-[22px] px-3 text-center shadow-[0_24px_60px_rgba(0,0,0,0.28)]',
+    'mobile-tap flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-center',
     href
-      ? 'bg-[linear-gradient(180deg,#242c3a_0%,#1f2735_100%)] text-white'
-      : 'bg-[linear-gradient(180deg,#1b2431_0%,#141b27_100%)] text-white/35',
+      ? 'border-surface-100 bg-white shadow-sm text-surface-900'
+      : 'border-surface-100 bg-surface-50 text-surface-300',
   );
 
   const content = (
     <>
-      <span className={cn('flex items-center justify-center', href ? 'text-[#f5a400]' : 'text-white/20')}>{icon}</span>
-      <span className="text-base font-bold">{label}</span>
-      {!href ? <span className="text-[0.68rem] font-medium text-white/28">{disabledLabel}</span> : null}
+      <span className={cn('flex items-center justify-center', href ? 'text-brand-500' : 'text-surface-300')}>{icon}</span>
+      <span className="text-xs font-semibold">{href ? label : disabledLabel}</span>
     </>
   );
 
@@ -1854,8 +1920,8 @@ const MobileQuickAction: React.FC<{
 };
 
 const MobileSummaryLine: React.FC<{ icon: React.ReactNode; value: string; className?: string }> = ({ icon, value, className }) => (
-  <div className={cn('flex items-start gap-4 text-[1rem] leading-[1.45] text-[#8b94a7]', className)}>
-    <div className="mt-0.5 flex h-6 w-6 items-center justify-center text-[#8b94a7]">{icon}</div>
+  <div className={cn('flex items-start gap-3 text-sm leading-relaxed text-surface-600', className)}>
+    <div className="mt-0.5 shrink-0 text-surface-400">{icon}</div>
     <div className="min-w-0">{value}</div>
   </div>
 );
@@ -1864,47 +1930,57 @@ const MobileSectionCard: React.FC<{
   icon: React.ReactNode;
   title: string;
   badge?: string;
+  badgeTone?: 'default' | 'success' | 'brand';
   children: React.ReactNode;
-}> = ({ icon, title, badge, children }) => (
-  <section className="mb-5 overflow-hidden rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,#1c2432_0%,#1b2330_100%)] shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-    <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-5">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="text-[#f5a400]">{icon}</div>
-        <h2 className="truncate text-[1.38rem] font-black tracking-[-0.04em] text-white">{title}</h2>
-        {badge ? <span className="rounded-full bg-[#313b4b] px-3 py-1 text-xs font-bold text-[#c7cfdd]">{badge}</span> : null}
+}> = ({ icon, title, badge, badgeTone = 'default', children }) => (
+  <section className="overflow-hidden rounded-2xl border border-surface-100 bg-white shadow-sm">
+    <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="text-brand-500">{icon}</div>
+        <h2 className="truncate text-base font-semibold text-surface-900">{title}</h2>
+        {badge ? (
+          <span className={cn(
+            'rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+            badgeTone === 'success' && 'bg-emerald-50 text-emerald-700',
+            badgeTone === 'brand' && 'bg-brand-50 text-brand-700',
+            badgeTone === 'default' && 'bg-surface-100 text-surface-500',
+          )}>
+            {badge}
+          </span>
+        ) : null}
       </div>
     </div>
-    <div className="border-t border-white/8 px-5 pb-5 pt-4">{children}</div>
+    <div className="border-t border-surface-100 px-4 pb-4 pt-3">{children}</div>
   </section>
 );
 
 const MobileMetaCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-[18px] border border-white/8 bg-[#131a26] px-4 py-4">
-    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white/38">{label}</div>
-    <div className="mt-2 text-lg font-bold text-white">{value}</div>
+  <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3">
+    <div className="eyebrow mb-1">{label}</div>
+    <div className="text-base font-bold text-surface-900">{value}</div>
   </div>
 );
 
 const MetricCard: React.FC<{ label: string; value: number | string; compact?: boolean }> = ({ label, value, compact }) => (
-  <div className={cn('rounded-[22px] border border-white/10 bg-white/[0.05] p-3', compact && 'rounded-2xl')}>
-    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">{label}</div>
-    <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">{value}</div>
+  <div className={cn('rounded-xl border border-surface-100 bg-white p-3 shadow-sm', compact && 'rounded-xl')}>
+    <div className="eyebrow mb-1">{label}</div>
+    <div className="text-2xl font-bold tracking-tight text-surface-900">{value}</div>
   </div>
 );
 
 const SectionHeading: React.FC<{ label: string; className?: string }> = ({ label, className }) => (
-  <div className={cn('mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/42', className)}>{label}</div>
+  <div className={cn('eyebrow mb-2.5', className)}>{label}</div>
 );
 
 const EmptyMobileState: React.FC<{ label: string }> = ({ label }) => (
-  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/46">
+  <div className="rounded-xl border border-surface-100 bg-surface-50 px-4 py-5 text-center text-sm text-surface-400">
     {label}
   </div>
 );
 
 const InfoCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="rounded-[26px] border border-white/10 bg-white/[0.05] p-4">
-    <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">{title}</div>
+  <div className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+    <div className="eyebrow mb-3">{title}</div>
     {children}
   </div>
 );
@@ -1913,12 +1989,12 @@ const InfoRow: React.FC<{ label: string; value?: string; link?: string }> = ({ l
   if (!value || value === '—') return null;
 
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-white/6 py-2 text-sm last:border-b-0">
-      <span className="text-white/46">{label}</span>
+    <div className="flex items-start justify-between gap-3 border-b border-surface-100 py-2 text-sm last:border-b-0">
+      <span className="text-surface-400">{label}</span>
       {link ? (
-        <a href={link} className="max-w-[58%] text-right font-semibold text-brand-200">{value}</a>
+        <a href={link} className="max-w-[58%] text-right font-semibold text-brand-600">{value}</a>
       ) : (
-        <span className="max-w-[58%] text-right font-semibold text-white/88">{value}</span>
+        <span className="max-w-[58%] text-right font-semibold text-surface-800">{value}</span>
       )}
     </div>
   );
@@ -1928,15 +2004,15 @@ const JournalGroupCard: React.FC<{ group: JournalGroup; language: AppLanguage }>
   const primaryNote = group.notes[0];
 
   return (
-    <div className="rounded-[20px] border border-white/8 bg-[#0d1723] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-white/92">{primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM'}</div>
-        <div className="text-xs text-white/42">{formatDateTimeForLanguage(language, group.createdAt)}</div>
+    <div className="rounded-xl border border-surface-100 bg-white p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-surface-900">{primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM'}</div>
+        <div className="text-xs text-surface-400">{formatDateTimeForLanguage(language, group.createdAt)}</div>
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-2">
         {group.notes.map((note) => (
-          <p key={note.id} className="text-sm leading-relaxed text-white/74">
+          <p key={note.id} className="text-sm leading-relaxed text-surface-600">
             {getReadableNoteText(language, note)}
           </p>
         ))}
@@ -1953,16 +2029,16 @@ const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }
   const isImage = attachment.type.startsWith('image/');
 
   return (
-    <div className="rounded-[18px] border border-white/8 bg-white/[0.05] p-3">
+    <div className="rounded-lg border border-surface-100 bg-surface-50 p-3">
       {isImage && (
-        <img src={attachment.url} alt={attachment.name} className="mb-3 h-40 w-full rounded-xl object-cover" />
+        <img src={attachment.url} alt={attachment.name} className="mb-3 h-36 w-full rounded-lg object-cover" />
       )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-white/90">{attachment.name}</div>
-          <div className="mt-1 text-xs text-white/45">{attachment.type} • {formatFileSize(attachment.size)}</div>
+          <div className="truncate text-sm font-semibold text-surface-900">{attachment.name}</div>
+          <div className="mt-0.5 text-xs text-surface-400">{attachment.type} • {formatFileSize(attachment.size)}</div>
         </div>
-        <a href={attachment.url} target="_blank" rel="noreferrer" className="mobile-tap text-xs font-semibold uppercase tracking-[0.14em] text-brand-200">
+        <a href={attachment.url} target="_blank" rel="noreferrer" className="mobile-tap text-xs font-semibold text-brand-600">
           {MOBILE_COPY[language].openAttachment}
         </a>
       </div>
@@ -1971,28 +2047,28 @@ const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }
 };
 
 const SalesOrderLineCard: React.FC<{ line: SOLine; language: AppLanguage }> = ({ line, language }) => (
-  <div className="rounded-[20px] border border-white/8 bg-[#121926] p-4">
+  <div className="rounded-xl border border-surface-100 bg-white p-3">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-base font-bold text-white">{line.itemName}</div>
-        <div className="mt-2 inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/45">
+        <div className="text-sm font-semibold text-surface-900">{line.itemName}</div>
+        <div className="mt-1 inline-flex rounded-full bg-surface-100 px-2 py-0.5 text-[11px] font-semibold text-surface-500">
           {line.itemId}
         </div>
-        {line.description ? <div className="mt-3 text-sm leading-relaxed text-white/58">{line.description}</div> : null}
+        {line.description ? <div className="mt-2 text-sm text-surface-500">{line.description}</div> : null}
       </div>
-      <div className="rounded-full bg-[#2a1d0d] px-3 py-1 text-xs font-bold text-[#f5a400]">
+      <div className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700">
         x{line.quantity}
       </div>
     </div>
 
-    <div className="mt-4 grid grid-cols-2 gap-3">
-      <div className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3">
-        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/38">{MOBILE_COPY[language].labels.rate}</div>
-        <div className="mt-1 text-sm font-semibold text-white/78">{formatCurrencyForLanguage(language, line.rate)}</div>
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="rounded-lg border border-surface-100 bg-surface-50 px-3 py-2">
+        <div className="eyebrow mb-1">{MOBILE_COPY[language].labels.rate}</div>
+        <div className="text-sm font-semibold text-surface-700">{formatCurrencyForLanguage(language, line.rate)}</div>
       </div>
-      <div className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3">
-        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/38">{MOBILE_COPY[language].labels.total}</div>
-        <div className="mt-1 text-base font-bold text-white">{formatCurrencyForLanguage(language, line.amount)}</div>
+      <div className="rounded-lg border border-surface-100 bg-surface-50 px-3 py-2">
+        <div className="eyebrow mb-1">{MOBILE_COPY[language].labels.total}</div>
+        <div className="text-sm font-bold text-surface-900">{formatCurrencyForLanguage(language, line.amount)}</div>
       </div>
     </div>
   </div>
@@ -2002,9 +2078,9 @@ const WorkflowChip: React.FC<{ label: string; tone: 'neutral' | 'success' | 'pen
   <div
     className={cn(
       'rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]',
-      tone === 'success' && 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200',
-      tone === 'pending' && 'border-amber-300/20 bg-amber-500/10 text-amber-100',
-      tone === 'neutral' && 'border-white/10 bg-white/[0.04] text-white/68',
+      tone === 'success' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      tone === 'pending' && 'border-amber-200 bg-amber-50 text-amber-700',
+      tone === 'neutral' && 'border-surface-200 bg-surface-50 text-surface-500',
     )}
   >
     {label}
@@ -2012,9 +2088,9 @@ const WorkflowChip: React.FC<{ label: string; tone: 'neutral' | 'success' | 'pen
 );
 
 const RequirementRow: React.FC<{ label: string; complete: boolean; completeLabel: string; pendingLabel?: string }> = ({ label, complete, completeLabel, pendingLabel = 'Pending' }) => (
-  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-[#0d1723] px-3 py-3">
-    <div className="text-sm text-white/72">{label}</div>
-    <div className={cn('text-xs font-semibold uppercase tracking-[0.16em]', complete ? 'text-emerald-300' : 'text-amber-200')}>
+  <div className="flex items-center justify-between gap-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3">
+    <div className="text-sm text-surface-600">{label}</div>
+    <div className={cn('text-xs font-semibold uppercase tracking-[0.14em]', complete ? 'text-emerald-600' : 'text-amber-600')}>
       {complete ? completeLabel : pendingLabel}
     </div>
   </div>
@@ -2042,18 +2118,18 @@ const SignaturePad: React.FC<{
     canvas.width = width * ratio;
     canvas.height = canvasHeight * ratio;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.fillStyle = 'rgba(255,255,255,0.03)';
+    context.fillStyle = '#ffffff';
     context.fillRect(0, 0, width, canvasHeight);
     context.lineCap = 'round';
     context.lineJoin = 'round';
     context.lineWidth = 2.5;
-    context.strokeStyle = '#f8fafc';
+    context.strokeStyle = '#1e293b';
 
     if (!value) return;
 
     const image = new Image();
     image.onload = () => {
-      context.fillStyle = 'rgba(255,255,255,0.03)';
+      context.fillStyle = '#ffffff';
       context.fillRect(0, 0, width, canvasHeight);
       context.drawImage(image, 0, 0, width, canvasHeight);
     };
@@ -2101,17 +2177,17 @@ const SignaturePad: React.FC<{
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
 
-    context.fillStyle = 'rgba(255,255,255,0.03)';
+    context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     onChange(undefined);
   };
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]" style={{ height }}>
+      <div className="overflow-hidden rounded-xl border border-surface-200 bg-white" style={{ height }}>
         <canvas
           ref={canvasRef}
-          className="h-full w-full touch-none"
+          className="h-full w-full cursor-crosshair touch-none"
           onPointerDown={startDrawing}
           onPointerMove={keepDrawing}
           onPointerUp={finishDrawing}
@@ -2119,7 +2195,7 @@ const SignaturePad: React.FC<{
           onPointerCancel={finishDrawing}
         />
       </div>
-      <button type="button" onClick={clearSignature} className="mobile-tap mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/52">
+      <button type="button" onClick={clearSignature} className="mobile-tap mt-2 text-xs font-semibold text-surface-400">
         {clearLabel}
       </button>
     </>
