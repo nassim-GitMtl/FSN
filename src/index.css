@@ -291,6 +291,23 @@
   }
 }
 
+/* Sidebar always renders dark regardless of light/dark theme toggle */
+.sidebar-always-dark {
+  --color-surface-50:  249 247 243;
+  --color-surface-100: 243 239 232;
+  --color-surface-200: 228 220 208;
+  --color-surface-300: 205 193 179;
+  --color-surface-400: 162 148 132;
+  --color-surface-500: 120 108 93;
+  --color-surface-600: 90 81 70;
+  --color-surface-700: 64 57 49;
+  --color-surface-800: 41 37 32;
+  --color-surface-900: 24 21 18;
+  --color-surface-950: 11 10 9;
+  --color-brand-300:   251 197 106;
+  --color-brand-400:   248 176 49;
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;

@@ -130,7 +130,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-800 bg-surface-950 text-white transition-[width] duration-200',
+        'sidebar-always-dark fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-800 bg-surface-950 text-white transition-[width] duration-200',
         sidebarCollapsed ? 'w-[88px]' : 'w-[272px]',
       )}
     >
