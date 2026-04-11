@@ -17,13 +17,13 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 };
 
 const ROLE_TONES: Record<string, string> = {
-  DISPATCHER: 'bg-[hsl(var(--primary))]',
-  COORDINATOR: 'bg-[hsl(var(--info))]',
-  MANAGER: 'bg-[hsl(var(--secondary))]',
-  TECHNICIAN: 'bg-[hsl(var(--success))]',
-  BILLING: 'bg-[hsl(var(--warning))]',
-  ADMIN: 'bg-[hsl(var(--muted))]',
-  EXECUTIVE: 'bg-[hsl(var(--accent))]',
+  DISPATCHER: 'bg-brand-600',
+  COORDINATOR: 'bg-cyan-700',
+  MANAGER: 'bg-surface-800',
+  TECHNICIAN: 'bg-emerald-600',
+  BILLING: 'bg-amber-500',
+  ADMIN: 'bg-slate-700',
+  EXECUTIVE: 'bg-slate-600',
 };
 
 const ROLE_SHORT: Record<string, string> = {
@@ -51,25 +51,25 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <div className="min-h-screen bg-surface-950 text-white">
       <div className="mx-auto grid min-h-screen max-w-[1380px] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col justify-between px-8 py-8 lg:px-14 lg:py-12">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[hsl(var(--primary))] text-sm font-semibold text-[hsl(var(--primary-foreground))]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-sm font-semibold text-surface-950">
               FM
             </div>
             <div>
               <div className="text-lg font-semibold tracking-[0.01em]">FSM Command</div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Field service operations</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Field service operations</div>
             </div>
           </div>
 
           <div className="max-w-2xl">
-            <div className="eyebrow text-[hsl(var(--muted-foreground))]">Demo workspace</div>
+            <div className="eyebrow text-white/45">Demo workspace</div>
             <h1 className="mt-4 text-5xl font-semibold leading-[0.98] tracking-[-0.05em] md:text-6xl">
               A simpler field service workspace for dispatch, technicians, clients, and billing.
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-[hsl(var(--muted-foreground))]">
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-white/68">
               This build focuses on the essentials: clear workload visibility, faster routing decisions, and cleaner day-to-day execution for every role.
             </p>
 
@@ -79,9 +79,9 @@ export const Login: React.FC = () => {
                 { title: 'Field', detail: 'Track technician status, current assignments, and skill coverage quickly.' },
                 { title: 'Billing', detail: 'Move completed work into review without losing operational context.' },
               ].map((item) => (
-                <div key={item.title} className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-4 py-4">
-                  <div className="text-sm font-semibold text-[hsl(var(--foreground))]">{item.title}</div>
-                  <div className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{item.detail}</div>
+                <div key={item.title} className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4">
+                  <div className="text-sm font-semibold text-white">{item.title}</div>
+                  <div className="mt-2 text-sm leading-relaxed text-white/55">{item.detail}</div>
                 </div>
               ))}
             </div>
@@ -93,20 +93,20 @@ export const Login: React.FC = () => {
               { value: 'Fast', label: 'Role switching' },
               { value: 'Ready', label: 'Vercel deploy' },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-4 py-4">
+              <div key={stat.label} className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4">
                 <div className="text-3xl font-semibold tracking-[-0.04em]">{stat.value}</div>
-                <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">{stat.label}</div>
+                <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">{stat.label}</div>
               </div>
             ))}
           </div>
         </section>
 
         <section className="flex items-center px-6 py-8 lg:px-8">
-          <div className="w-full rounded-[24px] border border-[hsl(var(--border))] bg-[hsl(var(--surface-elevated))] text-[hsl(var(--foreground))] shadow-[0_40px_90px_-60px_rgba(0,0,0,0.7)]">
-            <div className="border-b border-[hsl(var(--border))] px-6 py-6">
+          <div className="w-full rounded-[24px] border border-surface-200 bg-white text-surface-900 shadow-[0_40px_90px_-60px_rgba(15,23,32,0.7)]">
+            <div className="border-b border-surface-100 px-6 py-6">
               <div className="eyebrow">Access</div>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">Open the demo workspace</h2>
-              <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">
+              <p className="mt-2 text-sm leading-relaxed text-surface-500">
                 Choose a role and launch into the shared Supabase-backed demo workspace.
               </p>
             </div>
@@ -119,30 +119,30 @@ export const Login: React.FC = () => {
                   className={cn(
                     'w-full rounded-[18px] border p-4 text-left transition-colors',
                     selected?.id === user.id
-                      ? 'border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.1)]'
-                      : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] hover:bg-[hsl(var(--accent))]',
+                      ? 'border-brand-200 bg-brand-50'
+                      : 'border-surface-200 bg-white hover:bg-surface-50',
                   )}
                 >
                   <div className="flex items-start gap-4">
-                    <div className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-[hsl(var(--primary-foreground))]', ROLE_TONES[user.role])}>
+                    <div className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white', ROLE_TONES[user.role])}>
                       {ROLE_SHORT[user.role]}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{user.name}</div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">{user.role}</div>
+                        <div className="truncate text-sm font-semibold text-surface-900">{user.name}</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">{user.role}</div>
                       </div>
-                      <div className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{ROLE_DESCRIPTIONS[user.role]}</div>
+                      <div className="mt-2 text-sm leading-relaxed text-surface-500">{ROLE_DESCRIPTIONS[user.role]}</div>
                     </div>
                   </div>
                 </button>
               ))}
 
               {selected && (
-                <div className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-4 py-4">
+                <div className="rounded-[18px] border border-surface-200 bg-surface-50 px-4 py-4">
                   <div className="eyebrow">Selected session</div>
-                  <div className="mt-2 text-base font-semibold text-[hsl(var(--foreground))]">{selected.name}</div>
-                  <div className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">{ROLE_DESCRIPTIONS[selected.role]}</div>
+                  <div className="mt-2 text-base font-semibold text-surface-900">{selected.name}</div>
+                  <div className="mt-1 text-sm text-surface-500">{ROLE_DESCRIPTIONS[selected.role]}</div>
                 </div>
               )}
 
@@ -157,7 +157,7 @@ export const Login: React.FC = () => {
                 {loading ? 'Launching workspace...' : `Launch as ${selected?.name || 'selected role'}`}
               </Button>
 
-              <p className="text-center text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+              <p className="text-center text-xs leading-relaxed text-surface-400">
                 Demo access only. No credentials are required, and changes save to the shared demo workspace.
               </p>
             </div>

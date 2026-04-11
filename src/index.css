@@ -8,50 +8,6 @@
     --sidebar-collapsed-width: 88px;
     --header-height: 76px;
     --mobile-nav-height: 64px;
-    
-    /* Dark theme colors matching FSM Mobile */
-    --background: 220 20% 7%;
-    --foreground: 220 10% 92%;
-
-    --card: 220 16% 12%;
-    --card-foreground: 220 10% 92%;
-
-    --popover: 220 16% 14%;
-    --popover-foreground: 220 10% 92%;
-
-    --primary: 38 92% 50%;
-    --primary-foreground: 38 95% 8%;
-
-    --secondary: 220 14% 18%;
-    --secondary-foreground: 220 10% 80%;
-
-    --muted: 220 14% 16%;
-    --muted-foreground: 220 10% 50%;
-
-    --accent: 220 14% 20%;
-    --accent-foreground: 220 10% 85%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 152 60% 42%;
-    --success-foreground: 152 60% 8%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 95% 8%;
-
-    --info: 210 80% 55%;
-    --info-foreground: 210 80% 95%;
-
-    --border: 220 12% 18%;
-    --input: 220 14% 20%;
-    --ring: 38 92% 50%;
-
-    --radius: 0.75rem;
-
-    --surface: 220 16% 12%;
-    --surface-elevated: 220 14% 16%;
-    --surface-overlay: 220 16% 10%;
   }
 
   *,
@@ -69,11 +25,10 @@
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
+    font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
+    background: #f3f5f7;
     overscroll-behavior-y: none;
-    -webkit-tap-highlight-color: transparent;
+    @apply text-surface-900;
   }
 
   #root {
@@ -90,57 +45,45 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full;
-    background: hsl(var(--muted));
+    @apply rounded-full bg-surface-300;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+    @apply bg-surface-400;
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.3);
-    color: hsl(var(--foreground));
+    @apply bg-brand-200 text-brand-950;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply rounded-[20px] border bg-card/90 shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)];
-    border-color: hsl(var(--border));
+    @apply rounded-[20px] border border-surface-200 bg-white/90 shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
   }
 
   .surface-card {
-    @apply rounded-[20px] border bg-card shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)];
-    border-color: hsl(var(--border));
+    @apply rounded-[20px] border border-surface-200 bg-white shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
   }
 
   .section-shell {
-    @apply rounded-[24px] border p-6 shadow-[0_18px_36px_-28px_rgba(0,0,0,0.55)];
-    background: hsl(var(--surface-elevated));
-    border-color: hsl(var(--border));
+    @apply rounded-[24px] border border-surface-200 bg-white p-6 shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
   }
 
   .hero-panel {
-    @apply rounded-[24px] p-6;
-    background: linear-gradient(135deg, hsl(var(--surface-elevated)), hsl(var(--surface)));
-    border: 1px solid hsl(var(--border));
+    @apply rounded-[24px] bg-surface-950 p-6 text-white;
   }
 
   .metric-tile {
-    @apply rounded-[18px] border p-4;
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
+    @apply rounded-[18px] border border-surface-200 bg-surface-50/80 p-4;
   }
 
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em];
-    color: hsl(var(--muted-foreground));
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-surface-500;
   }
 
   .btn {
-    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-xl font-medium tracking-[0.01em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    --tw-ring-color: hsl(var(--primary));
+    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-xl font-medium tracking-[0.01em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-sm {
@@ -156,78 +99,31 @@
   }
 
   .btn-primary {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-  }
-  .btn-primary:hover {
-    background: hsl(var(--primary) / 0.9);
-  }
-  .btn-primary:active {
-    background: hsl(var(--primary) / 0.8);
+    @apply bg-surface-900 text-white hover:bg-surface-800 active:bg-surface-950;
   }
 
   .btn-secondary {
-    @apply border;
-    background: hsl(var(--secondary));
-    border-color: hsl(var(--border));
-    color: hsl(var(--secondary-foreground));
-  }
-  .btn-secondary:hover {
-    background: hsl(var(--accent));
-  }
-  .btn-secondary:active {
-    background: hsl(var(--muted));
+    @apply border border-surface-200 bg-white text-surface-700 hover:bg-surface-50 active:bg-surface-100;
   }
 
   .btn-ghost {
-    color: hsl(var(--muted-foreground));
-  }
-  .btn-ghost:hover {
-    background: hsl(var(--accent));
-    color: hsl(var(--foreground));
-  }
-  .btn-ghost:active {
-    background: hsl(var(--muted));
+    @apply text-surface-600 hover:bg-surface-100 hover:text-surface-900 active:bg-surface-200;
   }
 
   .btn-danger {
-    background: hsl(var(--destructive));
-    color: hsl(var(--destructive-foreground));
-  }
-  .btn-danger:hover {
-    background: hsl(var(--destructive) / 0.9);
+    @apply bg-red-600 text-white hover:bg-red-700 active:bg-red-800;
   }
 
   .btn-outline {
-    @apply border;
-    background: transparent;
-    border-color: hsl(var(--border));
-    color: hsl(var(--foreground));
-  }
-  .btn-outline:hover {
-    background: hsl(var(--accent));
+    @apply border border-surface-200 bg-white text-surface-700 hover:bg-surface-50 active:bg-surface-100;
   }
 
   .btn-success {
-    background: hsl(var(--success));
-    color: hsl(var(--success-foreground));
-  }
-  .btn-success:hover {
-    background: hsl(var(--success) / 0.9);
+    @apply bg-emerald-600 text-white hover:bg-emerald-700;
   }
 
   .input {
-    @apply w-full rounded-xl border px-3 py-2.5 text-sm transition-all disabled:opacity-50 focus:outline-none focus:ring-4;
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
-    color: hsl(var(--foreground));
-    --tw-ring-color: hsl(var(--primary) / 0.2);
-  }
-  .input::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-  .input:focus {
-    border-color: hsl(var(--primary) / 0.5);
+    @apply w-full rounded-xl border border-surface-200 bg-white px-3 py-2.5 text-sm text-surface-800 placeholder-surface-400 transition-all disabled:bg-surface-50 disabled:text-surface-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100;
   }
 
   .input-lg {
@@ -239,8 +135,7 @@
   }
 
   .label {
-    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em];
-    color: hsl(var(--muted-foreground));
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500;
   }
 
   .badge {
@@ -252,23 +147,15 @@
   }
 
   .data-table thead th {
-    @apply border-b px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em];
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
-    color: hsl(var(--muted-foreground));
+    @apply border-b border-surface-200 bg-surface-50/70 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500;
   }
 
   .data-table tbody tr {
-    @apply border-b transition-colors;
-    border-color: hsl(var(--border) / 0.5);
-  }
-  .data-table tbody tr:hover {
-    background: hsl(var(--surface) / 0.5);
+    @apply border-b border-surface-100 transition-colors hover:bg-surface-50/80;
   }
 
   .data-table tbody td {
-    @apply px-4 py-3;
-    color: hsl(var(--foreground) / 0.85);
+    @apply px-4 py-3 text-surface-700;
   }
 
   .page-header {
@@ -276,29 +163,23 @@
   }
 
   .page-title {
-    @apply text-[2.2rem] font-semibold tracking-[-0.05em];
-    color: hsl(var(--foreground));
+    @apply text-[2.2rem] font-semibold tracking-[-0.05em] text-surface-900;
   }
 
   .page-subtitle {
-    @apply mt-2 text-sm leading-relaxed;
-    color: hsl(var(--muted-foreground));
+    @apply mt-2 text-sm leading-relaxed text-surface-500;
   }
 
   .kpi-card {
-    @apply rounded-[18px] border p-5;
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
+    @apply rounded-[18px] border border-surface-200 bg-surface-50/80 p-5;
   }
 
   .kpi-value {
-    @apply text-[1.9rem] font-semibold tracking-[-0.03em];
-    color: hsl(var(--foreground));
+    @apply text-[1.9rem] font-semibold tracking-[-0.03em] text-surface-900;
   }
 
   .kpi-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.16em];
-    color: hsl(var(--muted-foreground));
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500;
   }
 
   .kpi-delta {
@@ -306,11 +187,11 @@
   }
 
   .kpi-delta.up {
-    color: hsl(var(--success));
+    @apply text-emerald-600;
   }
 
   .kpi-delta.down {
-    color: hsl(var(--destructive));
+    @apply text-red-500;
   }
 
   .status-dot {
@@ -318,109 +199,29 @@
   }
 
   .mobile-nav-tab {
-    @apply flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 py-2 transition-colors;
-    color: hsl(var(--muted-foreground));
+    @apply flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 py-2 text-surface-500 transition-colors hover:text-brand-600;
   }
-  .mobile-nav-tab:hover {
-    color: hsl(var(--primary));
-  }
+
   .mobile-nav-tab.active {
-    color: hsl(var(--primary));
+    @apply text-brand-600;
   }
 
   .sig-canvas {
-    @apply h-32 w-full cursor-crosshair rounded-xl border-2 border-dashed;
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
+    @apply h-32 w-full cursor-crosshair rounded-xl border-2 border-dashed border-surface-300 bg-white;
   }
 
   .mobile-input {
-    @apply w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors;
-    background: hsl(var(--surface));
-    border-color: hsl(var(--border));
-    color: hsl(var(--foreground));
-  }
-  .mobile-input::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-  .mobile-input:focus {
-    border-color: hsl(var(--primary) / 0.5);
-    background: hsl(var(--surface-elevated));
+    @apply w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-brand-300 focus:bg-white/15;
   }
 
   .mobile-input option {
-    background: hsl(var(--surface));
-    color: hsl(var(--foreground));
+    color: #0f172a;
   }
 
   .mobile-tap {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    @apply transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.985] active:brightness-110;
-    --tw-ring-color: hsl(var(--primary));
-  }
-
-  /* Status badge styles */
-  .status-badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold;
-  }
-  
-  .status-badge-scheduled {
-    background: hsl(var(--secondary));
-    color: hsl(var(--secondary-foreground));
-  }
-  
-  .status-badge-en-route,
-  .status-badge-arrived {
-    background: hsl(var(--info) / 0.2);
-    color: hsl(var(--info));
-  }
-  
-  .status-badge-in-progress {
-    background: hsl(var(--primary) / 0.2);
-    color: hsl(var(--primary));
-  }
-  
-  .status-badge-pending {
-    background: hsl(var(--warning) / 0.2);
-    color: hsl(var(--warning));
-  }
-  
-  .status-badge-completed {
-    background: hsl(var(--success) / 0.2);
-    color: hsl(var(--success));
-  }
-
-  /* Priority badge styles */
-  .priority-badge-urgent,
-  .priority-badge-critical {
-    @apply border-l-[3px];
-    border-left-color: hsl(var(--destructive));
-  }
-  
-  .priority-badge-high {
-    @apply border-l-[3px];
-    border-left-color: hsl(var(--primary));
-  }
-
-  /* Job card styles */
-  .job-card {
-    @apply rounded-xl p-4 transition-all cursor-pointer;
-    background: hsl(var(--surface-elevated));
-    border: 1px solid hsl(var(--border));
-  }
-  .job-card:hover {
-    background: hsl(var(--accent));
-  }
-  .job-card:active {
-    transform: scale(0.98);
-  }
-
-  /* Active job hero */
-  .active-job-hero {
-    @apply rounded-2xl p-5;
-    background: linear-gradient(135deg, hsl(var(--surface-elevated)), hsl(var(--surface)));
-    border: 1px solid hsl(var(--border));
+    @apply transition-all duration-150 ease-out active:scale-[0.985] active:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08111b];
   }
 }
 
@@ -435,57 +236,21 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--warning)));
+    @apply bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent;
   }
 
   .gradient-brand {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+    @apply bg-gradient-to-br from-brand-500 via-brand-600 to-brand-800;
   }
 
   .subtle-grid {
     background-image:
-      linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+      linear-gradient(rgba(15, 23, 32, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 32, 0.04) 1px, transparent 1px);
     background-size: 28px 28px;
   }
 
   .transition-height {
     transition: height 0.2s ease;
-  }
-
-  .safe-bottom {
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .animate-pulse-slow {
-    animation: pulse-slow 2s ease-in-out infinite;
-  }
-
-  .animate-slide-up {
-    animation: slide-up 0.3s ease-out;
-  }
-
-  .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
-  }
-
-  @keyframes pulse-slow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-
-  @keyframes slide-up {
-    from { transform: translateY(8px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 }

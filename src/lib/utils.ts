@@ -146,33 +146,33 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  NEW: 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))]',
-  SCHEDULED: 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))]',
-  DISPATCHED: 'bg-[hsl(var(--info)/0.2)] text-[hsl(var(--info))]',
-  EN_ROUTE: 'bg-[hsl(var(--info)/0.2)] text-[hsl(var(--info))]',
-  IN_PROGRESS: 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]',
-  WAITING_FOR_PARTS: 'bg-[hsl(var(--warning)/0.2)] text-[hsl(var(--warning))]',
-  READY_FOR_SIGNATURE: 'bg-[hsl(var(--warning)/0.2)] text-[hsl(var(--warning))]',
-  ON_HOLD: 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]',
-  COMPLETED: 'bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))]',
-  CANCELLED: 'bg-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]',
-  BILLING_READY: 'bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))]',
-  INVOICED: 'bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))]',
+  NEW: 'bg-slate-100 text-slate-700',
+  SCHEDULED: 'bg-blue-100 text-blue-700',
+  DISPATCHED: 'bg-cyan-100 text-cyan-700',
+  EN_ROUTE: 'bg-amber-100 text-amber-700',
+  IN_PROGRESS: 'bg-brand-100 text-brand-700',
+  WAITING_FOR_PARTS: 'bg-yellow-100 text-yellow-800',
+  READY_FOR_SIGNATURE: 'bg-violet-100 text-violet-700',
+  ON_HOLD: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CANCELLED: 'bg-red-100 text-red-700',
+  BILLING_READY: 'bg-cyan-100 text-cyan-700',
+  INVOICED: 'bg-green-100 text-green-700',
 };
 
 export const STATUS_DOT_COLORS: Record<string, string> = {
-  NEW: 'bg-[hsl(var(--muted-foreground))]',
-  SCHEDULED: 'bg-[hsl(var(--secondary-foreground))]',
-  DISPATCHED: 'bg-[hsl(var(--info))]',
-  EN_ROUTE: 'bg-[hsl(var(--info))]',
-  IN_PROGRESS: 'bg-[hsl(var(--primary))]',
-  WAITING_FOR_PARTS: 'bg-[hsl(var(--warning))]',
-  READY_FOR_SIGNATURE: 'bg-[hsl(var(--warning))]',
-  ON_HOLD: 'bg-[hsl(var(--muted-foreground))]',
-  COMPLETED: 'bg-[hsl(var(--success))]',
-  CANCELLED: 'bg-[hsl(var(--destructive))]',
-  BILLING_READY: 'bg-[hsl(var(--success))]',
-  INVOICED: 'bg-[hsl(var(--success))]',
+  NEW: 'bg-slate-400',
+  SCHEDULED: 'bg-blue-500',
+  DISPATCHED: 'bg-cyan-500',
+  EN_ROUTE: 'bg-amber-500',
+  IN_PROGRESS: 'bg-brand-500',
+  WAITING_FOR_PARTS: 'bg-yellow-500',
+  READY_FOR_SIGNATURE: 'bg-violet-500',
+  ON_HOLD: 'bg-orange-500',
+  COMPLETED: 'bg-emerald-500',
+  CANCELLED: 'bg-red-500',
+  BILLING_READY: 'bg-cyan-500',
+  INVOICED: 'bg-green-600',
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {
@@ -183,10 +183,10 @@ export const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export const PRIORITY_COLORS: Record<string, string> = {
-  CRITICAL: 'bg-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]',
-  HIGH: 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]',
-  MEDIUM: 'bg-[hsl(var(--warning)/0.2)] text-[hsl(var(--warning))]',
-  LOW: 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]',
+  CRITICAL: 'text-red-600 bg-red-50',
+  HIGH: 'text-orange-600 bg-orange-50',
+  MEDIUM: 'text-amber-600 bg-amber-50',
+  LOW: 'text-slate-500 bg-slate-50',
 };
 
 export const SERVICE_TYPE_LABELS: Record<string, string> = {
@@ -201,14 +201,14 @@ export const SERVICE_TYPE_LABELS: Record<string, string> = {
 };
 
 export const SERVICE_TYPE_COLORS: Record<string, string> = {
-  INSTALLATION: 'bg-[hsl(var(--info)/0.2)] text-[hsl(var(--info))]',
-  REPAIR: 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]',
-  MAINTENANCE: 'bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))]',
-  INSPECTION: 'bg-[hsl(var(--info)/0.2)] text-[hsl(var(--info))]',
-  WARRANTY_REPAIR: 'bg-[hsl(var(--warning)/0.2)] text-[hsl(var(--warning))]',
-  EMERGENCY: 'bg-[hsl(var(--destructive)/0.2)] text-[hsl(var(--destructive))]',
-  PREVENTIVE_MAINTENANCE: 'bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))]',
-  DECOMMISSION: 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]',
+  INSTALLATION: 'bg-cyan-100 text-cyan-700',
+  REPAIR: 'bg-blue-100 text-blue-700',
+  MAINTENANCE: 'bg-teal-100 text-teal-700',
+  INSPECTION: 'bg-sky-100 text-sky-700',
+  WARRANTY_REPAIR: 'bg-amber-100 text-amber-700',
+  EMERGENCY: 'bg-red-100 text-red-700',
+  PREVENTIVE_MAINTENANCE: 'bg-green-100 text-green-700',
+  DECOMMISSION: 'bg-slate-100 text-slate-700',
 };
 
 export const TECH_STATUS_LABELS: Record<string, string> = {
@@ -220,9 +220,9 @@ export const TECH_STATUS_LABELS: Record<string, string> = {
 };
 
 export const TECH_STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: 'text-[hsl(var(--success))]',
-  ON_JOB: 'text-[hsl(var(--primary))]',
-  ON_BREAK: 'text-[hsl(var(--warning))]',
-  OFF_DUTY: 'text-[hsl(var(--muted-foreground))]',
-  UNAVAILABLE: 'text-[hsl(var(--destructive))]',
+  AVAILABLE: 'text-emerald-600',
+  ON_JOB: 'text-brand-600',
+  ON_BREAK: 'text-amber-600',
+  OFF_DUTY: 'text-slate-400',
+  UNAVAILABLE: 'text-red-500',
 };
