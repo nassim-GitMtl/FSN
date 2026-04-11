@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useCustomerStore, useJobStore, useSOStore, useAssetStore } from '@/store';
+import { useCustomerStore, useJobStore, useSOStore, useAssetStore, useUIStore } from '@/store';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 import { Card, StatusBadge, PriorityBadge, ServiceTypeBadge, Tabs, EmptyState, Button, Input, Modal, Textarea } from '@/components/ui';
 import { formatDate, formatCurrency, cn, SERVICE_TYPE_LABELS } from '@/lib/utils';
 
 export const ClientDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const { getCustomer, updateCustomer } = useCustomerStore();
   const { getJobsForCustomer, getUnifiedFilesForCustomer } = useJobStore();
   const { getSOsForCustomer } = useSOStore();
@@ -26,7 +29,7 @@ export const ClientDetail: React.FC = () => {
   });
 
   if (!customer) {
-    return <EmptyState icon="🏢" title="Client not found" action={<Button onClick={() => navigate('/clients')}>Back to Clients</Button>} />;
+    return <EmptyState icon="🏢" title={copy.clientDetail.clientNotFound} action={<Button onClick={() => navigate('/clients')}>{copy.clientDetail.backToClients}</Button>} />;
   }
 
   const jobs = getJobsForCustomer(customer.id);
@@ -63,18 +66,18 @@ export const ClientDetail: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'overview',    label: 'Overview' },
-    { id: 'jobs',        label: `Jobs (${jobs.length})` },
-    { id: 'salesorders', label: `Sales Orders (${salesOrders.length})` },
-    { id: 'files',       label: `Files (${files.length})` },
-    { id: 'assets',      label: `Assets (${assets.length})` },
+    { id: 'overview',    label: copy.clientDetail.overview },
+    { id: 'jobs',        label: `${copy.clientDetail.allJobs} (${jobs.length})` },
+    { id: 'salesorders', label: `${copy.clientDetail.salesOrders} (${salesOrders.length})` },
+    { id: 'files',       label: `${copy.clientDetail.files} (${files.length})` },
+    { id: 'assets',      label: `${copy.clientDetail.assets} (${assets.length})` },
   ];
 
   return (
     <div className="space-y-4 max-w-5xl animate-fade-in">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-surface-400">
-        <Link to="/clients" className="hover:text-brand-600">Clients</Link>
+        <Link to="/clients" className="hover:text-brand-600">{copy.clientDetail.clients}</Link>
         <span>/</span>
         <span className="text-surface-700">{customer.companyName}</span>
       </div>
@@ -88,7 +91,7 @@ export const ClientDetail: React.FC = () => {
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-surface-900">{customer.companyName}</h1>
-              {!customer.isActive && <span className="badge bg-red-100 text-red-600">Inactive</span>}
+              {!customer.isActive && <span className="badge bg-red-100 text-red-600">{copy.clients.inactive}</span>}
               {customer.category && <span className="badge bg-surface-100 text-surface-600">{customer.category}</span>}
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-surface-500 flex-wrap">
@@ -100,10 +103,10 @@ export const ClientDetail: React.FC = () => {
           {/* KPI pills */}
           <div className="flex gap-3">
             {[
-              { label: 'Jobs', value: jobs.length },
-              { label: 'Open', value: openJobs.length },
-              { label: 'SOs', value: salesOrders.length },
-              { label: 'Files', value: files.length },
+              { label: copy.clients.jobs, value: jobs.length },
+              { label: copy.clients.open, value: openJobs.length },
+              { label: copy.clientDetail.salesOrders, value: salesOrders.length },
+              { label: copy.clientDetail.files, value: files.length },
             ].map(k => (
               <div key={k.label} className="text-center bg-surface-50 rounded-xl px-3 py-2">
                 <div className="text-lg font-bold text-surface-900">{k.value}</div>
@@ -116,8 +119,8 @@ export const ClientDetail: React.FC = () => {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button variant="primary" onClick={() => navigate(`/jobs/new?customerId=${customer.id}`)}>+ New Job</Button>
-        <Button variant="outline" onClick={openEditModal}>Edit Client</Button>
+        <Button variant="primary" onClick={() => navigate(`/jobs/new?customerId=${customer.id}`)}>{copy.clientDetail.newJob}</Button>
+        <Button variant="outline" onClick={openEditModal}>{copy.clientDetail.editClient}</Button>
       </div>
 
       <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
@@ -125,19 +128,19 @@ export const ClientDetail: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Contact info */}
-          <Card title="Contact Information">
+          <Card title={copy.clientDetail.contactInformation}>
             <dl className="space-y-2 text-sm">
               {[
-                ['Entity ID', customer.entityId],
-                ['Company', customer.companyName],
-                ['Contact', customer.contactName],
-                ['Email', customer.email],
-                ['Phone', customer.phone],
-                ['Alt Phone', customer.altPhone],
-                ['Website', customer.website],
-                ['Account #', customer.accountNumber],
-                ['Category', customer.category],
-                ['Customer Since', formatDate(customer.createdAt)],
+                [copy.clientDetail.entityId, customer.entityId],
+                [copy.clientDetail.company, customer.companyName],
+                [copy.clientDetail.contact, customer.contactName],
+                [copy.clientDetail.email, customer.email],
+                [copy.clientDetail.phone, customer.phone],
+                [copy.clientDetail.altPhone, customer.altPhone],
+                [copy.clientDetail.website, customer.website],
+                [copy.clientDetail.accountNumber, customer.accountNumber],
+                [copy.clientDetail.category, customer.category],
+                [copy.clientDetail.customerSince, formatDate(customer.createdAt)],
               ].filter(([, v]) => v).map(([l, v]) => (
                 <div key={l} className="flex gap-2">
                   <dt className="w-28 flex-shrink-0 text-surface-500 font-medium">{l}</dt>
@@ -147,22 +150,22 @@ export const ClientDetail: React.FC = () => {
             </dl>
             {customer.notes && (
               <div className="mt-4 pt-4 border-t border-surface-100 bg-amber-50 rounded-xl p-3">
-                <div className="text-xs font-medium text-amber-700 mb-1">Note</div>
+                <div className="text-xs font-medium text-amber-700 mb-1">{copy.clientDetail.note}</div>
                 <p className="text-sm text-amber-900">{customer.notes}</p>
               </div>
             )}
           </Card>
 
           {/* Addresses */}
-          <Card title="Addresses">
+          <Card title={copy.clientDetail.addresses}>
             <div className="space-y-3">
               {customer.addresses.map(addr => (
                 <div key={addr.id} className="p-3 bg-surface-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-surface-800">{addr.label}</span>
-                    {addr.isDefault && <span className="badge bg-brand-100 text-brand-700 text-[10px]">Default</span>}
-                    {addr.isShipping && <span className="badge bg-blue-100 text-blue-700 text-[10px]">Ship</span>}
-                    {addr.isBilling && <span className="badge bg-amber-100 text-amber-700 text-[10px]">Bill</span>}
+                    {addr.isDefault && <span className="badge bg-brand-100 text-brand-700 text-[10px]">{copy.clientDetail.defaultBadge}</span>}
+                    {addr.isShipping && <span className="badge bg-blue-100 text-blue-700 text-[10px]">{copy.clientDetail.shipBadge}</span>}
+                    {addr.isBilling && <span className="badge bg-amber-100 text-amber-700 text-[10px]">{copy.clientDetail.billBadge}</span>}
                   </div>
                   <div className="text-sm text-surface-600">
                     {addr.street}<br />
@@ -174,8 +177,8 @@ export const ClientDetail: React.FC = () => {
           </Card>
 
           {/* Recent jobs quick list */}
-          <Card title="Recent Jobs" actions={
-            <button onClick={() => setActiveTab('jobs')} className="text-xs text-brand-600 hover:underline">View all →</button>
+          <Card title={copy.clientDetail.recentJobs} actions={
+            <button onClick={() => setActiveTab('jobs')} className="text-xs text-brand-600 hover:underline">{copy.clientDetail.viewAll}</button>
           }>
             {jobs.slice(0, 5).map(j => (
               <Link key={j.id} to={`/jobs/${j.id}`}
@@ -187,12 +190,12 @@ export const ClientDetail: React.FC = () => {
                 <StatusBadge status={j.status} className="text-[10px]" />
               </Link>
             ))}
-            {jobs.length === 0 && <EmptyState icon="🔧" title="No jobs yet" />}
+            {jobs.length === 0 && <EmptyState icon="🔧" title={copy.clientDetail.noJobsYet} />}
           </Card>
 
           {/* SO quick list */}
-          <Card title="Recent Sales Orders" actions={
-            <button onClick={() => setActiveTab('salesorders')} className="text-xs text-brand-600 hover:underline">View all →</button>
+          <Card title={copy.clientDetail.recentSalesOrders} actions={
+            <button onClick={() => setActiveTab('salesorders')} className="text-xs text-brand-600 hover:underline">{copy.clientDetail.viewAll}</button>
           }>
             {salesOrders.slice(0, 5).map(so => (
               <Link key={so.id} to={`/billing/${so.id}`}
@@ -204,19 +207,19 @@ export const ClientDetail: React.FC = () => {
                 <div className="text-sm font-bold text-surface-900">{formatCurrency(so.total)}</div>
               </Link>
             ))}
-            {salesOrders.length === 0 && <EmptyState icon="🧾" title="No sales orders" />}
+            {salesOrders.length === 0 && <EmptyState icon="🧾" title={copy.clientDetail.noSalesOrders} />}
           </Card>
         </div>
       )}
 
       {activeTab === 'jobs' && (
-        <Card title={`All Jobs (${jobs.length})`}>
+        <Card title={`${copy.clientDetail.allJobs} (${jobs.length})`}>
           <div className="overflow-x-auto">
             <table className="data-table">
-              <thead><tr><th>Job #</th><th>Description</th><th>Status</th><th>Priority</th><th>Type</th><th>Scheduled</th><th>Technician</th><th>Sales Order</th></tr></thead>
+              <thead><tr><th>{copy.clientDetail.jobNumber}</th><th>{copy.clientDetail.description}</th><th>{copy.clientDetail.status}</th><th>{copy.clientDetail.priority}</th><th>{copy.clientDetail.type}</th><th>{copy.clientDetail.scheduled}</th><th>{copy.clientDetail.technician}</th><th>{copy.clientDetail.salesOrder}</th></tr></thead>
               <tbody>
                 {jobs.length === 0 ? (
-                  <tr><td colSpan={8}><EmptyState icon="🔧" title="No jobs" /></td></tr>
+                  <tr><td colSpan={8}><EmptyState icon="🔧" title={copy.clientDetail.noJobs} /></td></tr>
                 ) : jobs.map(j => (
                   <tr key={j.id} className="cursor-pointer" onClick={() => navigate(`/jobs/${j.id}`)}>
                     <td className="font-mono text-xs font-semibold text-brand-600">{j.jobNumber}</td>
@@ -236,12 +239,12 @@ export const ClientDetail: React.FC = () => {
       )}
 
       {activeTab === 'salesorders' && (
-        <Card title={`Sales Orders (${salesOrders.length})`}>
+        <Card title={`${copy.clientDetail.salesOrders} (${salesOrders.length})`}>
           <table className="data-table">
-            <thead><tr><th>SO #</th><th>Memo</th><th>Status</th><th>Date</th><th className="text-right">Total</th><th>Linked Job</th></tr></thead>
+            <thead><tr><th>{copy.clientDetail.soNumber}</th><th>{copy.clientDetail.memo}</th><th>{copy.clientDetail.status}</th><th>{copy.clientDetail.date}</th><th className="text-right">{copy.clientDetail.total}</th><th>{copy.clientDetail.linkedJob}</th></tr></thead>
             <tbody>
               {salesOrders.length === 0 ? (
-                <tr><td colSpan={6}><EmptyState icon="🧾" title="No sales orders" /></td></tr>
+                <tr><td colSpan={6}><EmptyState icon="🧾" title={copy.clientDetail.noSalesOrders} /></td></tr>
               ) : salesOrders.map(so => (
                 <tr key={so.id} className="cursor-pointer" onClick={() => navigate(`/billing/${so.id}`)}>
                   <td className="font-mono text-xs font-semibold text-cyan-600">{so.soNumber}</td>
@@ -260,18 +263,18 @@ export const ClientDetail: React.FC = () => {
       {activeTab === 'files' && (
         <Card title={`Files (${files.length})`} subtitle={`Customer revenue to date: ${formatCurrency(totalRevenue)}`}>
           {files.length === 0 ? (
-            <EmptyState icon="📎" title="No files found" subtitle="No job or sales-order files are attached to this customer yet." />
+            <EmptyState icon="📎" title={copy.clientDetail.noFilesFound} subtitle={copy.clientDetail.noFilesAttached} />
           ) : (
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>File Name</th>
-                    <th>Source</th>
-                    <th>Job</th>
-                    <th>Type</th>
-                    <th>Uploaded</th>
-                    <th>By</th>
+                    <th>{copy.clientDetail.fileName}</th>
+                    <th>{copy.clientDetail.source}</th>
+                    <th>{copy.clientDetail.jobNumber}</th>
+                    <th>{copy.clientDetail.type}</th>
+                    <th>{copy.clientDetail.uploaded}</th>
+                    <th>{copy.clientDetail.by}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -305,7 +308,7 @@ export const ClientDetail: React.FC = () => {
       {activeTab === 'assets' && (
         <Card title={`Assets (${assets.length})`}>
           {assets.length === 0 ? (
-            <EmptyState icon="⚙️" title="No assets on record" />
+            <EmptyState icon="⚙️" title={copy.clientDetail.noAssetsOnRecord} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {assets.map(a => (
@@ -335,12 +338,12 @@ export const ClientDetail: React.FC = () => {
       <Modal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
-        title="Edit Client"
+        title={copy.clientDetail.editClient}
         size="lg"
         footer={(
           <>
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
-            <Button variant="primary" onClick={saveCustomerChanges}>Save Changes</Button>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>{copy.clientDetail.cancel}</Button>
+            <Button variant="primary" onClick={saveCustomerChanges}>{copy.clientDetail.saveChanges}</Button>
           </>
         )}
       >

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useSearchStore } from '@/store';
+import { useSearchStore, useUIStore } from '@/store';
 import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { query, results, setQuery, search, clear, isSearching } = useSearchStore();
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const [localQ, setLocalQ] = useState(searchParams.get('q') || '');
 
   useEffect(() => {
@@ -31,7 +34,7 @@ export const SearchPage: React.FC = () => {
     <div className="max-w-3xl space-y-6 animate-fade-in">
       {/* Search bar */}
       <div className="page-header">
-        <h1 className="page-title">Search</h1>
+        <h1 className="page-title">{copy.search.search}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -41,7 +44,7 @@ export const SearchPage: React.FC = () => {
           </svg>
           <input
             className="w-full pl-11 pr-4 py-3.5 text-base bg-white border border-surface-200 rounded-2xl shadow-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all placeholder-surface-400"
-            placeholder="Search customers, jobs, sales orders, addresses…"
+            placeholder={copy.search.searchPlaceholder}
             value={localQ}
             onChange={e => setLocalQ(e.target.value)}
             autoFocus
@@ -67,9 +70,9 @@ export const SearchPage: React.FC = () => {
       {!localQ && (
         <div className="surface-card p-8 text-center">
           <div className="text-5xl mb-4">🔍</div>
-          <h2 className="text-lg font-semibold text-surface-700 mb-2">Search Everything</h2>
+          <h2 className="text-lg font-semibold text-surface-700 mb-2">{copy.search.searchEverything}</h2>
           <p className="text-sm text-surface-400 max-w-sm mx-auto">
-            Search by customer name, job number, address, city, postal code, sales order number, contact info, or any description text.
+            {copy.search.searchByDescription}
           </p>
         </div>
       )}
@@ -78,22 +81,22 @@ export const SearchPage: React.FC = () => {
       {localQ.length >= 2 && (
         <>
           {isSearching ? (
-            <div className="text-center py-8 text-surface-400">Searching…</div>
+            <div className="text-center py-8 text-surface-400">{copy.search.searching}</div>
           ) : results.length === 0 ? (
             <div className="surface-card p-8 text-center">
               <div className="text-3xl mb-3">😕</div>
-              <p className="text-surface-500">No results for <strong>"{localQ}"</strong></p>
-              <p className="text-sm text-surface-400 mt-1">Try a broader search term or check your spelling.</p>
+              <p className="text-surface-500">{copy.search.noResultsFor} <strong>"{localQ}"</strong></p>
+              <p className="text-sm text-surface-400 mt-1">{copy.search.tryBroader}</p>
             </div>
           ) : (
             <div className="text-sm text-surface-500 -mb-2">
-              {results.length} results for <strong>"{localQ}"</strong>
+              {results.length} {copy.search.resultsFor} <strong>"{localQ}"</strong>
             </div>
           )}
 
           {/* Customer results */}
           {customerResults.length > 0 && (
-            <Section title="Customers" icon="🏢" count={customerResults.length}>
+            <Section title={copy.search.customers} icon="🏢" count={customerResults.length}>
               {customerResults.map(r => (
                 <ResultCard key={r.id} result={r} onClick={() => navigate(r.url)} />
               ))}
@@ -102,7 +105,7 @@ export const SearchPage: React.FC = () => {
 
           {/* Job results */}
           {jobResults.length > 0 && (
-            <Section title="Jobs" icon="🔧" count={jobResults.length}>
+            <Section title={copy.search.jobs} icon="🔧" count={jobResults.length}>
               {jobResults.map(r => (
                 <ResultCard key={r.id} result={r} onClick={() => navigate(r.url)}
                   extra={r.status ? <StatusBadge status={r.status as any} /> : undefined} />
@@ -112,7 +115,7 @@ export const SearchPage: React.FC = () => {
 
           {/* SO results */}
           {soResults.length > 0 && (
-            <Section title="Sales Orders" icon="🧾" count={soResults.length}>
+            <Section title={copy.search.salesOrders} icon="🧾" count={soResults.length}>
               {soResults.map(r => (
                 <ResultCard key={r.id} result={r} onClick={() => navigate(r.url)} />
               ))}

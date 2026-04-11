@@ -10,6 +10,7 @@ import {
   formatDate, formatDateTime, formatCurrency, formatDuration, cn,
   STATUS_LABELS, TECH_STATUS_LABELS,
 } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 import type { Attachment, ChecklistItem, ChecklistResponse, JobStatus, NoteType, Part, TimeEntry } from '@/types';
 
 const STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
@@ -102,7 +103,8 @@ export const JobDetail: React.FC = () => {
   const { getSOsForJob, getSOsForCustomer, createSO, linkSOToJob } = useSOStore();
   const { user } = useAuthStore();
   const techs = useTechStore((state) => state.technicians);
-  const { toast } = useUIStore();
+  const { toast, language } = useUIStore();
+  const copy = getDesktopCopy(language);
 
   const job = id ? getJob(id) : undefined;
   const initialTab = new URLSearchParams(location.search).get('tab') || 'summary';
@@ -129,9 +131,9 @@ export const JobDetail: React.FC = () => {
       <div className="animate-fade-in">
         <EmptyState
           icon="🔍"
-          title="Job not found"
-          subtitle="This job may have been removed or you may not have access."
-          action={<Button onClick={() => navigate('/jobs')}>Back to Jobs</Button>}
+          title={copy.jobDetail.jobNotFound}
+          subtitle={copy.jobDetail.jobMayHaveBeenRemoved}
+          action={<Button onClick={() => navigate('/jobs')}>{copy.jobDetail.backToJobs}</Button>}
         />
       </div>
     );
@@ -159,16 +161,16 @@ export const JobDetail: React.FC = () => {
   const checklistComplete = checklist.filter((entry) => entry.response?.checked).length;
 
   const tabs = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'schedule', label: 'Scheduling' },
-    { id: 'time', label: `Time (${timeEntries.length})` },
-    { id: 'parts', label: `Parts (${parts.length})` },
-    { id: 'checklist', label: 'Checklist' },
-    { id: 'notes', label: `Notes (${notes.length})` },
-    { id: 'salesorder', label: `Sales Order${salesOrders.length ? ` (${salesOrders.length})` : ''}` },
-    { id: 'files', label: `Files (${files.length})` },
-    { id: 'billing', label: 'Billing' },
-    { id: 'history', label: 'History' },
+    { id: 'summary', label: copy.jobDetail.summary },
+    { id: 'schedule', label: copy.jobDetail.scheduling },
+    { id: 'time', label: `${copy.jobDetail.time} (${timeEntries.length})` },
+    { id: 'parts', label: `${copy.jobDetail.parts} (${parts.length})` },
+    { id: 'checklist', label: copy.jobDetail.checklist },
+    { id: 'notes', label: `${copy.jobDetail.notes} (${notes.length})` },
+    { id: 'salesorder', label: `${copy.jobDetail.salesOrder}${salesOrders.length ? ` (${salesOrders.length})` : ''}` },
+    { id: 'files', label: `${copy.jobDetail.files} (${files.length})` },
+    { id: 'billing', label: copy.jobDetail.billing },
+    { id: 'history', label: copy.jobDetail.history },
   ];
 
   const handleStatusChange = (status: JobStatus) => {
@@ -306,14 +308,14 @@ export const JobDetail: React.FC = () => {
   return (
     <div className="max-w-6xl space-y-4 animate-fade-in">
       <div className="flex items-center gap-2 text-sm text-surface-400">
-        <Link to="/jobs" className="hover:text-brand-600 transition-colors">Jobs</Link>
+        <Link to="/jobs" className="hover:text-brand-600 transition-colors">{copy.jobForm.jobs}</Link>
         <span>/</span>
         <span className="text-surface-700 font-medium">{job.jobNumber}</span>
       </div>
 
-      {job.slaBreached && <Alert type="danger" icon="🚨">SLA breached — this job requires immediate attention.</Alert>}
-      {job.status === 'ON_HOLD' && <Alert type="warning" icon="⏸">This job is currently on hold.</Alert>}
-      {job.warranty && <Alert type="info" icon="🛡️">This job is covered under warranty.</Alert>}
+      {job.slaBreached && <Alert type="danger" icon="🚨">{copy.jobDetail.slaBreached}</Alert>}
+      {job.status === 'ON_HOLD' && <Alert type="warning" icon="⏸">{copy.jobDetail.onHold}</Alert>}
+      {job.warranty && <Alert type="info" icon="🛡️">{copy.jobDetail.warranty}</Alert>}
 
       <div className="surface-card p-5">
         <div className="flex items-start justify-between gap-4">
@@ -333,12 +335,12 @@ export const JobDetail: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(`/jobs/${job.id}/edit`)}>Edit</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/jobs/${job.id}/edit`)}>{copy.jobDetail.edit}</Button>
             <Button variant="outline" size="sm" onClick={() => {
               setSelectedTechId(job.technicianId || '');
               setShowAssignModal(true);
             }}>
-              {job.technicianId ? 'Reassign Tech' : 'Assign Tech'}
+              {job.technicianId ? copy.jobDetail.reassignTech : copy.jobDetail.assignTech}
             </Button>
             <Button variant="outline" size="sm" onClick={() => {
               setRescheduleDraft({

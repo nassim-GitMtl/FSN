@@ -20,6 +20,7 @@ import {
   formatRelative,
   toISODate,
 } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
 
@@ -51,6 +52,8 @@ export const Dashboard: React.FC = () => {
   const technicians = useTechStore((state) => state.technicians);
   const navigate = useNavigate();
 
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const workspace = user?.workspace === 'INSTALLATION' ? 'INSTALLATION' : 'SERVICE';
 
   useEffect(() => {
@@ -61,8 +64,9 @@ export const Dashboard: React.FC = () => {
 
   const kpis = dashboardKPIs;
   const today = toISODate(new Date());
-  const workspaceLabel = workspace === 'SERVICE' ? 'Service command desk' : 'Installation command desk';
-  const dateLabel = new Intl.DateTimeFormat('en-US', {
+  const workspaceLabel = workspace === 'SERVICE' ? copy.dashboard.serviceCommandDesk : copy.dashboard.installationCommandDesk;
+  const locale = language === 'fr' ? 'fr-CA' : 'en-US';
+  const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -107,27 +111,27 @@ export const Dashboard: React.FC = () => {
 
   const actionItems: ActionItem[] = [
     {
-      title: 'Unassigned work',
+      title: copy.dashboard.unassignedWork,
       count: activeJobs.filter((job) => !job.technicianId).length,
-      description: 'Jobs waiting for a technician or route slot.',
+      description: copy.dashboard.jobsWaiting,
       href: '/dispatch',
     },
     {
-      title: 'SLA risk',
+      title: copy.dashboard.slaRisk,
       count: activeJobs.filter((job) => job.slaBreached).length,
-      description: 'Work orders that need intervention before the customer window slips.',
+      description: copy.dashboard.workOrdersIntervention,
       href: '/jobs?focus=sla',
     },
     {
-      title: 'Follow-up required',
+      title: copy.dashboard.followUpRequired,
       count: scopedJobs.filter((job) => job.followUpRequired).length,
-      description: 'Completed visits that still need a callback, revisit, or confirmation.',
+      description: copy.dashboard.completedVisits,
       href: '/jobs?focus=followup',
     },
     {
-      title: 'Ready to bill',
+      title: copy.dashboard.readyToBill,
       count: scopedJobs.filter((job) => job.status === 'BILLING_READY').length,
-      description: 'Operational work ready for sales order review.',
+      description: copy.dashboard.operationalWork,
       href: '/billing',
     },
   ];
@@ -137,18 +141,18 @@ export const Dashboard: React.FC = () => {
       <section className="section-shell">
         <div className="page-header">
           <div>
-            <div className="eyebrow">Operations overview</div>
+            <div className="eyebrow">{copy.dashboard.operationsOverview}</div>
             <h1 className="page-title mt-2">{workspaceLabel}</h1>
             <p className="page-subtitle max-w-2xl">
-              Live workload for {dateLabel}. Keep queue health, technician capacity, and billing movement in sync.
+              {copy.dashboard.liveWorkload} {dateLabel}. {copy.dashboard.keepSync}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="secondary" onClick={() => navigate('/dispatch')}>
-              Open dispatch
+              {copy.dashboard.openDispatch}
             </Button>
             <Button variant="primary" onClick={() => navigate('/jobs/new')}>
-              New work order
+              {copy.dashboard.newWorkOrder}
             </Button>
           </div>
         </div>
@@ -160,26 +164,26 @@ export const Dashboard: React.FC = () => {
         )}
 
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryMetric label="Jobs today" value={kpis?.jobsToday ?? 0} detail="Scheduled visits on the board today." tone="text-brand-800" />
-          <SummaryMetric label="Open work" value={kpis?.jobsOpen ?? 0} detail="Jobs still moving through dispatch or execution." />
-          <SummaryMetric label="Revenue MTD" value={formatCurrency(kpis?.revenueThisMonth ?? 0)} detail="Booked sales order value this month." tone="text-emerald-700" />
-          <SummaryMetric label="Avg duration" value={`${kpis?.avgJobDuration ?? 0}h`} detail="Average completed job duration in the workspace." />
+          <SummaryMetric label={copy.dashboard.jobsToday} value={kpis?.jobsToday ?? 0} detail={copy.dashboard.scheduledVisits} tone="text-brand-800" />
+          <SummaryMetric label={copy.dashboard.openWork} value={kpis?.jobsOpen ?? 0} detail={copy.dashboard.jobsMoving} />
+          <SummaryMetric label={copy.dashboard.revenueMTD} value={formatCurrency(kpis?.revenueThisMonth ?? 0)} detail={copy.dashboard.bookedSalesOrder} tone="text-emerald-700" />
+          <SummaryMetric label={copy.dashboard.avgDuration} value={`${kpis?.avgJobDuration ?? 0}h`} detail={copy.dashboard.averageCompleted} />
         </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_360px]">
         <div className="space-y-6">
           <Card
-            title="Today's schedule"
-            subtitle="First-pass view of the workload already committed for today."
+            title={copy.dashboard.todaySchedule}
+            subtitle={copy.dashboard.firstPassView}
             actions={(
               <button onClick={() => navigate('/dispatch')} className="text-sm font-medium text-brand-700 hover:underline">
-                Manage schedule
+                {copy.dashboard.manageSchedule}
               </button>
             )}
           >
             {todayJobs.length === 0 ? (
-              <EmptyState title="No work orders scheduled today" subtitle="Use the dispatch board to assign work and build the route." icon="-" />
+              <EmptyState title={copy.dashboard.noWorkOrdersToday} subtitle={copy.dashboard.useDispatch} icon="-" />
             ) : (
               <div className="space-y-3">
                 {todayJobs.map((job) => (
@@ -209,16 +213,16 @@ export const Dashboard: React.FC = () => {
             )}
           </Card>
 
-          <Card title="Recent activity" subtitle="Latest job updates and operational movement.">
+          <Card title={copy.dashboard.recentActivity} subtitle={copy.dashboard.latestJobUpdates}>
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Job</th>
-                    <th>Customer</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Updated</th>
+                    <th>{copy.dashboard.job}</th>
+                    <th>{copy.dashboard.customer}</th>
+                    <th>{copy.dashboard.status}</th>
+                    <th>{copy.dashboard.priority}</th>
+                    <th>{copy.dashboard.updated}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,7 +240,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Revenue this month" subtitle="Weekly booked sales order movement.">
+          <Card title={copy.dashboard.revenueThisMonth} subtitle={copy.dashboard.weeklyBooked}>
             {kpis && (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={kpis.revenueByWeek}>
@@ -252,7 +256,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-          <Card title="Dispatch priorities" subtitle="The first places to focus next.">
+          <Card title={copy.dashboard.dispatchPriorities} subtitle={copy.dashboard.firstPlaces}>
             <div className="space-y-3">
               {actionItems.map((item) => (
                 <button
@@ -270,7 +274,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Field coverage" subtitle="Technicians with current load in the active workspace.">
+          <Card title={copy.dashboard.fieldCoverage} subtitle={copy.dashboard.techniciansLoad}>
             <div className="space-y-3">
               {activeTechs.map((tech) => {
                 const techJobs = scopedJobs.filter((job) => job.technicianId === tech.id && !CLOSED_STATUSES.includes(job.status));
@@ -282,11 +286,11 @@ export const Dashboard: React.FC = () => {
                       <div className={cn('mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]', TECH_STATUS_COLORS[tech.status])}>
                         {TECH_STATUS_LABELS[tech.status]}
                       </div>
-                      <div className="mt-2 truncate text-xs text-surface-500">{tech.skills.slice(0, 3).join(' · ') || 'General field coverage'}</div>
+                      <div className="mt-2 truncate text-xs text-surface-500">{tech.skills.slice(0, 3).join(' · ') || copy.dashboard.generalFieldCoverage}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-semibold text-surface-900">{techJobs.length}</div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">Open jobs</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">{copy.dashboard.openJobs}</div>
                     </div>
                   </div>
                 );
@@ -294,10 +298,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Work mix" subtitle="Where the current load is concentrated.">
+          <Card title={copy.dashboard.workMix} subtitle={copy.dashboard.currentLoad}>
             <div className="space-y-5">
               <div>
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">By status</div>
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">{copy.dashboard.byStatus}</div>
                 <div className="space-y-3">
                   {statusData.map((item) => (
                     <div key={item.name} className="space-y-2">
@@ -314,7 +318,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="border-t border-surface-100 pt-5">
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">By service type</div>
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">{copy.dashboard.byServiceType}</div>
                 <div className="space-y-3">
                   {serviceMixData.map((item) => (
                     <div key={item.name} className="space-y-2">

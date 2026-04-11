@@ -4,6 +4,7 @@ import { useSOStore, useJobStore, useAuthStore, useUIStore, useCustomerStore } f
 import { Button, EmptyState, Input, Modal, Tabs, Textarea } from '@/components/ui';
 import { SalesOrderWorkbench } from '@/components/billing/SalesOrderWorkbench';
 import { formatDate, formatCurrency, cn, SERVICE_TYPE_LABELS } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 import type { Job } from '@/types';
 
 type BillingTab = 'pending' | 'ready' | 'warranty' | 'salesorders';
@@ -43,10 +44,12 @@ const BillingQueueTable: React.FC<{
   onHold,
   onRemoveHold,
 }) => {
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const allSelected = jobs.length > 0 && jobs.every((job) => selectedJobIds.includes(job.id));
 
   if (jobs.length === 0) {
-    return <EmptyState icon="🧾" title="No jobs in this queue" subtitle="Everything in this billing queue has been cleared." />;
+    return <EmptyState icon="🧾" title={copy.billing.noJobsInQueue} subtitle={copy.billing.everythingCleared} />;
   }
 
   return (
@@ -57,16 +60,16 @@ const BillingQueueTable: React.FC<{
             <th className="w-10">
               <input type="checkbox" checked={allSelected} onChange={onToggleAll} />
             </th>
-            <th>Job #</th>
-            <th>Customer</th>
-            <th>Type</th>
-            <th>Completed</th>
-            <th>Technician</th>
-            <th className="text-right">Labor</th>
-            <th className="text-right">Parts</th>
-            <th className="text-right">Total</th>
-            <th>Billing</th>
-            <th className="w-[280px]">Actions</th>
+            <th>{copy.billing.jobNumber}</th>
+            <th>{copy.billing.customer}</th>
+            <th>{copy.billing.type}</th>
+            <th>{copy.billing.completed}</th>
+            <th>{copy.billing.technician}</th>
+            <th className="text-right">{copy.billing.labor}</th>
+            <th className="text-right">{copy.billing.parts}</th>
+            <th className="text-right">{copy.billing.total}</th>
+            <th>{copy.billing.billingColumn}</th>
+            <th className="w-[280px]">{copy.billing.actions}</th>
           </tr>
         </thead>
         <tbody>
@@ -96,23 +99,23 @@ const BillingQueueTable: React.FC<{
                 <td className="text-right font-semibold">{job.warranty ? 'N/A' : formatCurrency(total)}</td>
                 <td>
                   <span className={cn('badge', BILLING_STATUS_STYLES[billingStatus])}>
-                    {billingStatus === 'WARRANTY' ? 'Warranty' : billingStatus}
+                    {billingStatus === 'WARRANTY' ? copy.billing.warranty : billingStatus}
                   </span>
                 </td>
                 <td>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => onReview(job.id)}>Review</Button>
+                    <Button variant="ghost" size="sm" onClick={() => onReview(job.id)}>{copy.billing.review}</Button>
                     {!job.warranty && !job.billingReady && !job.billingHold && (
-                      <Button variant="outline" size="sm" onClick={() => onMarkReady(job.id)}>Mark Ready</Button>
+                      <Button variant="outline" size="sm" onClick={() => onMarkReady(job.id)}>{copy.billing.markReady}</Button>
                     )}
                     {!job.warranty && job.billingReady && job.status !== 'INVOICED' && (
-                      <Button variant="success" size="sm" onClick={() => onInvoice(job.id)}>Invoice</Button>
+                      <Button variant="success" size="sm" onClick={() => onInvoice(job.id)}>{copy.billing.invoice}</Button>
                     )}
                     {!job.warranty && !job.billingHold && (
-                      <Button variant="outline" size="sm" onClick={() => onHold(job)}>Hold</Button>
+                      <Button variant="outline" size="sm" onClick={() => onHold(job)}>{copy.billing.hold}</Button>
                     )}
                     {!job.warranty && job.billingHold && (
-                      <Button variant="outline" size="sm" onClick={() => onRemoveHold(job.id)}>Remove Hold</Button>
+                      <Button variant="outline" size="sm" onClick={() => onRemoveHold(job.id)}>{copy.billing.removeHold}</Button>
                     )}
                   </div>
                 </td>
@@ -128,7 +131,8 @@ const BillingQueueTable: React.FC<{
 export const BillingList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { toast } = useUIStore();
+  const { toast, language } = useUIStore();
+  const copy = getDesktopCopy(language);
   const jobs = useJobStore((state) => state.jobs);
   const {
     markBillingReady,
@@ -295,26 +299,26 @@ export const BillingList: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Billing</h1>
-          <p className="page-subtitle">Pending review, billing-ready queues, warranty jobs, and sales-order controls.</p>
+          <h1 className="page-title">{copy.billing.billing}</h1>
+          <p className="page-subtitle">{copy.billing.pendingReview}</p>
         </div>
         <div className="flex items-center gap-2">
           {activeTab !== 'salesorders' && (
             <>
-              <Button variant="outline" onClick={handleBulkReady}>Bulk Billing Ready</Button>
-              <Button variant="success" onClick={handleBulkInvoice}>Generate Invoices</Button>
+              <Button variant="outline" onClick={handleBulkReady}>{copy.billing.bulkBillingReady}</Button>
+              <Button variant="success" onClick={handleBulkInvoice}>{copy.billing.generateInvoices}</Button>
             </>
           )}
-          <Button variant="primary" onClick={() => navigate('/jobs/new')}>+ New Job / SO</Button>
+          <Button variant="primary" onClick={() => navigate('/jobs/new')}>{copy.billing.newJobSO}</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: 'Pending Review', value: pendingJobs.length, icon: '⚠️' },
-          { label: 'Billing Ready', value: readyJobs.length, icon: '✅' },
-          { label: 'Warranty Open', value: warrantyJobs.length, icon: '🛡️' },
-          { label: 'Pending Balance', value: formatCurrency(pendingRevenue), icon: '💰' },
+          { label: copy.billing.pendingReviewTab, value: pendingJobs.length, icon: '⚠️' },
+          { label: copy.billing.billingReadyTab, value: readyJobs.length, icon: '✅' },
+          { label: copy.billing.warrantyOpen, value: warrantyJobs.length, icon: '🛡️' },
+          { label: copy.billing.pendingBalance, value: formatCurrency(pendingRevenue), icon: '💰' },
         ].map((item) => (
           <div key={item.label} className="surface-card flex items-center gap-3 p-4">
             <span className="text-2xl">{item.icon}</span>
@@ -331,10 +335,10 @@ export const BillingList: React.FC = () => {
         active={activeTab}
         onChange={(value) => setActiveTab(value as BillingTab)}
         tabs={[
-          { id: 'pending', label: 'Pending Review', badge: pendingJobs.length },
-          { id: 'ready', label: 'Billing Ready', badge: readyJobs.length },
-          { id: 'warranty', label: 'Warranty Jobs', badge: warrantyJobs.length },
-          { id: 'salesorders', label: 'Sales Orders', badge: visibleSalesOrders.length },
+          { id: 'pending', label: copy.billing.pendingReviewTab, badge: pendingJobs.length },
+          { id: 'ready', label: copy.billing.billingReadyTab, badge: readyJobs.length },
+          { id: 'warranty', label: copy.billing.warrantyJobs, badge: warrantyJobs.length },
+          { id: 'salesorders', label: copy.billing.salesOrders, badge: visibleSalesOrders.length },
         ]}
       />
 
@@ -405,10 +409,10 @@ export const BillingList: React.FC = () => {
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              { label: 'Total SOs', value: String(visibleSalesOrders.length), icon: '🧾' },
-              { label: 'Total Revenue', value: formatCurrency(totalRevenue), icon: '📈' },
-              { label: 'Pending Balance', value: formatCurrency(pendingRevenue), icon: '⏳' },
-              { label: 'Linked Jobs', value: String(scopedJobs.filter((job) => job.salesOrderId).length), icon: '🔗' },
+              { label: copy.billing.salesOrders, value: String(visibleSalesOrders.length), icon: '🧾' },
+              { label: copy.reports.revenueSummary, value: formatCurrency(totalRevenue), icon: '📈' },
+              { label: copy.billing.pendingBalance, value: formatCurrency(pendingRevenue), icon: '⏳' },
+              { label: copy.billing.linkedJob, value: String(scopedJobs.filter((job) => job.salesOrderId).length), icon: '🔗' },
             ].map((item) => (
               <div key={item.label} className="surface-card flex items-center gap-3 p-4">
                 <span className="text-2xl">{item.icon}</span>
@@ -423,7 +427,7 @@ export const BillingList: React.FC = () => {
           <div className="flex gap-3">
             <div className="max-w-sm flex-1">
               <Input
-                placeholder="Search sales orders…"
+                placeholder={copy.billing.searchSalesOrders}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -443,7 +447,7 @@ export const BillingList: React.FC = () => {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-            <Button variant="primary" onClick={() => setCreateSOOpen(true)}>+ New SO</Button>
+            <Button variant="primary" onClick={() => setCreateSOOpen(true)}>{copy.billing.newSalesOrder}</Button>
           </div>
 
           <div className="surface-card overflow-hidden">
@@ -451,21 +455,21 @@ export const BillingList: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>SO #</th>
-                    <th>Customer</th>
-                    <th>Memo</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th className="text-right">Total</th>
-                    <th className="text-right">Balance</th>
-                    <th>Linked Job</th>
+                    <th>{copy.billing.soNumber}</th>
+                    <th>{copy.billing.customer}</th>
+                    <th>{copy.billing.memo}</th>
+                    <th>{copy.billing.status}</th>
+                    <th>{copy.billing.date}</th>
+                    <th className="text-right">{copy.billing.total}</th>
+                    <th className="text-right">{copy.billing.balance}</th>
+                    <th>{copy.billing.linkedJob}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedSalesOrders.length === 0 ? (
                     <tr>
                       <td colSpan={8}>
-                        <EmptyState icon="🧾" title="No sales orders found" />
+                        <EmptyState icon="🧾" title={copy.billing.noSalesOrdersFound} />
                       </td>
                     </tr>
                   ) : paginatedSalesOrders.map((salesOrder) => (
@@ -527,40 +531,40 @@ export const BillingList: React.FC = () => {
       <Modal
         open={Boolean(holdDraft.jobId)}
         onClose={() => setHoldDraft({ jobId: '', jobNumber: '', reason: '' })}
-        title={`Billing Hold${holdDraft.jobNumber ? ` · ${holdDraft.jobNumber}` : ''}`}
+        title={`${copy.billing.billingHold}${holdDraft.jobNumber ? ` · ${holdDraft.jobNumber}` : ''}`}
         footer={(
           <>
-            <Button variant="secondary" onClick={() => setHoldDraft({ jobId: '', jobNumber: '', reason: '' })}>Cancel</Button>
-            <Button variant="primary" onClick={confirmHold}>Put on Hold</Button>
+            <Button variant="secondary" onClick={() => setHoldDraft({ jobId: '', jobNumber: '', reason: '' })}>{language === 'fr' ? 'Annuler' : 'Cancel'}</Button>
+            <Button variant="primary" onClick={confirmHold}>{copy.billing.putOnHold}</Button>
           </>
         )}
       >
         <Textarea
-          label="Reason"
+          label={copy.billing.reason}
           rows={4}
           value={holdDraft.reason}
           onChange={(event) => setHoldDraft((current) => ({ ...current, reason: event.target.value }))}
-          placeholder="Why is this job on billing hold?"
+          placeholder={copy.billing.whyOnHold}
         />
       </Modal>
 
       <Modal
         open={createSOOpen}
         onClose={() => { setCreateSOOpen(false); setSOCustomerSearch(''); setSOCustomerId(''); setSOCustomerName(''); setSOmemo(''); setShowSOCustomerDrop(false); }}
-        title="New Sales Order"
+        title={copy.billing.newSalesOrder}
         footer={(
           <>
-            <Button variant="secondary" onClick={() => { setCreateSOOpen(false); setSOCustomerSearch(''); setSOCustomerId(''); setSOCustomerName(''); setSOmemo(''); }}>Cancel</Button>
-            <Button variant="primary" disabled={!soCustomerId} onClick={handleCreateSO}>Create Sales Order</Button>
+            <Button variant="secondary" onClick={() => { setCreateSOOpen(false); setSOCustomerSearch(''); setSOCustomerId(''); setSOCustomerName(''); setSOmemo(''); }}>{language === 'fr' ? 'Annuler' : 'Cancel'}</Button>
+            <Button variant="primary" disabled={!soCustomerId} onClick={handleCreateSO}>{copy.billing.createSalesOrder}</Button>
           </>
         )}
       >
         <div className="space-y-4">
           <div className="relative">
-            <label className="label">Customer *</label>
+            <label className="label">{copy.billing.customerRequired}</label>
             <input
               className="input"
-              placeholder="Search customers…"
+              placeholder={copy.billing.searchCustomers}
               value={soCustomerSearch}
               onChange={(e) => { setSOCustomerSearch(e.target.value); setSOCustomerId(''); setShowSOCustomerDrop(true); }}
               onFocus={() => setShowSOCustomerDrop(true)}
@@ -582,9 +586,9 @@ export const BillingList: React.FC = () => {
             )}
           </div>
           <Textarea
-            label="Memo"
+            label={copy.billing.memo}
             rows={3}
-            placeholder="Brief summary for this sales order…"
+            placeholder={copy.billing.briefSummary}
             value={soMemo}
             onChange={(e) => setSOmemo(e.target.value)}
           />
@@ -598,6 +602,8 @@ export const SODetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { language } = useUIStore();
+  const copy = getDesktopCopy(language);
   const jobs = useJobStore((state) => state.jobs);
   const { getSO } = useSOStore();
 
@@ -609,8 +615,8 @@ export const SODetail: React.FC = () => {
     return (
       <EmptyState
         icon="🧾"
-        title="Sales Order not found"
-        action={<Button onClick={() => navigate('/billing')}>Back to Billing</Button>}
+        title={copy.billing.noSalesOrdersFound}
+        action={<Button onClick={() => navigate('/billing')}>{copy.billing.backToBilling}</Button>}
       />
     );
   }
@@ -618,7 +624,7 @@ export const SODetail: React.FC = () => {
   return (
     <div className="max-w-6xl space-y-4 animate-fade-in">
       <div className="flex items-center gap-2 text-sm text-surface-400">
-        <Link to="/billing" className="hover:text-brand-600">Billing</Link>
+        <Link to="/billing" className="hover:text-brand-600">{copy.billing.billing}</Link>
         <span>/</span>
         <span className="text-surface-700">{so.soNumber}</span>
       </div>

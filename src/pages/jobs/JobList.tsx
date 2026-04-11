@@ -1,37 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore, useJobStore, useTechStore } from '@/store';
+import { useAuthStore, useJobStore, useTechStore, useUIStore } from '@/store';
 import { StatusBadge, PriorityBadge, ServiceTypeBadge, Button, Input, EmptyState, Tabs } from '@/components/ui';
 import { formatDate, cn, STATUS_LABELS, PRIORITY_LABELS, SERVICE_TYPE_LABELS, isPast, toISODate } from '@/lib/utils';
-
-const STATUS_OPTS = [
-  { value: '', label: 'All Statuses' },
-  ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v })),
-];
-
-const PRIORITY_OPTS = [
-  { value: '', label: 'All Priorities' },
-  ...Object.entries(PRIORITY_LABELS).map(([k, v]) => ({ value: k, label: v })),
-];
-
-const TYPE_OPTS = [
-  { value: '', label: 'All Types' },
-  ...Object.entries(SERVICE_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
-];
-
-const ASSIGNMENT_OPTS = [
-  { value: '', label: 'All Assignments' },
-  { value: 'assigned', label: 'Assigned' },
-  { value: 'unassigned', label: 'Unassigned' },
-];
-
-const FOCUS_OPTS = [
-  { value: '', label: 'All Focus Areas' },
-  { value: 'sla', label: 'SLA Risk' },
-  { value: 'followup', label: 'Follow-up Required' },
-  { value: 'warranty', label: 'Warranty' },
-  { value: 'unscheduled', label: 'Missing Schedule' },
-];
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 const ACTIVE_JOB_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
 const CLOSED_JOB_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED', 'BILLING_READY'];
@@ -40,8 +12,35 @@ export const JobList: React.FC = () => {
   const { user } = useAuthStore();
   const { jobs } = useJobStore();
   const technicians = useTechStore((state) => state.technicians);
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const STATUS_OPTS = [
+    { value: '', label: copy.jobList.allStatuses },
+    ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v })),
+  ];
+  const PRIORITY_OPTS = [
+    { value: '', label: copy.jobList.allPriorities },
+    ...Object.entries(PRIORITY_LABELS).map(([k, v]) => ({ value: k, label: v })),
+  ];
+  const TYPE_OPTS = [
+    { value: '', label: copy.jobList.allTypes },
+    ...Object.entries(SERVICE_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
+  ];
+  const ASSIGNMENT_OPTS = [
+    { value: '', label: copy.jobList.allAssignments },
+    { value: 'assigned', label: copy.jobList.assigned },
+    { value: 'unassigned', label: copy.jobList.unassigned },
+  ];
+  const FOCUS_OPTS = [
+    { value: '', label: copy.jobList.allFocusAreas },
+    { value: 'sla', label: copy.jobList.slaRisk },
+    { value: 'followup', label: copy.jobList.followUpRequired },
+    { value: 'warranty', label: copy.jobList.warranty },
+    { value: 'unscheduled', label: copy.jobList.missingSchedule },
+  ];
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -202,15 +201,15 @@ export const JobList: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Jobs</h1>
-          <p className="page-subtitle">{ws === 'SERVICE' ? 'Service Jobs' : 'Installation Projects'} · {filtered.length} results</p>
+          <h1 className="page-title">{ws === 'SERVICE' ? copy.jobList.serviceJobs : copy.jobList.installationProjects}</h1>
+          <p className="page-subtitle">{filtered.length} {copy.jobList.results}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={exportVisibleJobs}>
-            Export CSV
+            {copy.jobList.exportCSV}
           </Button>
           <Button variant="primary" onClick={() => navigate('/jobs/new')} icon={<span>+</span>}>
-            New Job
+            {copy.jobList.newJob}
           </Button>
         </div>
       </div>
@@ -221,11 +220,11 @@ export const JobList: React.FC = () => {
         active={activeTab}
         onChange={t => { setActiveTab(t); setPage(1); }}
         tabs={[
-          { id: 'all',     label: 'All Jobs',    badge: jobs.filter(j => j.category === cat).length },
-          { id: 'today',   label: 'Today',       badge: todayCount },
-          { id: 'open',    label: 'Open',        badge: openCount },
-          { id: 'overdue', label: 'Overdue',     badge: overdueCount },
-          { id: 'billing', label: 'Billing',     badge: billingCount },
+          { id: 'all',     label: copy.jobList.allJobs,  badge: jobs.filter(j => j.category === cat).length },
+          { id: 'today',   label: copy.jobList.today,    badge: todayCount },
+          { id: 'open',    label: copy.jobList.open,     badge: openCount },
+          { id: 'overdue', label: copy.jobList.overdue,  badge: overdueCount },
+          { id: 'billing', label: copy.jobList.billing,  badge: billingCount },
         ]}
       />
 
@@ -233,7 +232,7 @@ export const JobList: React.FC = () => {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px] max-w-xs">
           <Input
-            placeholder="Search jobs…"
+            placeholder={copy.jobList.searchJobs}
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
@@ -249,7 +248,7 @@ export const JobList: React.FC = () => {
           {TYPE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select className="select w-auto" value={technicianFilter} onChange={e => { setTechnicianFilter(e.target.value); setPage(1); }}>
-          <option value="">All Technicians</option>
+          <option value="">{copy.jobList.allTechnicians}</option>
           {techPool.map((technician) => (
             <option key={technician.id} value={technician.id}>{technician.name}</option>
           ))}
@@ -275,7 +274,7 @@ export const JobList: React.FC = () => {
         {(search || statusFilter || priorityFilter || typeFilter || technicianFilter || dateFromFilter || dateToFilter || assignmentFilter || focusFilter || requestedDate || searchParams.toString()) && (
           <button onClick={() => { setSearch(''); setStatusFilter(''); setPriorityFilter(''); setTypeFilter(''); setTechnicianFilter(''); setDateFromFilter(''); setDateToFilter(''); setAssignmentFilter(''); setFocusFilter(''); setActiveTab('all'); setPage(1); navigate('/jobs'); }}
             className="text-xs text-surface-500 hover:text-surface-700 underline">
-            Clear filters
+            {copy.jobList.clearFilters}
           </button>
         )}
       </div>
@@ -288,23 +287,23 @@ export const JobList: React.FC = () => {
               <tr>
                 <th>
                   <button onClick={() => handleSort('jobNumber')} className="hover:text-surface-700 transition-colors">
-                    Job # <SortIcon col="jobNumber" />
+                    {copy.jobList.jobNumber} <SortIcon col="jobNumber" />
                   </button>
                 </th>
-                <th><button onClick={() => handleSort('customerName')} className="hover:text-surface-700">Customer <SortIcon col="customerName" /></button></th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Type</th>
-                <th><button onClick={() => handleSort('scheduledDate')} className="hover:text-surface-700">Scheduled <SortIcon col="scheduledDate" /></button></th>
-                <th>Technician</th>
-                <th>Sales Order</th>
+                <th><button onClick={() => handleSort('customerName')} className="hover:text-surface-700">{copy.jobList.customer} <SortIcon col="customerName" /></button></th>
+                <th>{copy.jobList.description}</th>
+                <th>{copy.jobList.status}</th>
+                <th>{copy.jobList.priority}</th>
+                <th>{copy.jobList.type}</th>
+                <th><button onClick={() => handleSort('scheduledDate')} className="hover:text-surface-700">{copy.jobList.scheduled} <SortIcon col="scheduledDate" /></button></th>
+                <th>{copy.jobList.technician}</th>
+                <th>{copy.jobList.salesOrder}</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr><td colSpan={9} className="py-12">
-                  <EmptyState icon="🔧" title="No jobs found" subtitle="Try adjusting your filters" />
+                  <EmptyState icon="🔧" title={copy.jobList.noJobsFound} subtitle={copy.jobList.tryAdjusting} />
                 </td></tr>
               ) : paginated.map(j => (
                 <tr
@@ -337,7 +336,7 @@ export const JobList: React.FC = () => {
                       </span>
                     ) : <span className="text-surface-300">—</span>}
                   </td>
-                  <td>{j.technicianName || <span className="text-surface-300 text-xs">Unassigned</span>}</td>
+                  <td>{j.technicianName || <span className="text-surface-300 text-xs">{copy.jobList.unassigned}</span>}</td>
                   <td>
                     {j.salesOrderNumber ? (
                       <span className="text-xs font-mono text-cyan-600">{j.salesOrderNumber}</span>

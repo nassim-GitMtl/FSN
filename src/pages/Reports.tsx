@@ -4,7 +4,8 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { useAuthStore, useJobStore, useSOStore, useTechStore } from '@/store';
+import { useAuthStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 import { Card, Tabs } from '@/components/ui';
 import { formatCurrency, STATUS_LABELS, SERVICE_TYPE_LABELS, PRIORITY_LABELS, cn, parseDateValue } from '@/lib/utils';
 
@@ -15,6 +16,8 @@ export const Reports: React.FC = () => {
   const { jobs } = useJobStore();
   const { salesOrders } = useSOStore();
   const { technicians } = useTechStore();
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -136,26 +139,26 @@ export const Reports: React.FC = () => {
     <div className="space-y-5 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Reports</h1>
-          <p className="page-subtitle">{ws === 'SERVICE' ? 'Service Operations' : 'Installation Projects'} Analytics · last {rangeDays} days</p>
+          <h1 className="page-title">{copy.reports.reports}</h1>
+          <p className="page-subtitle">{ws === 'SERVICE' ? copy.reports.serviceOperations : copy.reports.installationProjects} · {copy.reports.analytics} · {copy.reports.trendRolledUp} {rangeDays} {copy.reports.days}</p>
         </div>
         <div className="flex items-center gap-2">
           <select className="select text-sm" value={dateRange} onChange={e => setDateRange(e.target.value)}>
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="365">Last year</option>
+            <option value="7">{copy.reports.last7Days}</option>
+            <option value="30">{copy.reports.last30Days}</option>
+            <option value="90">{copy.reports.last90Days}</option>
+            <option value="365">{copy.reports.lastYear}</option>
           </select>
         </div>
       </div>
 
       <Tabs variant="pill" active={activeTab} onChange={setActiveTab}
         tabs={[
-          { id: 'overview', label: 'Overview' },
-          { id: 'jobs', label: 'Jobs' },
-          { id: 'revenue', label: 'Revenue' },
-          { id: 'technicians', label: 'Technicians' },
-          { id: 'customers', label: 'Customers' },
+          { id: 'overview', label: copy.reports.overview },
+          { id: 'jobs', label: copy.reports.jobs },
+          { id: 'revenue', label: copy.reports.revenue },
+          { id: 'technicians', label: copy.reports.technicians },
+          { id: 'customers', label: copy.reports.customers },
         ]}
       />
 
@@ -164,14 +167,14 @@ export const Reports: React.FC = () => {
           {/* Summary metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
               {[
-                { label: 'Total Jobs', value: scopedJobs.length, icon: '🔧', color: 'text-brand-600' },
-                { label: 'Completed', value: completedJobs.length, icon: '✅', color: 'text-emerald-600' },
-                { label: 'Completion Rate', value: `${completionRate}%`, icon: '📈', color: 'text-green-600' },
-                { label: 'SLA Breached', value: slaBreached, icon: '🚨', color: 'text-red-600' },
-                { label: 'Warranty Jobs', value: warrantyJobs, icon: '🛡️', color: 'text-amber-600' },
-                { label: 'Ready to Bill', value: readyToBill, icon: '🧾', color: 'text-cyan-600' },
-                { label: 'Follow-ups', value: followUps, icon: '☎️', color: 'text-brand-700' },
-                { label: 'Avg Duration', value: `${Math.round(avgDuration * 10) / 10}h`, icon: '⏱️', color: 'text-cyan-700' },
+                { label: copy.reports.totalJobs, value: scopedJobs.length, icon: '🔧', color: 'text-brand-600' },
+                { label: copy.reports.completed, value: completedJobs.length, icon: '✅', color: 'text-emerald-600' },
+                { label: copy.reports.completionRate, value: `${completionRate}%`, icon: '📈', color: 'text-green-600' },
+                { label: copy.reports.slaBreached, value: slaBreached, icon: '🚨', color: 'text-red-600' },
+                { label: copy.reports.warrantyJobs, value: warrantyJobs, icon: '🛡️', color: 'text-amber-600' },
+                { label: copy.reports.readyToBill, value: readyToBill, icon: '🧾', color: 'text-cyan-600' },
+                { label: copy.reports.followUps, value: followUps, icon: '☎️', color: 'text-brand-700' },
+                { label: copy.reports.avgDuration, value: `${Math.round(avgDuration * 10) / 10}h`, icon: '⏱️', color: 'text-cyan-700' },
               ].map(m => (
                 <div key={m.label} className="surface-card p-4">
                 <div className="text-2xl mb-1">{m.icon}</div>
@@ -183,7 +186,7 @@ export const Reports: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Jobs by status */}
-            <Card title="Jobs by Status">
+            <Card title={copy.reports.jobsByStatus}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={byStatus} margin={{ left: -20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -198,7 +201,7 @@ export const Reports: React.FC = () => {
             </Card>
 
             {/* Jobs by type */}
-            <Card title="Jobs by Service Type">
+            <Card title={copy.reports.jobsByServiceType}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={byType} layout="vertical" margin={{ left: 0 }}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} />
@@ -213,7 +216,7 @@ export const Reports: React.FC = () => {
           </div>
 
           {/* Revenue trend */}
-          <Card title="Revenue Trend" subtitle={`Trend rolled up across the last ${rangeDays} days`}>
+          <Card title={copy.reports.revenueTrend} subtitle={`${copy.reports.trendRolledUp} ${rangeDays} ${copy.reports.days}`}>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={revenueByPeriod}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -230,7 +233,7 @@ export const Reports: React.FC = () => {
       {activeTab === 'jobs' && (
         <div className="space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card title="Jobs by Priority">
+            <Card title={copy.reports.jobsByPriority}>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={byPriority} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={e => `${e.name}: ${e.value}`}>
@@ -241,9 +244,9 @@ export const Reports: React.FC = () => {
               </ResponsiveContainer>
             </Card>
 
-            <Card title="Job Completion Table">
+            <Card title={copy.reports.jobCompletionTable}>
               <table className="data-table">
-                <thead><tr><th>Status</th><th className="text-right">Count</th><th className="text-right">%</th></tr></thead>
+                <thead><tr><th>{copy.reports.status}</th><th className="text-right">{copy.reports.count}</th><th className="text-right">%</th></tr></thead>
                 <tbody>
                   {byStatus.map(row => (
                     <tr key={row.status} className="cursor-pointer" onClick={() => navigate(`/jobs?status=${row.status}`)}>
@@ -261,7 +264,7 @@ export const Reports: React.FC = () => {
 
       {activeTab === 'revenue' && (
         <div className="space-y-5">
-          <Card title="Revenue Trend" subtitle={`Financial output for the last ${rangeDays} days`}>
+          <Card title={copy.reports.revenueTrend} subtitle={`${copy.reports.financialOutput} ${rangeDays} ${copy.reports.days}`}>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={revenueByPeriod}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -273,12 +276,12 @@ export const Reports: React.FC = () => {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="Revenue Summary">
+          <Card title={copy.reports.revenueSummary}>
             <dl className="grid grid-cols-3 gap-6 text-sm">
               {[
-                ['Total SO Revenue', formatCurrency(scopedSalesOrders.reduce((s, so) => s + so.total, 0))],
-                ['Fully Billed', formatCurrency(scopedSalesOrders.filter(so => so.status === 'Fully Billed').reduce((s, so) => s + so.total, 0))],
-                ['Outstanding', formatCurrency(scopedSalesOrders.filter(so => !['Fully Billed', 'Cancelled'].includes(so.status)).reduce((s, so) => s + (so.balance || 0), 0))],
+                [copy.reports.totalSORevenue, formatCurrency(scopedSalesOrders.reduce((s, so) => s + so.total, 0))],
+                [copy.reports.fullyBilled, formatCurrency(scopedSalesOrders.filter(so => so.status === 'Fully Billed').reduce((s, so) => s + so.total, 0))],
+                [copy.reports.outstanding, formatCurrency(scopedSalesOrders.filter(so => !['Fully Billed', 'Cancelled'].includes(so.status)).reduce((s, so) => s + (so.balance || 0), 0))],
               ].map(([l, v]) => (
                 <div key={l} className="text-center p-4 bg-surface-50 rounded-xl">
                   <div className="text-2xl font-bold text-surface-900">{v}</div>
@@ -291,7 +294,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'technicians' && (
-        <Card title="Technician Performance">
+        <Card title={copy.reports.technicianPerformance}>
           <div className="space-y-4">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={techPerf}>
@@ -300,13 +303,13 @@ export const Reports: React.FC = () => {
                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <ReTooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
                 <Legend />
-                <Bar dataKey="total" name="Total Jobs" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" name="Completed" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name={copy.reports.totalJobsLegend} fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="completed" name={copy.reports.completed} fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
 
             <table className="data-table">
-              <thead><tr><th>Technician</th><th className="text-right">Total</th><th className="text-right">Completed</th><th className="text-right">Rate</th><th className="text-right">Avg Duration</th></tr></thead>
+              <thead><tr><th>{copy.reports.technician}</th><th className="text-right">{copy.reports.total}</th><th className="text-right">{copy.reports.completed}</th><th className="text-right">{copy.reports.rate}</th><th className="text-right">{copy.reports.avgDuration}</th></tr></thead>
               <tbody>
                 {techPerf.map(t => (
                   <tr key={t.name}>
@@ -328,7 +331,7 @@ export const Reports: React.FC = () => {
       )}
 
       {activeTab === 'customers' && (
-        <Card title="Top Customers by Job Count">
+        <Card title={copy.reports.topCustomers}>
           <div className="mb-4">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={topCustomers} layout="vertical" margin={{ left: 0 }}>
@@ -342,7 +345,7 @@ export const Reports: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <table className="data-table">
-            <thead><tr><th>Customer</th><th className="text-right">Total Jobs</th></tr></thead>
+            <thead><tr><th>{copy.reports.customer}</th><th className="text-right">{copy.reports.totalJobsLegend}</th></tr></thead>
             <tbody>
               {topCustomers.map(c => (
                 <tr key={c.name} className="cursor-pointer" onClick={() => navigate(`/clients?q=${encodeURIComponent(c.name)}`)}>

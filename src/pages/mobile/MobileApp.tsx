@@ -1271,6 +1271,9 @@ const MobileJobDetail: React.FC<{
   const customerSignatureReady = Boolean(customerSignature);
   const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
   const isJobLocked = CLOSED_JOB_STATUSES.includes(job.status);
+  // Forms are only editable once the job is actively in progress
+  const EDITABLE_STATUSES: JobStatus[] = ['IN_PROGRESS', 'WAITING_FOR_PARTS', 'READY_FOR_SIGNATURE'];
+  const isJobEditable = EDITABLE_STATUSES.includes(job.status);
   const canSign = reportOnFile && paymentCapture !== null;
   const canCompleteJob = (job.status === 'IN_PROGRESS' || job.status === 'READY_FOR_SIGNATURE') && reportOnFile && customerSignatureReady && paymentCapture !== null;
   const linkedOrderBadge = linkedSalesOrder?.soNumber || job.salesOrderNumber;
@@ -1689,7 +1692,7 @@ const MobileJobDetail: React.FC<{
                           return (
                             <div key={line.id} className="border-b border-white/10 last:border-b-0">
                               <div className="grid grid-cols-[minmax(0,1fr)_36px_48px_60px_28px] items-start gap-2 px-4 py-3">
-                                {isJobLocked ? (
+                                {(isJobLocked || !isJobEditable) ? (
                                   <div className="col-span-5 grid min-w-0 grid-cols-[minmax(0,1fr)_36px_48px_60px] items-start gap-2">
                                     <div className="min-w-0">
                                       <p className="text-sm font-semibold leading-snug text-white">{line.itemName}</p>
@@ -1803,7 +1806,7 @@ const MobileJobDetail: React.FC<{
                       </div>
                     </div>
 
-                    {!isJobLocked && (
+                    {(!isJobLocked && isJobEditable) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1817,7 +1820,7 @@ const MobileJobDetail: React.FC<{
                       </button>
                     )}
 
-                    {!isJobLocked && showPartsComposer ? (
+                    {(!isJobLocked && isJobEditable) && showPartsComposer ? (
                       <div className="mt-3 rounded-[24px] border border-white/10 bg-surface-950 p-4 shadow-[0_20px_44px_rgba(11,10,9,0.18)]">
                         <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-white/60">
                           {copy.addPartsNote}
@@ -1896,7 +1899,7 @@ const MobileJobDetail: React.FC<{
             badge={journalCount > 0 ? String(journalCount) : copy.pending}
             badgeTone={journalCount > 0 ? 'brand' : 'default'}
           >
-            {!isJobLocked && (
+            {(!isJobLocked && isJobEditable) && (
               <>
                 <textarea
                   className={cn(lightInputClass, 'min-h-[110px] resize-none')}
@@ -1985,7 +1988,7 @@ const MobileJobDetail: React.FC<{
             badge={paymentBadge}
             badgeTone={paymentCapture?.paid ? 'success' : 'default'}
           >
-            {isJobLocked ? (
+            {(isJobLocked || !isJobEditable) ? (
               <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-600">
                 {paymentBadge}
                 {paymentCapture?.method && (
@@ -2050,7 +2053,7 @@ const MobileJobDetail: React.FC<{
             badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
             badgeTone={reportOnFile ? 'success' : 'default'}
           >
-            {isJobLocked ? (
+            {(isJobLocked || !isJobEditable) ? (
               <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-600">
                 {job.resolution || '—'}
               </div>
@@ -2080,7 +2083,7 @@ const MobileJobDetail: React.FC<{
             badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
             badgeTone={signatureOnFile ? 'success' : 'default'}
           >
-            {isJobLocked ? (
+            {(isJobLocked || !isJobEditable) ? (
               <>
                 {job.completionSignature && (
                   <div className="rounded-xl border border-surface-100 bg-surface-50 p-2">
@@ -2123,7 +2126,7 @@ const MobileJobDetail: React.FC<{
           <CustomerJobHistory customerId={job.customerId} currentJobId={job.id} language={language} />
 
           {/* Completion requirements — always last */}
-          {!isJobLocked && (
+          {(!isJobLocked && isJobEditable) && (
             <MobileSectionCard
               icon={<SignatureIcon className="h-5 w-5" />}
               title={copy.sections.requirements}

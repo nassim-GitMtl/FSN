@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Button, EmptyState, Modal } from '@/components/ui';
-import { useAuthStore, useJobStore, useTechStore } from '@/store';
+import { useAuthStore, useJobStore, useTechStore, useUIStore } from '@/store';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 import { TECH_STATUS_COLORS, TECH_STATUS_LABELS, cn } from '@/lib/utils';
 import type { TechStatus } from '@/types';
 
@@ -27,6 +28,8 @@ export const Technicians: React.FC = () => {
   const { technicians, updateTechStatus } = useTechStore();
   const { jobs } = useJobStore();
   const { user } = useAuthStore();
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const navigate = useNavigate();
 
   const workspace = user?.workspace ?? 'SERVICE';
@@ -87,20 +90,22 @@ export const Technicians: React.FC = () => {
       <section className="section-shell">
         <div className="page-header">
           <div>
-            <div className="eyebrow">Field coverage</div>
-            <h1 className="page-title mt-2">Technician workspace</h1>
+            <div className="eyebrow">{copy.technicians.fieldCoverage}</div>
+            <h1 className="page-title mt-2">{copy.technicians.technicianWorkspace}</h1>
             <p className="page-subtitle max-w-2xl">
-              Availability, workload, and current assignments across the {workspace === 'SERVICE' ? 'service' : 'installation'} team.
+              {language === 'fr'
+                ? `Disponibilité, charge et assignations de l'équipe ${workspace === 'SERVICE' ? 'de service' : "d'installation"}.`
+                : `Availability, workload, and current assignments across the ${workspace === 'SERVICE' ? 'service' : 'installation'} team.`}
             </p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: 'Available now', value: statusCounts.AVAILABLE ?? 0, detail: 'Technicians ready for immediate assignment.' },
-            { label: 'On job', value: statusCounts.ON_JOB ?? 0, detail: 'Crew members actively executing assigned work.' },
-            { label: 'Active load', value: totalActiveJobs, detail: 'Open assigned jobs across the workspace.' },
-            { label: 'Avg load / tech', value: averageLoad, detail: 'Average active workload per technician.' },
+            { label: copy.technicians.availableNow, value: statusCounts.AVAILABLE ?? 0, detail: copy.technicians.techniciansReady },
+            { label: copy.technicians.onJob, value: statusCounts.ON_JOB ?? 0, detail: copy.technicians.crewMembers },
+            { label: copy.technicians.activeLoad, value: totalActiveJobs, detail: copy.technicians.openAssigned },
+            { label: copy.technicians.avgLoadTech, value: averageLoad, detail: copy.technicians.averageWorkload },
           ].map((item) => (
             <div key={item.label} className="metric-tile">
               <div className="kpi-label">{item.label}</div>
@@ -119,7 +124,7 @@ export const Technicians: React.FC = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search by name, email, or skill"
+              placeholder={copy.technicians.searchByName}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="input pl-10"
@@ -127,7 +132,7 @@ export const Technicians: React.FC = () => {
           </div>
 
           <select value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)} className="select">
-            <option value="">All regions</option>
+            <option value="">{copy.technicians.allRegions}</option>
             {regions.map((region) => (
               <option key={region} value={region}>
                 {region}
@@ -137,7 +142,7 @@ export const Technicians: React.FC = () => {
 
           {(search || statusFilter || regionFilter) ? (
             <Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter(''); setRegionFilter(''); }}>
-              Clear filters
+              {copy.technicians.clearFilters}
             </Button>
           ) : (
             <div />
@@ -164,8 +169,8 @@ export const Technicians: React.FC = () => {
         {filtered.length === 0 ? (
           <EmptyState
             icon="-"
-            title="No technicians match the current filters"
-            subtitle={search || statusFilter || regionFilter ? 'Try widening the search or clearing filters.' : 'No technicians are available in this workspace.'}
+            title={copy.technicians.noTechniciansMatch}
+            subtitle={search || statusFilter || regionFilter ? copy.technicians.tryWidening : copy.technicians.noTechniciansAvailable}
           />
         ) : (
           <div className="space-y-3">
@@ -210,7 +215,7 @@ export const Technicians: React.FC = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">Skills</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-surface-500">{copy.technicians.skills}</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {tech.skills.slice(0, 4).map((skill) => (
                           <span key={skill} className="rounded-full bg-surface-100 px-2.5 py-1 text-xs font-medium text-surface-600">
@@ -228,7 +233,7 @@ export const Technicians: React.FC = () => {
                     {canEditStatus && (
                       <div className="xl:justify-self-end">
                         <Button variant="outline" size="sm" onClick={() => setEditingTechId(tech.id)}>
-                          Update status
+                          {copy.technicians.updateStatus}
                         </Button>
                       </div>
                     )}
@@ -240,11 +245,11 @@ export const Technicians: React.FC = () => {
         )}
       </section>
 
-      <Modal open={!!editingTech} onClose={() => setEditingTechId(null)} title={`Update status - ${editingTech?.name}`} size="sm">
+      <Modal open={!!editingTech} onClose={() => setEditingTechId(null)} title={`${copy.technicians.updateStatus} - ${editingTech?.name}`} size="sm">
         {editingTech && (
           <div className="space-y-3 pt-2">
             <p className="text-sm text-surface-500">
-              Current status:{' '}
+              {copy.technicians.currentStatus}{' '}
               <span className={cn('font-semibold', TECH_STATUS_COLORS[editingTech.status])}>
                 {TECH_STATUS_LABELS[editingTech.status]}
               </span>
@@ -264,7 +269,7 @@ export const Technicians: React.FC = () => {
               >
                 <span className={cn('h-3 w-3 rounded-full', STATUS_DOT[status])} />
                 <span className="text-sm font-semibold text-surface-900">{TECH_STATUS_LABELS[status]}</span>
-                {editingTech.status === status && <span className="ml-auto text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">Current</span>}
+                {editingTech.status === status && <span className="ml-auto text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">{copy.technicians.current}</span>}
               </button>
             ))}
           </div>

@@ -5,56 +5,25 @@ import { useAuthStore, useJobStore, useSearchStore, useUIStore } from '@/store';
 import { Spinner } from '@/components/ui';
 import { ThemeToggle } from './ThemeToggle';
 import type { AppLanguage } from '@/lib/app-language';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
 
-const PAGE_META = [
-  {
-    match: (pathname: string) => pathname === '/dashboard',
-    title: 'Dashboard',
-    description: 'Live view of workload, field capacity, and billing readiness.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/dispatch'),
-    title: 'Dispatch',
-    description: 'Assign work, balance routes, and recover the queue.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/technicians'),
-    title: 'Technicians',
-    description: 'Availability, skills, and workload across the field team.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/jobs'),
-    title: 'Work Orders',
-    description: 'Track the full lifecycle of active and completed jobs.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/clients'),
-    title: 'Clients',
-    description: 'Customer accounts, service history, and account health.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/billing'),
-    title: 'Billing',
-    description: 'Sales orders, approvals, and invoice readiness.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/reports'),
-    title: 'Reports',
-    description: 'Operational and financial reporting across the workspace.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/search'),
-    title: 'Search',
-    description: 'Find jobs, customers, and sales orders quickly.',
-  },
-  {
-    match: (pathname: string) => pathname.startsWith('/mobile'),
-    title: 'Mobile Preview',
-    description: 'Preview the technician mobile experience.',
-  },
-];
+function getPageMeta(language: AppLanguage) {
+  const h = getDesktopCopy(language).header;
+  return [
+    { match: (p: string) => p === '/dashboard',         title: h.dashboard,    description: h.dashboardDesc },
+    { match: (p: string) => p.startsWith('/dispatch'),  title: h.dispatch,     description: h.dispatchDesc },
+    { match: (p: string) => p.startsWith('/technicians'),title: h.technicians, description: h.techniciansDesc },
+    { match: (p: string) => p.startsWith('/jobs'),      title: h.workOrders,   description: h.workOrdersDesc },
+    { match: (p: string) => p.startsWith('/clients'),   title: h.clients,      description: h.clientsDesc },
+    { match: (p: string) => p.startsWith('/billing'),   title: h.billing,      description: h.billingDesc },
+    { match: (p: string) => p.startsWith('/reports'),   title: h.reports,      description: h.reportsDesc },
+    { match: (p: string) => p.startsWith('/search'),    title: h.search,       description: h.searchDesc },
+    { match: (p: string) => p.startsWith('/mobile'),    title: h.mobilePreview,description: h.mobilePreviewDesc },
+    { match: (p: string) => p.startsWith('/schedule'),  title: h.schedule,     description: h.scheduleDesc },
+  ];
+}
 
 const RESULT_LABELS: Record<string, string> = {
   JOB: 'WO',
@@ -98,10 +67,10 @@ export const Header: React.FC = () => {
 
   const dirtyCount = syncState.pendingChanges;
 
-  const pageMeta = useMemo(
-    () => PAGE_META.find((page) => page.match(location.pathname)) ?? PAGE_META[0],
-    [location.pathname],
-  );
+  const pageMeta = useMemo(() => {
+    const meta = getPageMeta(language);
+    return meta.find((page) => page.match(location.pathname)) ?? meta[0];
+  }, [location.pathname, language]);
 
   useEffect(() => {
     const nextQuery = deferredQuery.trim();

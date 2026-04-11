@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useJobStore, useCustomerStore, useTechStore, useSOStore, useAuthStore, useUIStore } from '@/store';
 import { Card, Button, Input, Select, Textarea, Alert } from '@/components/ui';
 import { cn, formatCurrency, formatDate, PRIORITY_LABELS, SERVICE_TYPE_LABELS } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 const CATALOG_ITEMS = [
   { itemId: 'LAB-REG',    itemName: 'Regular Labor',            description: 'Standard diagnostic and repair',                rate: 125  },
@@ -63,7 +64,8 @@ export const JobForm: React.FC = () => {
   const { technicians } = useTechStore();
   const { getSOsForCustomer, createSO, updateSO } = useSOStore();
   const { user } = useAuthStore();
-  const { toast, setUnsavedChanges } = useUIStore();
+  const { toast, setUnsavedChanges, language } = useUIStore();
+  const copy = getDesktopCopy(language);
 
   const job = isEdit ? getJob(id!) : undefined;
   const requestedCustomerId = searchParams.get('customerId') || '';
@@ -333,13 +335,13 @@ export const JobForm: React.FC = () => {
   return (
     <div className="max-w-3xl space-y-5 animate-fade-in">
       <div className="flex items-center gap-2 text-sm text-surface-400">
-        <Link to="/jobs" className="hover:text-brand-600">Jobs</Link>
+        <Link to="/jobs" className="hover:text-brand-600">{copy.jobForm.jobs}</Link>
         <span>/</span>
-        <span className="text-surface-700">{isEdit ? `Edit ${job?.jobNumber}` : 'New Job'}</span>
+        <span className="text-surface-700">{isEdit ? `${copy.jobDetail.edit} ${job?.jobNumber}` : copy.jobForm.newJob}</span>
       </div>
 
       <div className="page-header">
-        <h1 className="page-title">{isEdit ? `Edit ${job?.jobNumber}` : 'Create New Job'}</h1>
+        <h1 className="page-title">{isEdit ? `${copy.jobDetail.edit} ${job?.jobNumber}` : copy.jobForm.createNewJob}</h1>
       </div>
 
       {isDirty && <Alert type="warning" icon="⚠️">You have unsaved changes</Alert>}
@@ -688,10 +690,10 @@ export const JobForm: React.FC = () => {
               navigate(-1);
             }}
           >
-            Cancel
+            {copy.jobForm.cancel}
           </Button>
           <Button type="submit" variant="primary" size="lg">
-            {isEdit ? 'Save Changes' : 'Create Job'}
+            {isEdit ? copy.jobForm.saveChanges : copy.jobForm.createJob}
           </Button>
         </div>
       </form>

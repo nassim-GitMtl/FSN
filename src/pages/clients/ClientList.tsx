@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCustomerStore, useJobStore } from '@/store';
+import { useCustomerStore, useJobStore, useUIStore } from '@/store';
 import { Card, Input, EmptyState, Button, Badge } from '@/components/ui';
 import { formatDate, cn } from '@/lib/utils';
+import { getDesktopCopy } from '@/lib/desktop-copy';
 
 export const ClientList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const customers = useCustomerStore(s => s.customers);
   const jobs = useJobStore(s => s.jobs);
+  const language = useUIStore((state) => state.language);
+  const copy = getDesktopCopy(language);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [sortBy, setSortBy] = useState<'companyName' | 'createdAt'>('companyName');
@@ -50,8 +53,8 @@ export const ClientList: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Clients</h1>
-          <p className="page-subtitle">{results.length} customers</p>
+          <h1 className="page-title">{copy.clients.clients}</h1>
+          <p className="page-subtitle">{results.length} {copy.clients.customers}</p>
         </div>
       </div>
 
@@ -59,26 +62,26 @@ export const ClientList: React.FC = () => {
       <div className="flex items-center gap-3">
         <div className="flex-1 max-w-sm">
           <Input
-            placeholder="Search by name, phone, email, address…"
+            placeholder={copy.clients.searchPlaceholder}
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
           />
         </div>
         <select className="select w-auto" value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setPage(1); }}>
-          <option value="">All Categories</option>
+          <option value="">{copy.clients.allCategories}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         {search && (
           <button onClick={() => { setSearch(''); setPage(1); }} className="text-xs text-surface-500 hover:text-surface-700 underline">
-            Clear
+            {copy.clients.clear}
           </button>
         )}
       </div>
 
       {/* Grid of cards */}
       {paginated.length === 0 ? (
-        <EmptyState icon="🏢" title="No clients found" subtitle="Try a different search term." />
+        <EmptyState icon="🏢" title={copy.clients.noClientsFound} subtitle={copy.clients.tryDifferent} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {paginated.map(c => {
@@ -98,7 +101,7 @@ export const ClientList: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-surface-900 truncate">{c.companyName}</h3>
-                      {!c.isActive && <span className="badge bg-red-100 text-red-600 text-[10px]">Inactive</span>}
+                      {!c.isActive && <span className="badge bg-red-100 text-red-600 text-[10px]">{copy.clients.inactive}</span>}
                     </div>
                     {c.contactName && <div className="text-xs text-surface-500 truncate">{c.contactName}</div>}
                     <div className="flex items-center gap-3 mt-1.5 text-xs text-surface-400 flex-wrap">
@@ -117,11 +120,11 @@ export const ClientList: React.FC = () => {
                 <div className="flex items-center gap-4 mt-3 pt-3 border-t border-surface-100 text-xs">
                   <div className="flex flex-col items-center">
                     <span className="font-bold text-surface-900">{jobCount}</span>
-                    <span className="text-surface-400">Jobs</span>
+                    <span className="text-surface-400">{copy.clients.jobs}</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <span className={cn('font-bold', openCount > 0 ? 'text-brand-600' : 'text-surface-900')}>{openCount}</span>
-                    <span className="text-surface-400">Open</span>
+                    <span className="text-surface-400">{copy.clients.open}</span>
                   </div>
                   <div className="ml-auto text-surface-400">
                     Since {formatDate(c.createdAt).replace(', ' + new Date(c.createdAt).getFullYear(), '')}
