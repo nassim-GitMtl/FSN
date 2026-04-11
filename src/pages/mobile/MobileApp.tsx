@@ -52,6 +52,9 @@ const MOBILE_COPY = {
     greetingAfternoon: 'Good afternoon',
     commandCenter: 'Technician workspace',
     todayQueue: "Today's queue",
+    jobsToday: 'jobs today',
+    nextUp: 'Next up',
+    todayLabel: 'Today',
     activeNow: 'Active now',
     noActiveJob: 'No active job right now.',
     noTodayJobs: 'No jobs scheduled for today.',
@@ -99,6 +102,7 @@ const MOBILE_COPY = {
       address: 'Address',
       language: 'Language',
       theme: 'Theme',
+      paid: 'Paid',
       serviceType: 'Service type',
       priority: 'Priority',
       scheduled: 'Scheduled',
@@ -184,6 +188,9 @@ const MOBILE_COPY = {
     greetingAfternoon: 'Bon après-midi',
     commandCenter: 'Espace technicien',
     todayQueue: "File d'aujourd'hui",
+    jobsToday: 'travaux aujourd’hui',
+    nextUp: 'Prochain',
+    todayLabel: "Aujourd'hui",
     activeNow: 'En cours',
     noActiveJob: "Aucun travail actif pour le moment.",
     noTodayJobs: "Aucun travail prévu aujourd'hui.",
@@ -231,6 +238,7 @@ const MOBILE_COPY = {
       address: 'Adresse',
       language: 'Langue',
       theme: 'Thème',
+      paid: 'Payé',
       serviceType: 'Type de service',
       priority: 'Priorité',
       scheduled: 'Planifié',
@@ -843,90 +851,69 @@ const MobileHome: React.FC<{
   const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
   const activeJob = visibleJobs.find((job) => ['EN_ROUTE', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'READY_FOR_SIGNATURE', 'ON_HOLD'].includes(job.status));
   const todayJobs = visibleJobs.filter((job) => job.scheduledDate === today && !CLOSED_JOB_STATUSES.includes(job.status));
-  const upcomingJobs = visibleJobs.filter((job) => job.scheduledDate && job.scheduledDate > today && !CLOSED_JOB_STATUSES.includes(job.status)).slice(0, 4);
-  const completedToday = visibleJobs.filter((job) => CLOSED_JOB_STATUSES.includes(job.status) && (job.actualEnd ? toISODate(new Date(job.actualEnd)) : job.scheduledDate) === today);
+  const queueJobs = todayJobs.filter((job) => job.id !== activeJob?.id);
+  const nextJob = queueJobs.find((job) => ['SCHEDULED', 'DISPATCHED', 'EN_ROUTE'].includes(job.status)) || queueJobs[0];
+  const remainingJobs = queueJobs.filter((job) => job.id !== nextJob?.id);
+  const jobsTodayCount = todayJobs.length + (activeJob && !todayJobs.some((job) => job.id === activeJob.id) ? 1 : 0);
 
   return (
-    <div className="h-full overflow-y-auto px-4 py-4">
-      {/* Greeting */}
-      <div className="mb-5">
-        <div className="text-sm text-surface-400">
-          {new Date().getHours() < 12 ? copy.greetingMorning : copy.greetingAfternoon}
-        </div>
-        <div className="mt-1 text-2xl font-bold tracking-tight text-surface-900">{user?.name?.split(' ')[0]}</div>
-        <p className="mt-1.5 text-sm leading-relaxed text-surface-500">{copy.statusIntro}</p>
-      </div>
-
-      {/* Metrics */}
-      <div className="mb-4 grid grid-cols-3 gap-2">
-        <MetricCard label={copy.todayQueue} value={todayJobs.length} />
-        <MetricCard label={copy.assigned} value={visibleJobs.length} />
-        <MetricCard label={copy.completedToday} value={completedToday.length} />
-      </div>
-
-      {/* Active job */}
-      <div className="mb-4 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="eyebrow mb-1.5">{copy.activeNow}</div>
-            <div className="text-base font-semibold text-surface-900">
-              {activeJob ? activeJob.customerName : copy.noActiveJob}
-            </div>
+    <div className="h-full overflow-y-auto pb-24">
+      <div className="px-5 pb-4 pt-6">
+        <div className="mb-1 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-surface-400">
+              {new Date().getHours() < 12 ? copy.greetingMorning : copy.greetingAfternoon}
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-surface-900">{user?.name?.split(' ')[0]}</h1>
           </div>
-          {activeJob && (
-            <button
-              type="button"
-              onClick={() => onSelectJob(activeJob.id)}
-              className="mobile-tap shrink-0 rounded-xl bg-brand-500 px-4 py-2 text-xs font-semibold text-white"
-            >
-              {copy.openJob}
-            </button>
-          )}
+          <div className="text-right text-[10px] font-medium text-surface-500">
+            <div>{copy.lastSaved}</div>
+            <div className="mt-1 text-surface-700">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</div>
+          </div>
         </div>
-        {activeJob && (
-          <div className="mt-3 space-y-1.5 text-sm text-surface-500">
-            <div>{getLocalizedStatus(language, activeJob.status)} • {activeJob.scheduledStart || '--:--'}</div>
-            <div>{getAddressLine(activeJob)}</div>
-            <a
-              href={getMapsLink(activeJob)}
-              target="_blank"
-              rel="noreferrer"
-              className="mobile-tap inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600"
-            >
-              {copy.navigate}
-            </a>
+        <div className="mt-3 flex items-center gap-2 text-sm text-surface-500">
+          <div className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-brand-500" />
+            <span>
+              <strong className="text-surface-900">{jobsTodayCount}</strong> {copy.jobsToday}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 px-5">
+        {activeJob && <MobileActiveJobHero job={activeJob} language={language} onOpen={onSelectJob} />}
+
+        {nextJob && (
+          <div>
+            <SectionHeading label={copy.nextUp} />
+            <MobileJobCard job={nextJob} language={language} onOpen={onSelectJob} />
           </div>
         )}
-      </div>
 
-      {/* Sync status */}
-      <div className="mb-5 rounded-2xl border border-surface-100 bg-white p-4 shadow-sm text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-surface-500">{copy.pendingChanges}</span>
-          <span className="font-semibold text-surface-900">{syncState.pendingChanges}</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-surface-500">{copy.lastSaved}</span>
-          <span className="text-surface-700">{syncState.lastSync ? formatDateTimeForLanguage(language, syncState.lastSync) : '--'}</span>
-        </div>
-      </div>
+        {remainingJobs.length > 0 && (
+          <div>
+            <SectionHeading label={`${copy.todayLabel} (${remainingJobs.length})`} />
+            <div className="space-y-2">
+              {remainingJobs.map((job) => (
+                <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} compact />
+              ))}
+            </div>
+          </div>
+        )}
 
-      <SectionHeading label={copy.todayQueue} />
-      <div className="space-y-3">
-        {todayJobs.length === 0 ? (
+        {!activeJob && queueJobs.length === 0 && (
           <EmptyMobileState label={copy.noTodayJobs} />
-        ) : todayJobs.map((job) => (
-          <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} />
-        ))}
-      </div>
+        )}
 
-      <SectionHeading label={copy.upcoming} className="mt-6" />
-      <div className="space-y-3">
-        {upcomingJobs.length === 0 ? (
-          <EmptyMobileState label={copy.hiddenHistory} />
-        ) : upcomingJobs.map((job) => (
-          <MobileJobCard key={job.id} job={job} language={language} onOpen={onSelectJob} />
-        ))}
+        {syncState.pendingChanges > 0 && (
+          <div className="rounded-2xl border border-brand-200 bg-brand-100 px-4 py-3 text-sm text-brand-900">
+            <div className="flex items-center justify-between gap-3">
+              <span>{copy.pendingChanges}</span>
+              <span className="font-semibold">{syncState.pendingChanges}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -939,7 +926,7 @@ const MobileJobList: React.FC<{
 }> = ({ previewTechnicianId, language, onSelectJob }) => {
   const jobs = useJobStore((state) => state.jobs);
   const copy = MOBILE_COPY[language];
-  const [filter, setFilter] = useState<MobileJobFilter>('active');
+  const [filter, setFilter] = useState<MobileJobFilter>('today');
   const today = toISODate(new Date());
   const visibleJobs = getVisibleTechnicianJobs(jobs, previewTechnicianId);
 
@@ -1079,20 +1066,58 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
   );
 };
 
+const MobileActiveJobHero: React.FC<{
+  job: Job;
+  language: AppLanguage;
+  onOpen: (jobId: string) => void;
+}> = ({ job, language, onOpen }) => (
+  <div className="rounded-2xl border border-surface-100 bg-gradient-to-br from-surface-100 to-surface-50 p-5 shadow-sm">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">{MOBILE_COPY[language].activeNow}</span>
+      <MobileStatusPill label={getLocalizedStatus(language, job.status)} status={job.status} />
+    </div>
+    <h2 className="text-xl font-bold tracking-tight text-surface-900">{job.customerName}</h2>
+    <p className="mt-1 text-sm text-surface-500">{getLocalizedServiceType(language, job.serviceType)}</p>
+    <p className="mt-1 text-xs text-surface-400">{getAddressLine(job)}</p>
+    <div className="mt-4 flex items-center gap-2 text-sm text-surface-500">
+      <ClockIcon className="h-4 w-4 text-surface-400" />
+      <span>{getScheduleSummary(language, job)}</span>
+    </div>
+    <div className="mt-4 flex gap-2">
+      <button
+        type="button"
+        onClick={() => onOpen(job.id)}
+        className="mobile-tap flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+      >
+        {MOBILE_COPY[language].openJob}
+      </button>
+      <a
+        href={getMapsLink(job)}
+        target="_blank"
+        rel="noreferrer"
+        className="mobile-tap inline-flex h-12 w-12 items-center justify-center rounded-xl border border-surface-200 bg-white text-brand-600"
+      >
+        <RouteIcon className="h-5 w-5" />
+      </a>
+    </div>
+  </div>
+);
+
 const MobileJobCard: React.FC<{
   job: Job;
   language: AppLanguage;
   onOpen: (jobId: string) => void;
-}> = ({ job, language, onOpen }) => {
+  compact?: boolean;
+}> = ({ job, language, onOpen, compact = false }) => {
   const statusLabel = getLocalizedStatus(language, job.status);
 
   return (
-    <div className="rounded-2xl border border-surface-100 bg-white p-4 shadow-sm">
+    <div className={cn('rounded-2xl border border-surface-100 bg-white shadow-sm', compact ? 'p-3' : 'p-4')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-600">{job.jobNumber}</div>
           <div className="mt-1 text-base font-semibold text-surface-900">{job.customerName}</div>
-          <div className="mt-0.5 text-sm text-surface-500 line-clamp-1">{job.description}</div>
+          {!compact && <div className="mt-0.5 text-sm text-surface-500 line-clamp-1">{job.description}</div>}
         </div>
         <span className="shrink-0 rounded-full border border-surface-200 bg-surface-50 px-2.5 py-1 text-[11px] font-semibold text-surface-600">
           {statusLabel}
@@ -1101,7 +1126,7 @@ const MobileJobCard: React.FC<{
 
       <div className="mt-3 space-y-1 text-sm text-surface-500">
         <div>{formatShortDateForLanguage(language, job.scheduledDate)} • {job.scheduledStart || '--:--'}</div>
-        <div className="line-clamp-1">{getAddressLine(job)}</div>
+        {!compact && <div className="line-clamp-1">{getAddressLine(job)}</div>}
         <div>{getLocalizedServiceType(language, job.serviceType)} • {PRIORITY_LABELS_BY_LANGUAGE[language][job.priority]}</div>
       </div>
 
@@ -1117,9 +1142,12 @@ const MobileJobCard: React.FC<{
           href={getMapsLink(job)}
           target="_blank"
           rel="noreferrer"
-          className="mobile-tap rounded-xl border border-surface-200 px-4 py-2.5 text-sm font-semibold text-surface-700"
+          className={cn(
+            'mobile-tap rounded-xl border border-surface-200 text-sm font-semibold text-surface-700',
+            compact ? 'inline-flex h-[42px] w-[42px] items-center justify-center px-0 py-0' : 'px-4 py-2.5',
+          )}
         >
-          {MOBILE_COPY[language].navigate}
+          {compact ? <RouteIcon className="h-4 w-4 text-brand-500" /> : MOBILE_COPY[language].navigate}
         </a>
       </div>
     </div>
@@ -1612,27 +1640,18 @@ const MobileJobDetail: React.FC<{
               {copy.paymentLocked}
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {([
-                { id: 'unknown', label: copy.payment.unknown },
-                { id: 'no', label: copy.payment.no },
-                { id: 'yes', label: copy.payment.yes },
-              ] as Array<{ id: 'unknown' | 'no' | 'yes'; label: string }>).map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setPaymentChoice(option.id)}
-                  className={cn(
-                    'mobile-tap rounded-xl border px-2 py-2.5 text-xs font-semibold',
-                    paymentChoice === option.id
-                      ? 'border-brand-200 bg-brand-50 text-brand-700'
-                      : 'border-surface-200 bg-white text-surface-500',
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            <label className="mt-3 block">
+              <div className="eyebrow mb-1.5">{copy.labels.paid}</div>
+              <select
+                className={lightInputClass}
+                value={paymentChoice}
+                onChange={(event) => setPaymentChoice(event.target.value as 'unknown' | 'no' | 'yes')}
+              >
+                <option value="unknown">{copy.payment.unknown}</option>
+                <option value="no">{copy.payment.no}</option>
+                <option value="yes">{copy.payment.yes}</option>
+              </select>
+            </label>
 
             {paymentChoice === 'yes' && (
               <label className="mt-3 block">
