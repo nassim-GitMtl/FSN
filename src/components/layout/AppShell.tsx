@@ -16,7 +16,7 @@ export const AppShell: React.FC = () => {
 
   if (isMobileRoute) {
     return (
-      <div className="h-full bg-surface-50">
+      <div className="h-full bg-[hsl(var(--background))]">
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
@@ -45,12 +45,12 @@ export const AppShell: React.FC = () => {
       </div>
 
       {unsavedChanges && (
-        <div className="fixed bottom-5 right-6 z-40 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-[0_18px_32px_-28px_rgba(120,53,15,0.35)]">
+        <div className="fixed bottom-5 right-6 z-40 max-w-sm rounded-2xl border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.1)] px-4 py-3 text-sm text-[hsl(var(--warning))] shadow-[0_18px_32px_-28px_rgba(0,0,0,0.55)]">
           <div className="flex items-start gap-3">
-            <div className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-500" />
+            <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[hsl(var(--warning))]" />
             <div className="min-w-0">
               <div className="font-semibold">Unsaved changes are still open on this page.</div>
-              <div className="mt-1 text-amber-800/85">Save or cancel the page before moving to another workspace.</div>
+              <div className="mt-1 text-[hsl(var(--warning)/0.85)]">Save or cancel the page before moving to another workspace.</div>
             </div>
           </div>
         </div>

@@ -86,16 +86,16 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     <div className="w-full">
       {label && <label className="label">{label}</label>}
       <div className="relative">
-        {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">{icon}</span>}
+        {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] pointer-events-none">{icon}</span>}
         <input
           ref={ref}
-          className={cn('input', icon && 'pl-9', iconRight && 'pr-9', error && 'border-red-400 focus:ring-red-400', className)}
+          className={cn('input', icon && 'pl-9', iconRight && 'pr-9', error && 'border-[hsl(var(--destructive))] focus:ring-[hsl(var(--destructive)/0.2)]', className)}
           {...props}
         />
-        {iconRight && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400">{iconRight}</span>}
+        {iconRight && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]">{iconRight}</span>}
       </div>
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-      {hint && !error && <p className="mt-1 text-xs text-surface-400">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-[hsl(var(--destructive))]">{error}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
     </div>
   )
 );
@@ -115,10 +115,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, options, className, ...props }, ref) => (
     <div className="w-full">
       {label && <label className="label">{label}</label>}
-      <select ref={ref} className={cn('select', error && 'border-red-400', className)} {...props}>
+      <select ref={ref} className={cn('select', error && 'border-[hsl(var(--destructive))]', className)} {...props}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-xs text-[hsl(var(--destructive))]">{error}</p>}
     </div>
   )
 );
@@ -137,8 +137,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, className, ...props }, ref) => (
     <div className="w-full">
       {label && <label className="label">{label}</label>}
-      <textarea ref={ref} className={cn('input resize-none', error && 'border-red-400', className)} {...props} />
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      <textarea ref={ref} className={cn('input resize-none', error && 'border-[hsl(var(--destructive))]', className)} {...props} />
+      {error && <p className="mt-1 text-xs text-[hsl(var(--destructive))]">{error}</p>}
     </div>
   )
 );
@@ -159,12 +159,12 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, className, title, subtitle, actions, padding = true, hover }) => (
-  <div className={cn('surface-card', hover && 'hover:shadow-card-hover transition-shadow cursor-pointer', className)}>
+  <div className={cn('surface-card', hover && 'hover:shadow-lg transition-shadow cursor-pointer', className)}>
     {(title || subtitle || actions) && (
-      <div className="flex items-start justify-between gap-4 border-b border-surface-100 px-5 py-4">
+      <div className="flex items-start justify-between gap-4 border-b border-[hsl(var(--border))] px-5 py-4">
         <div>
-          {title && <h3 className="text-base font-semibold text-surface-900">{title}</h3>}
-          {subtitle && <p className="mt-1 text-sm text-surface-500">{subtitle}</p>}
+          {title && <h3 className="text-base font-semibold text-[hsl(var(--foreground))]">{title}</h3>}
+          {subtitle && <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">{subtitle}</p>}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
@@ -192,18 +192,18 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={cn('relative bg-white rounded-2xl shadow-2xl w-full animate-scale-in flex flex-col max-h-[90vh]', MODAL_SIZES[size])}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className={cn('relative bg-[hsl(var(--surface-elevated))] rounded-2xl shadow-2xl w-full animate-scale-in flex flex-col max-h-[90vh]', MODAL_SIZES[size])}>
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
-            <h2 className="text-lg font-semibold text-surface-900">{title}</h2>
-            <button onClick={onClose} className="text-surface-400 hover:text-surface-600 transition-colors p-1 rounded-lg hover:bg-surface-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--border))]">
+            <h2 className="text-lg font-semibold text-[hsl(var(--foreground))]">{title}</h2>
+            <button onClick={onClose} className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors p-1 rounded-lg hover:bg-[hsl(var(--accent))]">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         )}
         <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
-        {footer && <div className="px-6 py-4 border-t border-surface-100 flex justify-end gap-3">{footer}</div>}
+        {footer && <div className="px-6 py-4 border-t border-[hsl(var(--border))] flex justify-end gap-3">{footer}</div>}
       </div>
     </div>
   );
@@ -231,7 +231,7 @@ interface TabsProps {
 export const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className, variant = 'line' }) => {
   if (variant === 'pill') {
     return (
-      <div className={cn('flex gap-1 p-1 bg-surface-100 rounded-xl', className)}>
+      <div className={cn('flex gap-1 p-1 bg-[hsl(var(--surface))] rounded-xl', className)}>
         {tabs.map(t => (
           <button
             key={t.id}
@@ -239,14 +239,14 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className, v
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
               active === t.id
-                ? 'bg-white text-surface-900 shadow-sm'
-                : 'text-surface-500 hover:text-surface-700'
+                ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+                : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
             )}
           >
             {t.icon}
             {t.label}
             {t.badge !== undefined && (
-              <span className={cn('badge text-xs ml-0.5', active === t.id ? 'bg-brand-100 text-brand-700' : 'bg-surface-200 text-surface-600')}>
+              <span className={cn('badge text-xs ml-0.5', active === t.id ? 'bg-[hsl(var(--primary-foreground)/0.2)] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>
                 {t.badge}
               </span>
             )}
@@ -256,7 +256,7 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className, v
     );
   }
   return (
-    <div className={cn('flex border-b border-surface-200 gap-1', className)}>
+    <div className={cn('flex border-b border-[hsl(var(--border))] gap-1', className)}>
       {tabs.map(t => (
         <button
           key={t.id}
@@ -264,14 +264,14 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className, v
           className={cn(
             'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px',
             active === t.id
-              ? 'border-brand-600 text-brand-600'
-              : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+              ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+              : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--border))]'
           )}
         >
           {t.icon}
           {t.label}
           {t.badge !== undefined && (
-            <span className={cn('badge', active === t.id ? 'bg-brand-100 text-brand-700' : 'bg-surface-200 text-surface-600')}>
+            <span className={cn('badge', active === t.id ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>
               {t.badge}
             </span>
           )}
@@ -306,11 +306,11 @@ interface EmptyStateProps {
   action?: React.ReactNode;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ icon = '📋', title, subtitle, action }) => (
+export const EmptyState: React.FC<EmptyStateProps> = ({ icon = '-', title, subtitle, action }) => (
   <div className="flex flex-col items-center justify-center py-16 text-center">
-    <span className="text-5xl mb-4">{icon}</span>
-    <h3 className="text-base font-semibold text-surface-700 mb-1">{title}</h3>
-    {subtitle && <p className="text-sm text-surface-400 max-w-xs">{subtitle}</p>}
+    <span className="text-5xl mb-4 opacity-30">{icon}</span>
+    <h3 className="text-base font-semibold text-[hsl(var(--foreground))] mb-1">{title}</h3>
+    {subtitle && <p className="text-sm text-[hsl(var(--muted-foreground))] max-w-xs">{subtitle}</p>}
     {action && <div className="mt-4">{action}</div>}
   </div>
 );
@@ -320,10 +320,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon = '📋', title, su
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ALERT_STYLES = {
-  info:    'bg-blue-50  border-blue-200  text-blue-800',
-  success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  warning: 'bg-amber-50 border-amber-200 text-amber-800',
-  danger:  'bg-red-50   border-red-200   text-red-800',
+  info:    'bg-[hsl(var(--info)/0.1)] border-[hsl(var(--info)/0.3)] text-[hsl(var(--info))]',
+  success: 'bg-[hsl(var(--success)/0.1)] border-[hsl(var(--success)/0.3)] text-[hsl(var(--success))]',
+  warning: 'bg-[hsl(var(--warning)/0.1)] border-[hsl(var(--warning)/0.3)] text-[hsl(var(--warning))]',
+  danger:  'bg-[hsl(var(--destructive)/0.1)] border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))]',
 };
 
 interface AlertProps {
@@ -340,7 +340,7 @@ export const Alert: React.FC<AlertProps> = ({ type = 'info', children, className
     {icon && <span className="text-lg leading-none mt-0.5">{icon}</span>}
     <div className="flex-1">{children}</div>
     {dismissible && (
-      <button onClick={onDismiss} className="opacity-60 hover:opacity-100 transition-opacity ml-2">✕</button>
+      <button onClick={onDismiss} className="opacity-60 hover:opacity-100 transition-opacity ml-2">x</button>
     )}
   </div>
 );
@@ -358,8 +358,8 @@ interface AvatarProps {
 
 const AVATAR_SIZES = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-base', xl: 'w-16 h-16 text-xl' };
 
-export const Avatar: React.FC<AvatarProps> = ({ initials, color = 'bg-brand-500', size = 'md', className }) => (
-  <div className={cn('flex items-center justify-center rounded-full text-white font-semibold flex-shrink-0', AVATAR_SIZES[size], color, className)}>
+export const Avatar: React.FC<AvatarProps> = ({ initials, color = 'bg-[hsl(var(--primary))]', size = 'md', className }) => (
+  <div className={cn('flex items-center justify-center rounded-full text-[hsl(var(--primary-foreground))] font-semibold flex-shrink-0', AVATAR_SIZES[size], color, className)}>
     {initials}
   </div>
 );
@@ -369,7 +369,7 @@ export const Avatar: React.FC<AvatarProps> = ({ initials, color = 'bg-brand-500'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={cn('animate-pulse bg-surface-200 rounded-lg', className)} />
+  <div className={cn('animate-pulse bg-[hsl(var(--muted))] rounded-lg', className)} />
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -378,9 +378,9 @@ export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 
 export const Divider: React.FC<{ className?: string; label?: string }> = ({ className, label }) => (
   <div className={cn('flex items-center gap-3 my-4', className)}>
-    <div className="flex-1 border-t border-surface-200" />
-    {label && <span className="text-xs text-surface-400 font-medium">{label}</span>}
-    {label && <div className="flex-1 border-t border-surface-200" />}
+    <div className="flex-1 border-t border-[hsl(var(--border))]" />
+    {label && <span className="text-xs text-[hsl(var(--muted-foreground))] font-medium">{label}</span>}
+    {label && <div className="flex-1 border-t border-[hsl(var(--border))]" />}
   </div>
 );
 
@@ -391,7 +391,7 @@ export const Divider: React.FC<{ className?: string; label?: string }> = ({ clas
 export const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => (
   <div className="relative group inline-flex">
     {children}
-    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-surface-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-[hsl(var(--primary-foreground))] bg-[hsl(var(--primary))] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
       {text}
     </span>
   </div>
@@ -411,9 +411,9 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 export const IconButton: React.FC<IconButtonProps> = ({ icon, label, variant = 'ghost', size = 'md', className, ...props }) => (
   <button
     className={cn(
-      'rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+      'rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]',
       size === 'sm' ? 'p-1.5' : 'p-2',
-      variant === 'ghost' ? 'text-surface-500 hover:text-surface-800 hover:bg-surface-100' : 'border border-surface-200 text-surface-600 hover:bg-surface-50',
+      variant === 'ghost' ? 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]' : 'border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--surface))]',
       className
     )}
     title={label}
