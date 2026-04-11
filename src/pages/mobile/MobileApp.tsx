@@ -632,10 +632,10 @@ function formatDateTimeForLanguage(language: AppLanguage, value?: string) {
   }).format(parsed);
 }
 
-function formatCurrencyForLanguage(language: AppLanguage, amount: number) {
+function formatAmountForLanguage(language: AppLanguage, amount: number) {
   return new Intl.NumberFormat(getLocale(language), {
-    style: 'currency',
-    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount || 0);
 }
 
@@ -1672,7 +1672,7 @@ const MobileJobDetail: React.FC<{
                 ) : (
                   <>
                     <div className="mt-4 overflow-hidden rounded-[28px] border border-white/10 bg-surface-950 shadow-[0_24px_60px_rgba(11,10,9,0.22)]">
-                      <div className="grid grid-cols-[minmax(0,1.85fr)_52px_74px_88px_32px] items-center gap-3 border-b border-white/10 px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      <div className="grid grid-cols-[minmax(0,1fr)_36px_48px_60px_28px] items-center gap-2 border-b border-white/10 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
                         <span>{copy.labels.item}</span>
                         <span className="text-center">{copy.labels.qty}</span>
                         <span className="text-right">{copy.labels.price}</span>
@@ -1688,19 +1688,19 @@ const MobileJobDetail: React.FC<{
 
                           return (
                             <div key={line.id} className="border-b border-white/10 last:border-b-0">
-                              <div className="grid grid-cols-[minmax(0,1.85fr)_52px_74px_88px_32px] items-center gap-3 px-4 py-4">
+                              <div className="grid grid-cols-[minmax(0,1fr)_36px_48px_60px_28px] items-start gap-2 px-4 py-3">
                                 <button
                                   type="button"
                                   onClick={() => beginLineEdit(line)}
-                                  className="col-span-4 grid min-w-0 grid-cols-[minmax(0,1.85fr)_52px_74px_88px] items-center gap-3 text-left"
+                                  className="col-span-4 grid min-w-0 grid-cols-[minmax(0,1fr)_36px_48px_60px] items-start gap-2 text-left"
                                 >
                                   <div className="min-w-0">
-                                    <p className="truncate text-[15px] font-semibold text-white">{line.itemName}</p>
-                                    <p className="mt-1 truncate text-[11px] uppercase tracking-[0.16em] text-white/35">{line.itemId}</p>
+                                    <p className="text-sm font-semibold leading-snug text-white">{line.itemName}</p>
+                                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/35">{line.itemId}</p>
                                   </div>
-                                  <span className="text-center text-[15px] font-semibold text-white">{line.quantity}</span>
-                                  <span className="text-right text-sm text-white/55">{formatCurrencyForLanguage(language, line.rate)}</span>
-                                  <span className="text-right text-[15px] font-semibold text-white">{formatCurrencyForLanguage(language, line.amount)}</span>
+                                  <span className="pt-0.5 text-center text-sm font-semibold text-white">{line.quantity}</span>
+                                  <span className="pt-0.5 text-right text-xs text-white/55">{formatAmountForLanguage(language, line.rate)}</span>
+                                  <span className="pt-0.5 text-right text-sm font-semibold text-white">{formatAmountForLanguage(language, line.amount)}</span>
                                 </button>
 
                                 <button
@@ -1776,16 +1776,16 @@ const MobileJobDetail: React.FC<{
                         <div className="space-y-1.5 text-sm text-white/55">
                           <div className="flex items-center justify-between">
                             <span>{copy.labels.subtotal}</span>
-                            <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
+                            <span>{formatAmountForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>{formatSalesOrderTaxLabel(language, copy.labels.tax, linkedSalesOrder.taxRate)}</span>
-                            <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+                            <span>{formatAmountForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
                           </div>
                         </div>
                         <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                           <span className="text-[16px] font-bold text-white">{copy.labels.total}</span>
-                          <span className="text-[19px] font-bold tracking-tight text-white">{formatCurrencyForLanguage(language, linkedSalesOrder.total || 0)}</span>
+                          <span className="text-[19px] font-bold tracking-tight text-white">{formatAmountForLanguage(language, linkedSalesOrder.total || 0)}</span>
                         </div>
                       </div>
                     </div>
@@ -1817,7 +1817,7 @@ const MobileJobDetail: React.FC<{
                           >
                             {APPROVED_ITEM_CATALOG.map((item) => (
                               <option key={item.id} value={item.id}>
-                                {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                                {item.label} • {formatAmountForLanguage(language, item.rate)}
                               </option>
                             ))}
                           </select>
@@ -1843,7 +1843,7 @@ const MobileJobDetail: React.FC<{
                             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.price}</div>
                             <input
                               className={darkSalesOrderInputClass}
-                              value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
+                              value={formatAmountForLanguage(language, selectedCatalogItem.rate)}
                               readOnly
                             />
                           </label>
