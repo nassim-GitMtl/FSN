@@ -1689,28 +1689,41 @@ const MobileJobDetail: React.FC<{
                           return (
                             <div key={line.id} className="border-b border-white/10 last:border-b-0">
                               <div className="grid grid-cols-[minmax(0,1fr)_36px_48px_60px_28px] items-start gap-2 px-4 py-3">
-                                <button
-                                  type="button"
-                                  onClick={() => beginLineEdit(line)}
-                                  className="col-span-4 grid min-w-0 grid-cols-[minmax(0,1fr)_36px_48px_60px] items-start gap-2 text-left"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold leading-snug text-white">{line.itemName}</p>
-                                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/35">{line.itemId}</p>
+                                {isJobLocked ? (
+                                  <div className="col-span-5 grid min-w-0 grid-cols-[minmax(0,1fr)_36px_48px_60px] items-start gap-2">
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-semibold leading-snug text-white">{line.itemName}</p>
+                                      <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/35">{line.itemId}</p>
+                                    </div>
+                                    <span className="pt-0.5 text-center text-sm font-semibold text-white">{line.quantity}</span>
+                                    <span className="pt-0.5 text-right text-xs text-white/55">{formatAmountForLanguage(language, line.rate)}</span>
+                                    <span className="pt-0.5 text-right text-sm font-semibold text-white">{formatAmountForLanguage(language, line.amount)}</span>
                                   </div>
-                                  <span className="pt-0.5 text-center text-sm font-semibold text-white">{line.quantity}</span>
-                                  <span className="pt-0.5 text-right text-xs text-white/55">{formatAmountForLanguage(language, line.rate)}</span>
-                                  <span className="pt-0.5 text-right text-sm font-semibold text-white">{formatAmountForLanguage(language, line.amount)}</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteApprovedLine(line)}
-                                  className="mobile-tap inline-flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.05] hover:text-white"
-                                  aria-label={language === 'fr' ? 'Supprimer la ligne' : 'Delete line'}
-                                >
-                                  <TrashIcon className="h-[18px] w-[18px]" />
-                                </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => beginLineEdit(line)}
+                                      className="col-span-4 grid min-w-0 grid-cols-[minmax(0,1fr)_36px_48px_60px] items-start gap-2 text-left"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-semibold leading-snug text-white">{line.itemName}</p>
+                                        <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/35">{line.itemId}</p>
+                                      </div>
+                                      <span className="pt-0.5 text-center text-sm font-semibold text-white">{line.quantity}</span>
+                                      <span className="pt-0.5 text-right text-xs text-white/55">{formatAmountForLanguage(language, line.rate)}</span>
+                                      <span className="pt-0.5 text-right text-sm font-semibold text-white">{formatAmountForLanguage(language, line.amount)}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteApprovedLine(line)}
+                                      className="mobile-tap inline-flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.05] hover:text-white"
+                                      aria-label={language === 'fr' ? 'Supprimer la ligne' : 'Delete line'}
+                                    >
+                                      <TrashIcon className="h-[18px] w-[18px]" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
 
                               {isEditing ? (
@@ -1790,19 +1803,21 @@ const MobileJobDetail: React.FC<{
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPartsComposer((current) => !current);
-                        resetLineEditor();
-                      }}
-                      className="mobile-tap mt-4 inline-flex min-h-[72px] w-full items-center justify-center gap-3 rounded-[24px] border border-brand-950/40 bg-brand-950 px-5 text-base font-semibold text-brand-500"
-                    >
-                      <span className="text-[2rem] font-light leading-none">+</span>
-                      <span>{copy.buttons.addLine}</span>
-                    </button>
+                    {!isJobLocked && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPartsComposer((current) => !current);
+                          resetLineEditor();
+                        }}
+                        className="mobile-tap mt-4 inline-flex min-h-[72px] w-full items-center justify-center gap-3 rounded-[24px] border border-brand-950/40 bg-brand-950 px-5 text-base font-semibold text-brand-500"
+                      >
+                        <span className="text-[2rem] font-light leading-none">+</span>
+                        <span>{copy.buttons.addLine}</span>
+                      </button>
+                    )}
 
-                    {showPartsComposer ? (
+                    {!isJobLocked && showPartsComposer ? (
                       <div className="mt-3 rounded-[24px] border border-white/10 bg-surface-950 p-4 shadow-[0_20px_44px_rgba(11,10,9,0.18)]">
                         <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-white/60">
                           {copy.addPartsNote}
