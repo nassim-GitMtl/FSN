@@ -82,7 +82,7 @@ const MOBILE_COPY = {
       summary: 'Summary',
       dispatcherNotes: 'Dispatcher notes',
       fieldJournal: 'Notes & photos',
-      salesOrder: 'Approved parts',
+      salesOrder: 'Sales Order',
       closeout: 'Closeout',
       report: 'Work report',
       payment: 'Payment received',
@@ -108,6 +108,9 @@ const MOBILE_COPY = {
       scheduled: 'Scheduled',
       dispatcher: 'Dispatcher',
       catalog: 'Catalog',
+      created: 'Created',
+      item: 'Item',
+      price: 'Price',
       total: 'Total',
       balance: 'Balance',
       subtotal: 'Subtotal',
@@ -128,6 +131,8 @@ const MOBILE_COPY = {
       addFiles: 'Files',
       clear: 'Clear',
       addLine: 'Add from approved catalog',
+      cancel: 'Cancel',
+      saveLine: 'Save line',
       startJob: 'Start job',
       moveInProgress: 'In progress',
       waitingForParts: 'Waiting for parts',
@@ -146,8 +151,10 @@ const MOBILE_COPY = {
     reportRequired: 'A work report is required before completion.',
     signatureRequired: 'A customer signature is required before completion.',
     lineAdded: 'Approved item added to the linked sales order.',
-    lineRestricted: 'Only approved catalog items can be added here.',
-    salesEmpty: 'No approved parts order is linked to this job.',
+    lineUpdated: 'Sales order line updated.',
+    lineDeleted: 'Sales order line removed.',
+    lineRestricted: 'No lines have been added to this sales order yet.',
+    salesEmpty: 'No sales order is linked to this job.',
     salesRestricted: 'Technicians can only add approved catalog items to the linked order for this job.',
     journalEmpty: 'No field notes or attachments have been saved yet.',
     attachmentsReady: 'Selected attachments',
@@ -218,7 +225,7 @@ const MOBILE_COPY = {
       summary: 'Résumé',
       dispatcherNotes: 'Notes du bureau',
       fieldJournal: 'Notes et photos',
-      salesOrder: 'Pièces approuvées',
+      salesOrder: 'Commande client',
       closeout: 'Clôture',
       report: 'Rapport de travail',
       payment: 'Paiement reçu',
@@ -244,6 +251,9 @@ const MOBILE_COPY = {
       scheduled: 'Planifié',
       dispatcher: 'Bureau',
       catalog: 'Catalogue',
+      created: 'Créée',
+      item: 'Article',
+      price: 'Prix',
       total: 'Total',
       balance: 'Solde',
       subtotal: 'Sous-total',
@@ -264,6 +274,8 @@ const MOBILE_COPY = {
       addFiles: 'Fichiers',
       clear: 'Effacer',
       addLine: 'Ajouter du catalogue approuvé',
+      cancel: 'Annuler',
+      saveLine: 'Enregistrer la ligne',
       startJob: 'Débuter',
       moveInProgress: 'En exécution',
       waitingForParts: 'En attente de pièces',
@@ -282,8 +294,10 @@ const MOBILE_COPY = {
     reportRequired: 'Un rapport de travail est obligatoire avant la clôture.',
     signatureRequired: 'Une signature client est obligatoire avant la clôture.',
     lineAdded: 'Article approuvé ajouté à la commande liée.',
-    lineRestricted: 'Seuls les articles approuvés peuvent être ajoutés ici.',
-    salesEmpty: "Aucune commande de pièces approuvées n'est liée à ce travail.",
+    lineUpdated: 'Ligne de commande mise à jour.',
+    lineDeleted: 'Ligne de commande supprimée.',
+    lineRestricted: "Aucune ligne n'a encore été ajoutée à cette commande.",
+    salesEmpty: "Aucune commande client n'est liée à ce travail.",
     salesRestricted: "Les techniciens peuvent seulement ajouter des articles approuvés à la commande liée à ce travail.",
     journalEmpty: "Aucune note terrain ni pièce jointe n'a encore été sauvegardée.",
     attachmentsReady: 'Pièces sélectionnées',
@@ -501,6 +515,27 @@ const PartsIcon: React.FC<MobileIconProps> = ({ className }) => (
   </svg>
 );
 
+const ChevronUpIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden="true">
+    <path d="m6 14 6-6 6 6" />
+  </svg>
+);
+
+const ChevronDownIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden="true">
+    <path d="m6 10 6 6 6-6" />
+  </svg>
+);
+
+const TrashIcon: React.FC<MobileIconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <path d="M4.75 7.25h14.5" />
+    <path d="M9.25 7.25V5.5a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1v1.75" />
+    <path d="m7.25 7.25.8 10.4a1.75 1.75 0 0 0 1.74 1.6h4.42a1.75 1.75 0 0 0 1.74-1.6l.8-10.4" />
+    <path d="M10 10.5v5.25M14 10.5v5.25" />
+  </svg>
+);
+
 const NAV_ITEMS: Array<{ id: MobileTab; icon: React.FC<MobileIconProps> }> = [
   { id: 'home', icon: HomeIcon },
   { id: 'jobs', icon: JobIcon },
@@ -598,6 +633,32 @@ function formatCurrencyForLanguage(language: AppLanguage, amount: number) {
     style: 'currency',
     currency: 'USD',
   }).format(amount || 0);
+}
+
+function formatSalesOrderStatus(language: AppLanguage, status?: string) {
+  if (!status) return language === 'fr' ? 'Ouverte' : 'Open';
+
+  const normalized = status.toUpperCase();
+  if (language === 'fr') {
+    if (normalized === 'OPEN') return 'Ouverte';
+    if (normalized === 'PARTIAL') return 'Partielle';
+    if (normalized === 'FULFILLED') return 'Traitée';
+  } else {
+    if (normalized === 'OPEN') return 'Open';
+    if (normalized === 'PARTIAL') return 'Partial';
+    if (normalized === 'FULFILLED') return 'Fulfilled';
+  }
+
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatSalesOrderTaxLabel(language: AppLanguage, label: string, taxRate?: number) {
+  if (typeof taxRate !== 'number') return label;
+  return `${label} (${taxRate.toFixed(2)}%)`;
 }
 
 function getScheduleSummary(language: AppLanguage, job: Job) {
@@ -1168,6 +1229,8 @@ const MobileJobDetail: React.FC<{
   const addAttachment = useJobStore((state) => state.addAttachment);
   const getSO = useSOStore((state) => state.getSO);
   const addSOLine = useSOStore((state) => state.addSOLine);
+  const updateSOLine = useSOStore((state) => state.updateSOLine);
+  const removeSOLine = useSOStore((state) => state.removeSOLine);
   const updateSO = useSOStore((state) => state.updateSO);
   const user = useAuthStore((state) => state.user);
   const toast = useUIStore((state) => state.toast);
@@ -1187,6 +1250,11 @@ const MobileJobDetail: React.FC<{
   const [selectedQuantity, setSelectedQuantity] = useState('1');
   const [selectedLineNote, setSelectedLineNote] = useState('');
   const [showPartsComposer, setShowPartsComposer] = useState(false);
+  const [salesOrderExpanded, setSalesOrderExpanded] = useState(true);
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState('1');
+  const [editingRate, setEditingRate] = useState('');
+  const [editingLineNote, setEditingLineNote] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -1212,6 +1280,7 @@ const MobileJobDetail: React.FC<{
   const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
   const canCompleteJob = job.status === 'READY_FOR_SIGNATURE' && reportOnFile && customerSignatureReady;
   const linkedOrderBadge = linkedSalesOrder?.soNumber || job.salesOrderNumber;
+  const salesOrderStatusLabel = linkedSalesOrder ? formatSalesOrderStatus(language, linkedSalesOrder.status) : copy.pending;
   const paymentBadge = paymentCapture
     ? (paymentCapture.paid ? copy.payment.yes : copy.payment.no)
     : copy.payment.unknown;
@@ -1226,6 +1295,26 @@ const MobileJobDetail: React.FC<{
     }
     setPaymentNote(paymentCapture.note || '');
   }, [paymentCapture?.recordedAt]);
+
+  const resetLineEditor = () => {
+    setEditingLineId(null);
+    setEditingQuantity('1');
+    setEditingRate('');
+    setEditingLineNote('');
+  };
+
+  const beginLineEdit = (line: SOLine) => {
+    if (editingLineId === line.id) {
+      resetLineEditor();
+      return;
+    }
+
+    setShowPartsComposer(false);
+    setEditingLineId(line.id);
+    setEditingQuantity(String(line.quantity || 1));
+    setEditingRate(String(line.rate || 0));
+    setEditingLineNote(line.description || '');
+  };
 
   const saveReport = () => {
     const nextReport = reportText.trim();
@@ -1363,7 +1452,41 @@ const MobileJobDetail: React.FC<{
     );
     setSelectedQuantity('1');
     setSelectedLineNote('');
+    setShowPartsComposer(false);
     toast('success', copy.lineAdded);
+  };
+
+  const handleUpdateApprovedLine = () => {
+    if (!linkedSalesOrder || !editingLineId) return;
+
+    const quantity = Math.max(1, Number(editingQuantity) || 1);
+    const rate = Math.max(0, Number(editingRate) || 0);
+    updateSOLine(linkedSalesOrder.id, editingLineId, {
+      quantity,
+      rate,
+      description: editingLineNote.trim() || undefined,
+    });
+    addNote(
+      job.id,
+      `${copy.lineUpdated} x${quantity}${editingLineNote.trim() ? ` • ${editingLineNote.trim()}` : ''}`,
+      'ACTIVITY',
+      user.id,
+      user.name,
+      { visibility: 'TECHNICIAN_ONLY' },
+    );
+    resetLineEditor();
+    toast('success', copy.lineUpdated);
+  };
+
+  const handleDeleteApprovedLine = (line: SOLine) => {
+    if (!linkedSalesOrder) return;
+
+    removeSOLine(linkedSalesOrder.id, line.id);
+    if (editingLineId === line.id) {
+      resetLineEditor();
+    }
+    addNote(job.id, `${copy.lineDeleted} ${line.itemName}`, 'ACTIVITY', user.id, user.name, { visibility: 'TECHNICIAN_ONLY' });
+    toast('success', copy.lineDeleted);
   };
 
   const handleReadyForSignature = () => {
@@ -1468,6 +1591,7 @@ const MobileJobDetail: React.FC<{
   })();
 
   const lightInputClass = 'w-full rounded-xl border border-surface-200 bg-white px-3 py-3 text-sm text-surface-800 placeholder:text-surface-400 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-colors';
+  const darkSalesOrderInputClass = 'w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20';
 
   return (
     <div className="relative flex h-full flex-col bg-surface-50">
@@ -1526,142 +1650,248 @@ const MobileJobDetail: React.FC<{
         {/* Section cards */}
         <div className="space-y-3 px-4">
 
-          {/* Approved parts / Sales order */}
-          <MobileSectionCard
-            icon={<PartsIcon className="h-5 w-5" />}
-            title={copy.sections.salesOrder}
-            badge={linkedOrderBadge}
-            badgeTone="default"
-          >
-            <div className="flex flex-wrap items-center gap-1.5 text-sm text-surface-500">
-              <span>{copy.linkedOrderOnly}</span>
-              {linkedSalesOrder?.createdAt && (
-                <>
-                  <span>·</span>
-                  <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
-                </>
-              )}
-            </div>
-
-            <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
-              {copy.salesRestricted}
-            </div>
-
-            {!linkedSalesOrder ? (
-              <div className="mt-3">
-                <EmptyMobileState label={copy.salesEmpty} />
+          {/* Sales order */}
+          <section className="border-t border-surface-200/80 pt-5">
+            <button
+              type="button"
+              onClick={() => setSalesOrderExpanded((current) => !current)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="text-brand-500">
+                  <PartsIcon className="h-5 w-5" />
+                </div>
+                <h2 className="truncate text-[1.65rem] font-semibold tracking-tight text-surface-900">{copy.sections.salesOrder}</h2>
+                {linkedOrderBadge ? (
+                  <span className="rounded-full bg-surface-200 px-3 py-1 text-sm font-semibold text-surface-600">
+                    {linkedOrderBadge}
+                  </span>
+                ) : null}
               </div>
-            ) : (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
-                  <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
+              <span className="shrink-0 text-surface-400">
+                {salesOrderExpanded ? <ChevronUpIcon className="h-5 w-5" /> : <ChevronDownIcon className="h-5 w-5" />}
+              </span>
+            </button>
+
+            {salesOrderExpanded ? (
+              <div className="animate-slide-up">
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-surface-500">
+                  <span>
+                    {copy.labels.created}{' '}
+                    {linkedSalesOrder?.createdAt ? formatShortDateForLanguage(language, linkedSalesOrder.createdAt) : '—'}
+                  </span>
+                  <span>•</span>
+                  <span className="font-semibold text-brand-500">{salesOrderStatusLabel}</span>
                 </div>
 
-                {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
-                  <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5 text-xs text-surface-500">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.labels.subtotal}</span>
-                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
+                {!linkedSalesOrder ? (
+                  <div className="mt-4 rounded-[28px] border border-white/10 bg-surface-950 px-5 py-8 text-center text-sm text-white/60 shadow-[0_24px_60px_rgba(11,10,9,0.22)]">
+                    {copy.salesEmpty}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 overflow-hidden rounded-[28px] border border-white/10 bg-surface-950 shadow-[0_24px_60px_rgba(11,10,9,0.22)]">
+                      <div className="grid grid-cols-[minmax(0,1.85fr)_52px_74px_88px_32px] items-center gap-3 border-b border-white/10 px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                        <span>{copy.labels.item}</span>
+                        <span className="text-center">{copy.labels.qty}</span>
+                        <span className="text-right">{copy.labels.price}</span>
+                        <span className="text-right">{copy.labels.total}</span>
+                        <span />
+                      </div>
+
+                      {linkedSalesOrder.lines.length === 0 ? (
+                        <div className="px-5 py-10 text-center text-sm text-white/55">{copy.lineRestricted}</div>
+                      ) : (
+                        linkedSalesOrder.lines.map((line) => {
+                          const isEditing = editingLineId === line.id;
+
+                          return (
+                            <div key={line.id} className="border-b border-white/10 last:border-b-0">
+                              <div className="grid grid-cols-[minmax(0,1.85fr)_52px_74px_88px_32px] items-center gap-3 px-4 py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => beginLineEdit(line)}
+                                  className="col-span-4 grid min-w-0 grid-cols-[minmax(0,1.85fr)_52px_74px_88px] items-center gap-3 text-left"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="truncate text-[15px] font-semibold text-white">{line.itemName}</p>
+                                    <p className="mt-1 truncate text-[11px] uppercase tracking-[0.16em] text-white/35">{line.itemId}</p>
+                                  </div>
+                                  <span className="text-center text-[15px] font-semibold text-white">{line.quantity}</span>
+                                  <span className="text-right text-sm text-white/55">{formatCurrencyForLanguage(language, line.rate)}</span>
+                                  <span className="text-right text-[15px] font-semibold text-white">{formatCurrencyForLanguage(language, line.amount)}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteApprovedLine(line)}
+                                  className="mobile-tap inline-flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.05] hover:text-white"
+                                  aria-label={language === 'fr' ? 'Supprimer la ligne' : 'Delete line'}
+                                >
+                                  <TrashIcon className="h-[18px] w-[18px]" />
+                                </button>
+                              </div>
+
+                              {isEditing ? (
+                                <div className="border-t border-white/10 bg-white/[0.03] px-4 py-4">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <label className="block">
+                                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.qty}</div>
+                                      <input
+                                        className={darkSalesOrderInputClass}
+                                        type="number"
+                                        min="1"
+                                        value={editingQuantity}
+                                        onChange={(event) => setEditingQuantity(event.target.value)}
+                                      />
+                                    </label>
+                                    <label className="block">
+                                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.price}</div>
+                                      <input
+                                        className={darkSalesOrderInputClass}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editingRate}
+                                        onChange={(event) => setEditingRate(event.target.value)}
+                                      />
+                                    </label>
+                                  </div>
+
+                                  <label className="mt-3 block">
+                                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.note}</div>
+                                    <textarea
+                                      className={cn(darkSalesOrderInputClass, 'min-h-[88px] resize-none')}
+                                      value={editingLineNote}
+                                      onChange={(event) => setEditingLineNote(event.target.value)}
+                                      placeholder={copy.lineNotePlaceholder}
+                                    />
+                                  </label>
+
+                                  <div className="mt-4 flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={resetLineEditor}
+                                      className="mobile-tap inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/70"
+                                    >
+                                      {copy.buttons.cancel}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleUpdateApprovedLine}
+                                      className="mobile-tap inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-surface-950"
+                                    >
+                                      {copy.buttons.saveLine}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })
+                      )}
+
+                      <div className="bg-white/[0.02] px-4 py-5">
+                        <div className="space-y-1.5 text-sm text-white/55">
+                          <div className="flex items-center justify-between">
+                            <span>{copy.labels.subtotal}</span>
+                            <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>{formatSalesOrderTaxLabel(language, copy.labels.tax, linkedSalesOrder.taxRate)}</span>
+                            <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+                          <span className="text-[16px] font-bold text-white">{copy.labels.total}</span>
+                          <span className="text-[19px] font-bold tracking-tight text-white">{formatCurrencyForLanguage(language, linkedSalesOrder.total || 0)}</span>
+                        </div>
+                      </div>
                     </div>
-                    {linkedSalesOrder.taxAmount ? (
-                      <div className="mt-1 flex items-center justify-between">
-                        <span>{copy.labels.tax}</span>
-                        <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPartsComposer((current) => !current);
+                        resetLineEditor();
+                      }}
+                      className="mobile-tap mt-4 inline-flex min-h-[72px] w-full items-center justify-center gap-3 rounded-[24px] border border-brand-950/40 bg-brand-950 px-5 text-base font-semibold text-brand-500"
+                    >
+                      <span className="text-[2rem] font-light leading-none">+</span>
+                      <span>{copy.buttons.addLine}</span>
+                    </button>
+
+                    {showPartsComposer ? (
+                      <div className="mt-3 rounded-[24px] border border-white/10 bg-surface-950 p-4 shadow-[0_20px_44px_rgba(11,10,9,0.18)]">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-white/60">
+                          {copy.addPartsNote}
+                        </div>
+
+                        <label className="mt-3 block">
+                          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.catalog}</div>
+                          <select
+                            className={cn(darkSalesOrderInputClass, 'appearance-none')}
+                            value={selectedCatalogItemId}
+                            onChange={(event) => setSelectedCatalogItemId(event.target.value)}
+                          >
+                            {APPROVED_ITEM_CATALOG.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm">
+                          <div className="font-semibold text-white">{selectedCatalogItem.label}</div>
+                          <div className="mt-1 text-white/55">{selectedCatalogItem.description}</div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <label className="block">
+                            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.qty}</div>
+                            <input
+                              className={darkSalesOrderInputClass}
+                              type="number"
+                              min="1"
+                              value={selectedQuantity}
+                              onChange={(event) => setSelectedQuantity(event.target.value)}
+                            />
+                          </label>
+                          <label className="block">
+                            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.price}</div>
+                            <input
+                              className={darkSalesOrderInputClass}
+                              value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
+                              readOnly
+                            />
+                          </label>
+                        </div>
+
+                        <label className="mt-3 block">
+                          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{copy.labels.note}</div>
+                          <textarea
+                            className={cn(darkSalesOrderInputClass, 'min-h-[88px] resize-none')}
+                            value={selectedLineNote}
+                            onChange={(event) => setSelectedLineNote(event.target.value)}
+                            placeholder={copy.lineNotePlaceholder}
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={handleAddApprovedLine}
+                          className="mobile-tap mt-4 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-surface-950"
+                        >
+                          {copy.buttons.addLine}
+                        </button>
                       </div>
                     ) : null}
-                  </div>
+                  </>
                 )}
-
-                <div className="mt-3 space-y-2">
-                  {linkedSalesOrder.lines.length === 0 ? (
-                    <EmptyMobileState label={copy.lineRestricted} />
-                  ) : (
-                    linkedSalesOrder.lines.map((line) => (
-                      <SalesOrderLineCard key={line.id} line={line} language={language} />
-                    ))
-                  )}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowPartsComposer((current) => !current)}
-                    className="mobile-tap inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
-                  >
-                    <span className="text-lg font-bold leading-none">+</span>
-                    <span>{copy.buttons.addLine}</span>
-                  </button>
-
-                  {showPartsComposer && (
-                    <div className="mt-4 space-y-3">
-                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm text-surface-500">
-                        {copy.addPartsNote}
-                      </div>
-                      <label className="block">
-                        <div className="eyebrow mb-1.5">{copy.labels.catalog}</div>
-                        <select
-                          className={lightInputClass}
-                          value={selectedCatalogItemId}
-                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
-                        >
-                          {APPROVED_ITEM_CATALOG.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm">
-                        <div className="font-semibold text-surface-900">{selectedCatalogItem.label}</div>
-                        <div className="mt-1 text-surface-500">{selectedCatalogItem.description}</div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="block">
-                          <div className="eyebrow mb-1.5">{copy.labels.qty}</div>
-                          <input
-                            className={lightInputClass}
-                            type="number"
-                            min="1"
-                            value={selectedQuantity}
-                            onChange={(event) => setSelectedQuantity(event.target.value)}
-                          />
-                        </label>
-                        <label className="block">
-                          <div className="eyebrow mb-1.5">{copy.labels.rate}</div>
-                          <input
-                            className={lightInputClass}
-                            value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
-                            readOnly
-                          />
-                        </label>
-                      </div>
-
-                      <label className="block">
-                        <div className="eyebrow mb-1.5">{copy.labels.note}</div>
-                        <textarea
-                          className={cn(lightInputClass, 'min-h-[80px] resize-none')}
-                          value={selectedLineNote}
-                          onChange={(event) => setSelectedLineNote(event.target.value)}
-                          placeholder={copy.lineNotePlaceholder}
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={handleAddApprovedLine}
-                        className="mobile-tap w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-                      >
-                        {copy.buttons.addLine}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </MobileSectionCard>
+              </div>
+            ) : null}
+          </section>
 
           {/* Field journal */}
           <MobileSectionCard
@@ -2067,34 +2297,6 @@ const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }
     </div>
   );
 };
-
-const SalesOrderLineCard: React.FC<{ line: SOLine; language: AppLanguage }> = ({ line, language }) => (
-  <div className="rounded-xl border border-surface-100 bg-white p-3">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-surface-900">{line.itemName}</div>
-        <div className="mt-1 inline-flex rounded-full bg-surface-100 px-2 py-0.5 text-[11px] font-semibold text-surface-500">
-          {line.itemId}
-        </div>
-        {line.description ? <div className="mt-2 text-sm text-surface-500">{line.description}</div> : null}
-      </div>
-      <div className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700">
-        x{line.quantity}
-      </div>
-    </div>
-
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      <div className="rounded-lg border border-surface-100 bg-surface-50 px-3 py-2">
-        <div className="eyebrow mb-1">{MOBILE_COPY[language].labels.rate}</div>
-        <div className="text-sm font-semibold text-surface-700">{formatCurrencyForLanguage(language, line.rate)}</div>
-      </div>
-      <div className="rounded-lg border border-surface-100 bg-surface-50 px-3 py-2">
-        <div className="eyebrow mb-1">{MOBILE_COPY[language].labels.total}</div>
-        <div className="text-sm font-bold text-surface-900">{formatCurrencyForLanguage(language, line.amount)}</div>
-      </div>
-    </div>
-  </div>
-);
 
 const WorkflowChip: React.FC<{ label: string; tone: 'neutral' | 'success' | 'pending' }> = ({ label, tone }) => (
   <div
