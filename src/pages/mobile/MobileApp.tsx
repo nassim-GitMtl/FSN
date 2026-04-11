@@ -1526,26 +1526,141 @@ const MobileJobDetail: React.FC<{
         {/* Section cards */}
         <div className="space-y-3 px-4">
 
-          {/* Work report */}
+          {/* Approved parts / Sales order */}
           <MobileSectionCard
-            icon={<ReportIcon className="h-5 w-5" />}
-            title={copy.sections.report}
-            badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
-            badgeTone={reportOnFile ? 'success' : 'default'}
+            icon={<PartsIcon className="h-5 w-5" />}
+            title={copy.sections.salesOrder}
+            badge={linkedOrderBadge}
+            badgeTone="default"
           >
-            <textarea
-              className={cn(lightInputClass, 'min-h-[140px] resize-none')}
-              value={reportText}
-              onChange={(event) => setReportText(event.target.value)}
-              placeholder={copy.labels.reportPlaceholder}
-            />
-            <button
-              type="button"
-              onClick={saveReport}
-              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-            >
-              {copy.buttons.saveReport}
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5 text-sm text-surface-500">
+              <span>{copy.linkedOrderOnly}</span>
+              {linkedSalesOrder?.createdAt && (
+                <>
+                  <span>·</span>
+                  <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
+                </>
+              )}
+            </div>
+
+            <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
+              {copy.salesRestricted}
+            </div>
+
+            {!linkedSalesOrder ? (
+              <div className="mt-3">
+                <EmptyMobileState label={copy.salesEmpty} />
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
+                  <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
+                </div>
+
+                {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
+                  <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5 text-xs text-surface-500">
+                    <div className="flex items-center justify-between">
+                      <span>{copy.labels.subtotal}</span>
+                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
+                    </div>
+                    {linkedSalesOrder.taxAmount ? (
+                      <div className="mt-1 flex items-center justify-between">
+                        <span>{copy.labels.tax}</span>
+                        <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                <div className="mt-3 space-y-2">
+                  {linkedSalesOrder.lines.length === 0 ? (
+                    <EmptyMobileState label={copy.lineRestricted} />
+                  ) : (
+                    linkedSalesOrder.lines.map((line) => (
+                      <SalesOrderLineCard key={line.id} line={line} language={language} />
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartsComposer((current) => !current)}
+                    className="mobile-tap inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+                  >
+                    <span className="text-lg font-bold leading-none">+</span>
+                    <span>{copy.buttons.addLine}</span>
+                  </button>
+
+                  {showPartsComposer && (
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm text-surface-500">
+                        {copy.addPartsNote}
+                      </div>
+                      <label className="block">
+                        <div className="eyebrow mb-1.5">{copy.labels.catalog}</div>
+                        <select
+                          className={lightInputClass}
+                          value={selectedCatalogItemId}
+                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
+                        >
+                          {APPROVED_ITEM_CATALOG.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm">
+                        <div className="font-semibold text-surface-900">{selectedCatalogItem.label}</div>
+                        <div className="mt-1 text-surface-500">{selectedCatalogItem.description}</div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <div className="eyebrow mb-1.5">{copy.labels.qty}</div>
+                          <input
+                            className={lightInputClass}
+                            type="number"
+                            min="1"
+                            value={selectedQuantity}
+                            onChange={(event) => setSelectedQuantity(event.target.value)}
+                          />
+                        </label>
+                        <label className="block">
+                          <div className="eyebrow mb-1.5">{copy.labels.rate}</div>
+                          <input
+                            className={lightInputClass}
+                            value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
+                            readOnly
+                          />
+                        </label>
+                      </div>
+
+                      <label className="block">
+                        <div className="eyebrow mb-1.5">{copy.labels.note}</div>
+                        <textarea
+                          className={cn(lightInputClass, 'min-h-[80px] resize-none')}
+                          value={selectedLineNote}
+                          onChange={(event) => setSelectedLineNote(event.target.value)}
+                          placeholder={copy.lineNotePlaceholder}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={handleAddApprovedLine}
+                        className="mobile-tap w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+                      >
+                        {copy.buttons.addLine}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </MobileSectionCard>
 
           {/* Field journal */}
@@ -1687,6 +1802,28 @@ const MobileJobDetail: React.FC<{
             </button>
           </MobileSectionCard>
 
+          {/* Work report */}
+          <MobileSectionCard
+            icon={<ReportIcon className="h-5 w-5" />}
+            title={copy.sections.report}
+            badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
+            badgeTone={reportOnFile ? 'success' : 'default'}
+          >
+            <textarea
+              className={cn(lightInputClass, 'min-h-[140px] resize-none')}
+              value={reportText}
+              onChange={(event) => setReportText(event.target.value)}
+              placeholder={copy.labels.reportPlaceholder}
+            />
+            <button
+              type="button"
+              onClick={saveReport}
+              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+            >
+              {copy.buttons.saveReport}
+            </button>
+          </MobileSectionCard>
+
           {/* Signatures */}
           <MobileSectionCard
             icon={<SignatureIcon className="h-5 w-5" />}
@@ -1716,143 +1853,6 @@ const MobileJobDetail: React.FC<{
             >
               {copy.signatureSaved}
             </button>
-          </MobileSectionCard>
-
-          {/* Approved parts / Sales order */}
-          <MobileSectionCard
-            icon={<PartsIcon className="h-5 w-5" />}
-            title={copy.sections.salesOrder}
-            badge={linkedOrderBadge}
-            badgeTone="default"
-          >
-            <div className="flex flex-wrap items-center gap-1.5 text-sm text-surface-500">
-              <span>{copy.linkedOrderOnly}</span>
-              {linkedSalesOrder?.createdAt && (
-                <>
-                  <span>·</span>
-                  <span>{formatShortDateForLanguage(language, linkedSalesOrder.createdAt)}</span>
-                </>
-              )}
-            </div>
-
-            <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
-              {copy.salesRestricted}
-            </div>
-
-            {!linkedSalesOrder ? (
-              <div className="mt-3">
-                <EmptyMobileState label={copy.salesEmpty} />
-              </div>
-            ) : (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <MobileMetaCard label={copy.labels.total} value={formatCurrencyForLanguage(language, linkedSalesOrder.total)} />
-                  <MobileMetaCard label={copy.labels.balance} value={formatCurrencyForLanguage(language, linkedSalesOrder.balance || 0)} />
-                </div>
-
-                {(linkedSalesOrder.subtotal || linkedSalesOrder.taxAmount) && (
-                  <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5 text-xs text-surface-500">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.labels.subtotal}</span>
-                      <span>{formatCurrencyForLanguage(language, linkedSalesOrder.subtotal || 0)}</span>
-                    </div>
-                    {linkedSalesOrder.taxAmount ? (
-                      <div className="mt-1 flex items-center justify-between">
-                        <span>{copy.labels.tax}</span>
-                        <span>{formatCurrencyForLanguage(language, linkedSalesOrder.taxAmount || 0)}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                <div className="mt-3 space-y-2">
-                  {linkedSalesOrder.lines.length === 0 ? (
-                    <EmptyMobileState label={copy.lineRestricted} />
-                  ) : (
-                    linkedSalesOrder.lines.map((line) => (
-                      <SalesOrderLineCard key={line.id} line={line} language={language} />
-                    ))
-                  )}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowPartsComposer((current) => !current)}
-                    className="mobile-tap inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
-                  >
-                    <span className="text-lg font-bold leading-none">+</span>
-                    <span>{copy.buttons.addLine}</span>
-                  </button>
-
-                  {showPartsComposer && (
-                    <div className="mt-4 space-y-3">
-                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm text-surface-500">
-                        {copy.addPartsNote}
-                      </div>
-                      <label className="block">
-                        <div className="eyebrow mb-1.5">{copy.labels.catalog}</div>
-                        <select
-                          className={lightInputClass}
-                          value={selectedCatalogItemId}
-                          onChange={(event) => setSelectedCatalogItemId(event.target.value)}
-                        >
-                          {APPROVED_ITEM_CATALOG.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.label} • {formatCurrencyForLanguage(language, item.rate)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <div className="rounded-xl border border-surface-100 bg-white px-3 py-3 text-sm">
-                        <div className="font-semibold text-surface-900">{selectedCatalogItem.label}</div>
-                        <div className="mt-1 text-surface-500">{selectedCatalogItem.description}</div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="block">
-                          <div className="eyebrow mb-1.5">{copy.labels.qty}</div>
-                          <input
-                            className={lightInputClass}
-                            type="number"
-                            min="1"
-                            value={selectedQuantity}
-                            onChange={(event) => setSelectedQuantity(event.target.value)}
-                          />
-                        </label>
-                        <label className="block">
-                          <div className="eyebrow mb-1.5">{copy.labels.rate}</div>
-                          <input
-                            className={lightInputClass}
-                            value={formatCurrencyForLanguage(language, selectedCatalogItem.rate)}
-                            readOnly
-                          />
-                        </label>
-                      </div>
-
-                      <label className="block">
-                        <div className="eyebrow mb-1.5">{copy.labels.note}</div>
-                        <textarea
-                          className={cn(lightInputClass, 'min-h-[80px] resize-none')}
-                          value={selectedLineNote}
-                          onChange={(event) => setSelectedLineNote(event.target.value)}
-                          placeholder={copy.lineNotePlaceholder}
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={handleAddApprovedLine}
-                        className="mobile-tap w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-                      >
-                        {copy.buttons.addLine}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </MobileSectionCard>
         </div>
       </div>
