@@ -92,7 +92,9 @@ const MOBILE_COPY = {
       approvedItems: 'Approved items',
       lineItems: 'Current lines',
       requirements: 'Completion requirements',
+      customerHistory: 'Customer history',
     },
+    noCustomerHistory: 'No previous jobs for this customer.',
     labels: {
       jobNumber: 'Job',
       customer: 'Customer',
@@ -235,7 +237,9 @@ const MOBILE_COPY = {
       approvedItems: 'Articles approuvés',
       lineItems: 'Lignes actuelles',
       requirements: 'Conditions de clôture',
+      customerHistory: 'Historique client',
     },
+    noCustomerHistory: 'Aucun travail antérieur pour ce client.',
     labels: {
       jobNumber: 'Travail',
       customer: 'Client',
@@ -1274,11 +1278,11 @@ const MobileJobDetail: React.FC<{
   const journalGroups = buildJournalGroups(notes, attachments);
   const stageButton = getStageButton(job, copy.buttons);
   const selectedCatalogItem = APPROVED_ITEM_CATALOG.find((item) => item.id === selectedCatalogItemId) || APPROVED_ITEM_CATALOG[0];
-  const draftReportReady = Boolean(reportText.trim());
   const reportOnFile = Boolean(job.resolution?.trim());
   const customerSignatureReady = Boolean(customerSignature);
   const signatureOnFile = Boolean(job.completionSignature) || customerSignatureReady;
-  const canCompleteJob = job.status === 'READY_FOR_SIGNATURE' && reportOnFile && customerSignatureReady;
+  const isJobLocked = CLOSED_JOB_STATUSES.includes(job.status);
+  const canCompleteJob = (job.status === 'IN_PROGRESS' || job.status === 'READY_FOR_SIGNATURE') && reportOnFile && customerSignatureReady && paymentCapture !== null;
   const linkedOrderBadge = linkedSalesOrder?.soNumber || job.salesOrderNumber;
   const salesOrderStatusLabel = linkedSalesOrder ? formatSalesOrderStatus(language, linkedSalesOrder.status) : copy.pending;
   const paymentBadge = paymentCapture
@@ -1489,24 +1493,22 @@ const MobileJobDetail: React.FC<{
     toast('success', copy.lineDeleted);
   };
 
-  const handleReadyForSignature = () => {
+  const handleCompleteJob = () => {
     if (!reportOnFile) {
-      toast('warning', copy.reportUnlocksSignature);
+      toast('warning', copy.reportRequired);
       return;
     }
-
-    updateStatus(job.id, 'READY_FOR_SIGNATURE');
-    toast('success', copy.readyForSignatureNote);
-  };
-
-  const handleCompleteJob = () => {
-    if (!canCompleteJob) {
-      toast('warning', copy.cannotComplete);
+    if (!customerSignatureReady) {
+      toast('warning', copy.signatureRequired);
+      return;
+    }
+    if (!paymentCapture) {
+      toast('warning', copy.choosePaymentState);
       return;
     }
 
     updateJob(job.id, {
-      resolution: reportText.trim(),
+      resolution: job.resolution || reportText.trim(),
       completionSignature: customerSignature,
       techSignature: technicianSignature,
       completionSignedBy: job.contactName || job.customerName,
@@ -1527,33 +1529,32 @@ const MobileJobDetail: React.FC<{
   };
 
   const primaryAction = (() => {
-    if (job.status === 'IN_PROGRESS' && !reportOnFile) {
+    if (isJobLocked) {
       return {
-        label: copy.stageReportSave,
-        onClick: saveReport,
-        disabled: !draftReportReady,
-        helper: copy.reportRequired,
-        tone: 'brand' as const,
+        label: copy.jobClosed,
+        onClick: () => undefined,
+        disabled: true,
+        helper: undefined,
+        tone: 'success' as const,
       };
     }
 
-    if (job.status === 'IN_PROGRESS') {
-      return {
-        label: copy.buttons.readyForSignature,
-        onClick: handleReadyForSignature,
-        disabled: false,
-        helper: copy.signatureRequired,
-        tone: 'brand' as const,
-      };
-    }
+    if (job.status === 'IN_PROGRESS' || job.status === 'READY_FOR_SIGNATURE') {
+      const missingReport = !reportOnFile;
+      const missingSig = !customerSignatureReady;
+      const missingPayment = !paymentCapture;
+      const missing = [
+        missingReport && copy.reportRequired,
+        missingSig && copy.signatureRequired,
+        missingPayment && copy.choosePaymentState,
+      ].filter(Boolean).join(' • ');
 
-    if (job.status === 'READY_FOR_SIGNATURE') {
       return {
-        label: customerSignatureReady ? copy.stageCompleteReady : copy.stageSignaturePending,
+        label: canCompleteJob ? copy.stageCompleteReady : copy.stageSignaturePending,
         onClick: handleCompleteJob,
         disabled: !canCompleteJob,
-        helper: customerSignatureReady ? copy.signatureRequired : copy.stageCompleteLocked,
-        tone: customerSignatureReady ? ('success' as const) : ('brand' as const),
+        helper: canCompleteJob ? undefined : missing || undefined,
+        tone: canCompleteJob ? ('success' as const) : ('brand' as const),
       };
     }
 
@@ -1562,7 +1563,7 @@ const MobileJobDetail: React.FC<{
         label: copy.buttons.resumeWork,
         onClick: () => handleStageStatusUpdate('IN_PROGRESS'),
         disabled: false,
-        helper: copy.addPartsNote,
+        helper: undefined,
         tone: 'brand' as const,
       };
     }
@@ -1574,16 +1575,6 @@ const MobileJobDetail: React.FC<{
         disabled: false,
         helper: undefined,
         tone: 'brand' as const,
-      };
-    }
-
-    if (CLOSED_JOB_STATUSES.includes(job.status)) {
-      return {
-        label: copy.jobClosed,
-        onClick: () => undefined,
-        disabled: true,
-        helper: undefined,
-        tone: 'success' as const,
       };
     }
 
@@ -1900,74 +1891,78 @@ const MobileJobDetail: React.FC<{
             badge={journalCount > 0 ? String(journalCount) : copy.pending}
             badgeTone={journalCount > 0 ? 'brand' : 'default'}
           >
-            <textarea
-              className={cn(lightInputClass, 'min-h-[110px] resize-none')}
-              value={journalText}
-              onChange={(event) => setJournalText(event.target.value)}
-              placeholder={copy.labels.journalPlaceholder}
-            />
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                className="mobile-tap inline-flex min-h-[64px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
-              >
-                <CameraIcon className="h-4 w-4 text-brand-500" />
-                {copy.buttons.addFromCamera}
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mobile-tap inline-flex min-h-[64px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
-              >
-                <AttachmentIcon className="h-4 w-4 text-brand-500" />
-                {copy.buttons.addFiles}
-              </button>
-            </div>
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
-            <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
-
-            {pendingFiles.length > 0 && (
-              <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 p-3">
-                <div className="eyebrow mb-2">{copy.attachmentsReady}</div>
-                <div className="space-y-2">
-                  {pendingFiles.map((file, index) => (
-                    <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-surface-100 bg-white px-3 py-2.5">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-surface-900">{file.name}</div>
-                        <div className="mt-0.5 text-xs text-surface-400">{formatFileSize(file.size)}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                        className="mobile-tap text-xs font-semibold text-red-500"
-                      >
-                        {copy.buttons.clear}
-                      </button>
-                    </div>
-                  ))}
+            {!isJobLocked && (
+              <>
+                <textarea
+                  className={cn(lightInputClass, 'min-h-[110px] resize-none')}
+                  value={journalText}
+                  onChange={(event) => setJournalText(event.target.value)}
+                  placeholder={copy.labels.journalPlaceholder}
+                />
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="mobile-tap inline-flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
+                  >
+                    <CameraIcon className="h-4 w-4 text-brand-500" />
+                    {copy.buttons.addFromCamera}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mobile-tap inline-flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white text-sm font-semibold text-surface-700"
+                  >
+                    <AttachmentIcon className="h-4 w-4 text-brand-500" />
+                    {copy.buttons.addFiles}
+                  </button>
                 </div>
-              </div>
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" multiple onChange={handlePickFiles} />
+                <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handlePickFiles} />
+
+                {pendingFiles.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-surface-100 bg-surface-50 p-3">
+                    <div className="eyebrow mb-2">{copy.attachmentsReady}</div>
+                    <div className="space-y-1.5">
+                      {pendingFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-surface-100 bg-white px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-surface-900">{file.name}</div>
+                            <div className="text-xs text-surface-400">{formatFileSize(file.size)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPendingFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                            className="mobile-tap text-xs font-semibold text-red-500"
+                          >
+                            {copy.buttons.clear}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => void handleSaveJournalEntry()}
+                  disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
+                  className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
+                </button>
+              </>
             )}
 
-            <button
-              type="button"
-              onClick={() => void handleSaveJournalEntry()}
-              disabled={isSavingJournal || (!journalText.trim() && pendingFiles.length === 0)}
-              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {isSavingJournal ? copy.syncing : copy.buttons.saveJournal}
-            </button>
-
-            <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
-              <p className="mb-3 text-xs text-surface-400">{copy.auditLocked}</p>
+            {/* Compact read-only history */}
+            <div className={cn('rounded-xl border border-surface-100 bg-surface-50 p-3', !isJobLocked && 'mt-4')}>
+              {!isJobLocked && <p className="mb-2 text-xs text-surface-400">{copy.auditLocked}</p>}
               {journalGroups.length === 0 ? (
                 <EmptyMobileState label={copy.journalEmpty} />
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {journalGroups.map((group) => (
-                    <JournalGroupCard key={group.createdAt} group={group} language={language} />
+                    <CompactJournalRow key={group.createdAt} group={group} language={language} />
                   ))}
                 </div>
               )}
@@ -1981,55 +1976,62 @@ const MobileJobDetail: React.FC<{
             badge={paymentBadge}
             badgeTone={paymentCapture?.paid ? 'success' : 'default'}
           >
-            <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-500">
-              {copy.paymentLocked}
-            </div>
+            {isJobLocked ? (
+              <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-600">
+                {paymentBadge}
+                {paymentCapture?.method && (
+                  <span className="ml-2 text-surface-400">· {PAYMENT_METHOD_LABELS[language][paymentCapture.method]}</span>
+                )}
+              </div>
+            ) : (
+              <>
+                <label className="block">
+                  <div className="eyebrow mb-1.5">{copy.labels.paid}</div>
+                  <select
+                    className={lightInputClass}
+                    value={paymentChoice}
+                    onChange={(event) => setPaymentChoice(event.target.value as 'unknown' | 'no' | 'yes')}
+                  >
+                    <option value="unknown">{copy.payment.unknown}</option>
+                    <option value="no">{copy.payment.no}</option>
+                    <option value="yes">{copy.payment.yes}</option>
+                  </select>
+                </label>
 
-            <label className="mt-3 block">
-              <div className="eyebrow mb-1.5">{copy.labels.paid}</div>
-              <select
-                className={lightInputClass}
-                value={paymentChoice}
-                onChange={(event) => setPaymentChoice(event.target.value as 'unknown' | 'no' | 'yes')}
-              >
-                <option value="unknown">{copy.payment.unknown}</option>
-                <option value="no">{copy.payment.no}</option>
-                <option value="yes">{copy.payment.yes}</option>
-              </select>
-            </label>
+                {paymentChoice === 'yes' && (
+                  <label className="mt-3 block">
+                    <div className="eyebrow mb-1.5">{copy.labels.paymentMethod}</div>
+                    <select
+                      className={lightInputClass}
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                    >
+                      {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
+                        <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
-            {paymentChoice === 'yes' && (
-              <label className="mt-3 block">
-                <div className="eyebrow mb-1.5">{copy.labels.paymentMethod}</div>
-                <select
-                  className={lightInputClass}
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                <label className="mt-3 block">
+                  <div className="eyebrow mb-1.5">{copy.labels.paymentNote}</div>
+                  <textarea
+                    className={cn(lightInputClass, 'min-h-[72px] resize-none')}
+                    value={paymentNote}
+                    onChange={(event) => setPaymentNote(event.target.value)}
+                    placeholder={copy.lineNotePlaceholder}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={savePayment}
+                  className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
                 >
-                  {(Object.keys(PAYMENT_METHOD_LABELS[language]) as PaymentMethod[]).map((method) => (
-                    <option key={method} value={method}>{PAYMENT_METHOD_LABELS[language][method]}</option>
-                  ))}
-                </select>
-              </label>
+                  {copy.buttons.savePayment}
+                </button>
+              </>
             )}
-
-            <label className="mt-3 block">
-              <div className="eyebrow mb-1.5">{copy.labels.paymentNote}</div>
-              <textarea
-                className={cn(lightInputClass, 'min-h-[88px] resize-none')}
-                value={paymentNote}
-                onChange={(event) => setPaymentNote(event.target.value)}
-                placeholder={copy.lineNotePlaceholder}
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={savePayment}
-              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-            >
-              {copy.buttons.savePayment}
-            </button>
           </MobileSectionCard>
 
           {/* Work report */}
@@ -2039,19 +2041,27 @@ const MobileJobDetail: React.FC<{
             badge={reportOnFile ? copy.reportSavedLabel : copy.pending}
             badgeTone={reportOnFile ? 'success' : 'default'}
           >
-            <textarea
-              className={cn(lightInputClass, 'min-h-[140px] resize-none')}
-              value={reportText}
-              onChange={(event) => setReportText(event.target.value)}
-              placeholder={copy.labels.reportPlaceholder}
-            />
-            <button
-              type="button"
-              onClick={saveReport}
-              className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
-            >
-              {copy.buttons.saveReport}
-            </button>
+            {isJobLocked ? (
+              <div className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-sm text-surface-600">
+                {job.resolution || '—'}
+              </div>
+            ) : (
+              <>
+                <textarea
+                  className={cn(lightInputClass, 'min-h-[140px] resize-none')}
+                  value={reportText}
+                  onChange={(event) => setReportText(event.target.value)}
+                  placeholder={copy.labels.reportPlaceholder}
+                />
+                <button
+                  type="button"
+                  onClick={saveReport}
+                  className="mobile-tap mt-3 w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {copy.buttons.saveReport}
+                </button>
+              </>
+            )}
           </MobileSectionCard>
 
           {/* Signatures */}
@@ -2061,29 +2071,47 @@ const MobileJobDetail: React.FC<{
             badge={signatureOnFile ? copy.signatureSavedLabel : copy.pending}
             badgeTone={signatureOnFile ? 'success' : 'default'}
           >
-            <div className="space-y-2">
+            {/* Completion checklist — always visible */}
+            <div className="mb-4 space-y-2">
               <RequirementRow label={copy.reportRequired} complete={reportOnFile} completeLabel={copy.reportSavedLabel} pendingLabel={copy.pending} />
               <RequirementRow label={copy.signatureRequired} complete={customerSignatureReady} completeLabel={copy.signatureSavedLabel} pendingLabel={copy.pending} />
+              <RequirementRow label={copy.choosePaymentState} complete={paymentCapture !== null} completeLabel={paymentBadge} pendingLabel={copy.pending} />
             </div>
 
-            <div className="mt-4">
-              <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.customerSignature}</div>
-              <SignaturePad height={124} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
-            </div>
+            {isJobLocked ? (
+              <>
+                {job.completionSignature && (
+                  <div className="rounded-xl border border-surface-100 bg-surface-50 p-2">
+                    <div className="eyebrow mb-1.5">{copy.sections.customerSignature}</div>
+                    <img src={job.completionSignature} alt="Customer signature" className="h-16 w-full rounded-lg object-contain" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="mt-4">
+                  <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.customerSignature}</div>
+                  <SignaturePad height={120} value={customerSignature} onChange={setCustomerSignature} clearLabel={copy.buttons.clear} />
+                </div>
 
-            <div className="mt-4">
-              <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.techSignature}</div>
-              <SignaturePad height={108} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
-            </div>
+                <div className="mt-4">
+                  <div className="mb-2 text-sm font-semibold text-surface-900">{copy.sections.techSignature}</div>
+                  <SignaturePad height={100} value={technicianSignature} onChange={setTechnicianSignature} clearLabel={copy.buttons.clear} />
+                </div>
 
-            <button
-              type="button"
-              onClick={saveSignatures}
-              className="mobile-tap mt-4 w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
-            >
-              {copy.signatureSaved}
-            </button>
+                <button
+                  type="button"
+                  onClick={saveSignatures}
+                  className="mobile-tap mt-4 w-full rounded-xl border border-surface-200 bg-white px-4 py-3 text-sm font-semibold text-surface-700"
+                >
+                  {copy.signatureSaved}
+                </button>
+              </>
+            )}
           </MobileSectionCard>
+
+          {/* Customer history */}
+          <CustomerJobHistory customerId={job.customerId} currentJobId={job.id} language={language} />
         </div>
       </div>
 
@@ -2252,49 +2280,72 @@ const InfoRow: React.FC<{ label: string; value?: string; link?: string }> = ({ l
   );
 };
 
-const JournalGroupCard: React.FC<{ group: JournalGroup; language: AppLanguage }> = ({ group, language }) => {
+// Compact single-line journal row for read-only history
+const CompactJournalRow: React.FC<{ group: JournalGroup; language: AppLanguage }> = ({ group, language }) => {
   const primaryNote = group.notes[0];
+  const author = primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM';
+  const textLines = group.notes.map((n) => getReadableNoteText(language, n));
+  const attachCount = group.attachments.length;
 
   return (
-    <div className="rounded-xl border border-surface-100 bg-white p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-surface-900">{primaryNote?.authorName || group.attachments[0]?.uploadedBy || 'FSM'}</div>
-        <div className="text-xs text-surface-400">{formatDateTimeForLanguage(language, group.createdAt)}</div>
-      </div>
-
-      <div className="space-y-2">
-        {group.notes.map((note) => (
-          <p key={note.id} className="text-sm leading-relaxed text-surface-600">
-            {getReadableNoteText(language, note)}
-          </p>
+    <div className="flex items-start gap-2 rounded-lg border border-surface-100 bg-white px-3 py-2">
+      <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-300" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[11px] font-semibold text-surface-500">{author}</span>
+          <span className="shrink-0 text-[11px] text-surface-400">{formatDateTimeForLanguage(language, group.createdAt)}</span>
+        </div>
+        {textLines.map((text, i) => (
+          <p key={i} className="mt-0.5 line-clamp-2 text-xs text-surface-700">{text}</p>
         ))}
-
-        {group.attachments.map((attachment) => (
-          <AttachmentCard key={attachment.id} attachment={attachment} language={language} />
-        ))}
+        {attachCount > 0 && (
+          <p className="mt-0.5 text-xs text-brand-600">{attachCount} attachment{attachCount > 1 ? 's' : ''}</p>
+        )}
       </div>
     </div>
   );
 };
 
-const AttachmentCard: React.FC<{ attachment: Attachment; language: AppLanguage }> = ({ attachment, language }) => {
-  const isImage = attachment.type.startsWith('image/');
+const CustomerJobHistory: React.FC<{
+  customerId: string;
+  currentJobId: string;
+  language: AppLanguage;
+}> = ({ customerId, currentJobId, language }) => {
+  const copy = MOBILE_COPY[language];
+  const getJobsForCustomer = useJobStore((state) => state.getJobsForCustomer);
+  const jobs = getJobsForCustomer(customerId)
+    .filter((j) => j.id !== currentJobId)
+    .sort((a, b) => (b.scheduledDate || b.createdAt).localeCompare(a.scheduledDate || a.createdAt));
 
   return (
-    <div className="rounded-lg border border-surface-100 bg-surface-50 p-3">
-      {isImage && (
-        <img src={attachment.url} alt={attachment.name} className="mb-3 h-36 w-full rounded-lg object-cover" />
-      )}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-surface-900">{attachment.name}</div>
-          <div className="mt-0.5 text-xs text-surface-400">{attachment.type} • {formatFileSize(attachment.size)}</div>
+    <MobileSectionCard
+      icon={<JobScopeIcon className="h-5 w-5" />}
+      title={copy.sections.customerHistory}
+      badge={jobs.length > 0 ? String(jobs.length) : undefined}
+      badgeTone="default"
+    >
+      {jobs.length === 0 ? (
+        <EmptyMobileState label={copy.noCustomerHistory} />
+      ) : (
+        <div className="space-y-2">
+          {jobs.map((job) => (
+            <div key={job.id} className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600">{job.jobNumber}</span>
+                <MobileStatusPill label={getLocalizedStatus(language, job.status)} status={job.status} />
+              </div>
+              <p className="mt-1 text-sm font-medium text-surface-800">{job.description || getLocalizedServiceType(language, job.serviceType)}</p>
+              <p className="mt-0.5 text-xs text-surface-400">
+                {formatShortDateForLanguage(language, job.scheduledDate)} · {getLocalizedServiceType(language, job.serviceType)}
+              </p>
+              {job.resolution && (
+                <p className="mt-1.5 line-clamp-2 text-xs text-surface-500">{job.resolution}</p>
+              )}
+            </div>
+          ))}
         </div>
-        <a href={attachment.url} target="_blank" rel="noreferrer" className="mobile-tap text-xs font-semibold text-brand-600">
-          {MOBILE_COPY[language].openAttachment}
-        </a>
-      </div>
-    </div>
+      )}
+    </MobileSectionCard>
   );
 };
 

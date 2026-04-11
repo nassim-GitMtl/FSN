@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store';
 
@@ -12,20 +13,28 @@ const ICONS = {
 const TOAST_STYLES = {
   success: 'bg-emerald-600 text-white',
   error:   'bg-red-600 text-white',
-  warning: 'bg-brand-500 text-surface-950',
+  warning: 'bg-amber-500 text-white',
   info:    'bg-surface-950 text-white',
 };
 
 export const Toast: React.FC = () => {
   const { toasts, dismissToast } = useUIStore();
+  const location = useLocation();
+  const isMobile = location.pathname.startsWith('/mobile');
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end">
+    <div className={cn(
+      'fixed z-[60] flex flex-col gap-2',
+      isMobile
+        ? 'left-1/2 top-4 -translate-x-1/2 items-center w-[calc(100%-2rem)] max-w-sm'
+        : 'bottom-4 right-4 items-end',
+    )}>
       {toasts.map(t => (
         <div
           key={t.id}
           className={cn(
-            'flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-up max-w-sm',
+            'flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-slide-up',
+            isMobile ? 'w-full' : 'max-w-sm',
             TOAST_STYLES[t.type]
           )}
         >
