@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore, useJobStore, useSOStore, useTechStore, useUIStore } from '@/store';
 import { APP_LANGUAGE_LABELS, type AppLanguage } from '@/lib/app-language';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn, SERVICE_TYPE_LABELS, formatDuration, formatFileSize, parseDateValue, toISODate } from '@/lib/utils';
-import type { Attachment, Job, JobNote, JobStatus, SalesOrder, SOLine, Technician } from '@/types';
+import type { Attachment, Job, JobNote, JobStatus, SOLine, Technician } from '@/types';
 
 type MobileTab = 'home' | 'jobs' | 'profile';
-type MobileJobTab = 'overview' | 'journal' | 'sales' | 'closeout';
 type MobileJobFilter = 'active' | 'today' | 'upcoming' | 'completed';
 type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'OTHER';
 
@@ -98,6 +98,7 @@ const MOBILE_COPY = {
       email: 'Email',
       address: 'Address',
       language: 'Language',
+      theme: 'Theme',
       serviceType: 'Service type',
       priority: 'Priority',
       scheduled: 'Scheduled',
@@ -229,6 +230,7 @@ const MOBILE_COPY = {
       email: 'Courriel',
       address: 'Adresse',
       language: 'Langue',
+      theme: 'Thème',
       serviceType: 'Type de service',
       priority: 'Priorité',
       scheduled: 'Planifié',
@@ -501,10 +503,6 @@ function isMobileTab(value: string | null): value is MobileTab {
   return value === 'home' || value === 'jobs' || value === 'profile';
 }
 
-function isMobileJobTab(value: string | null): value is MobileJobTab {
-  return value === 'overview' || value === 'journal' || value === 'sales' || value === 'closeout';
-}
-
 function getPreviewTechnicianId(
   user: { workspace: 'SERVICE' | 'INSTALLATION'; technicianId?: string } | null,
   technicians: Technician[],
@@ -754,21 +752,18 @@ export const MobileApp: React.FC = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', tab);
     nextParams.delete('job');
-    nextParams.delete('section');
     setSearchParams(nextParams, { replace: true });
   };
 
   const handleSelectJob = (jobId: string) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('job', jobId);
-    nextParams.set('section', 'overview');
     setSearchParams(nextParams);
   };
 
   const handleBackToQueue = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('job');
-    nextParams.delete('section');
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -780,8 +775,11 @@ export const MobileApp: React.FC = () => {
           <div className="eyebrow">FSM</div>
           <div className="mt-0.5 text-sm font-semibold text-surface-700">{copy.commandCenter}</div>
         </div>
-        <div className="rounded-full border border-surface-200 bg-surface-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-surface-500">
-          {APP_LANGUAGE_LABELS[language]}
+        <div className="flex items-center gap-2">
+          <ThemeToggle compact language={language} />
+          <div className="rounded-full border border-surface-200 bg-surface-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-surface-500">
+            {APP_LANGUAGE_LABELS[language]}
+          </div>
         </div>
       </div>
 
@@ -1041,6 +1039,11 @@ const MobileProfile: React.FC<{ previewTechnicianId?: string; language: AppLangu
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-surface-100 bg-surface-50 p-3">
+          <div className="eyebrow mb-3">{copy.labels.theme}</div>
+          <ThemeToggle language={language} />
         </div>
 
         {/* Sync status */}

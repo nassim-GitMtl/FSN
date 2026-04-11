@@ -193,7 +193,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={cn('relative bg-white rounded-2xl shadow-2xl w-full animate-scale-in flex flex-col max-h-[90vh]', MODAL_SIZES[size])}>
+      <div className={cn('relative w-full max-h-[90vh] animate-scale-in flex flex-col rounded-2xl border border-surface-200 bg-surface-100 shadow-card-hover', MODAL_SIZES[size])}>
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
             <h2 className="text-lg font-semibold text-surface-900">{title}</h2>
@@ -239,7 +239,7 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, active, onChange, className, v
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
               active === t.id
-                ? 'bg-white text-surface-900 shadow-sm'
+                ? 'bg-surface-50 text-surface-900 shadow-sm'
                 : 'text-surface-500 hover:text-surface-700'
             )}
           >
@@ -391,7 +391,7 @@ export const Divider: React.FC<{ className?: string; label?: string }> = ({ clas
 export const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => (
   <div className="relative group inline-flex">
     {children}
-    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-surface-800 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+    <span className="absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-lg bg-surface-950 px-2 py-1 text-xs text-white opacity-0 transition-opacity pointer-events-none group-hover:opacity-100">
       {text}
     </span>
   </div>

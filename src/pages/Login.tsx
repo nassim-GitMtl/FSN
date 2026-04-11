@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DEMO_USERS } from '@/data/demoUsers';
 import { Button } from '@/components/ui';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store';
 import type { User } from '@/types';
@@ -19,7 +20,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 const ROLE_TONES: Record<string, string> = {
   DISPATCHER: 'bg-brand-600',
   COORDINATOR: 'bg-cyan-700',
-  MANAGER: 'bg-surface-800',
+  MANAGER: 'bg-slate-700',
   TECHNICIAN: 'bg-emerald-600',
   BILLING: 'bg-amber-500',
   ADMIN: 'bg-slate-700',
@@ -54,14 +55,17 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-surface-950 text-white">
       <div className="mx-auto grid min-h-screen max-w-[1380px] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col justify-between px-8 py-8 lg:px-14 lg:py-12">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-sm font-semibold text-surface-950">
-              FM
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-surface-950">
+                FM
+              </div>
+              <div>
+                <div className="text-lg font-semibold tracking-[0.01em]">FSM Command</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Field service operations</div>
+              </div>
             </div>
-            <div>
-              <div className="text-lg font-semibold tracking-[0.01em]">FSM Command</div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Field service operations</div>
-            </div>
+            <ThemeToggle compact className="border-white/10 bg-white/10 text-white hover:bg-white/15 hover:text-white" />
           </div>
 
           <div className="max-w-2xl">
@@ -102,7 +106,7 @@ export const Login: React.FC = () => {
         </section>
 
         <section className="flex items-center px-6 py-8 lg:px-8">
-          <div className="w-full rounded-[24px] border border-surface-200 bg-white text-surface-900 shadow-[0_40px_90px_-60px_rgba(15,23,32,0.7)]">
+          <div className="w-full rounded-[24px] border border-surface-200 bg-surface-100 text-surface-900 shadow-card-hover">
             <div className="border-b border-surface-100 px-6 py-6">
               <div className="eyebrow">Access</div>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">Open the demo workspace</h2>
@@ -119,8 +123,8 @@ export const Login: React.FC = () => {
                   className={cn(
                     'w-full rounded-[18px] border p-4 text-left transition-colors',
                     selected?.id === user.id
-                      ? 'border-brand-200 bg-brand-50'
-                      : 'border-surface-200 bg-white hover:bg-surface-50',
+                      ? 'border-brand-300 bg-brand-100'
+                      : 'border-surface-200 bg-surface-100 hover:bg-surface-50',
                   )}
                 >
                   <div className="flex items-start gap-4">

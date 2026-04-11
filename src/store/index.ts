@@ -13,6 +13,7 @@ import {
   type SupabaseSyncSnapshot,
 } from '@/lib/supabase';
 import type { AppLanguage } from '@/lib/app-language';
+import type { AppTheme } from '@/lib/app-theme';
 
 const LABOR_RATE_BY_TYPE: Record<TimeEntry['type'], number> = {
   REGULAR: 125,
@@ -1183,6 +1184,7 @@ interface UIState {
   sidebarCollapsed: boolean;
   mobileMenuOpen: boolean;
   language: AppLanguage;
+  theme: AppTheme;
   toasts: Toast[];
   syncState: SyncState;
   dataStatus: 'IDLE' | 'LOADING' | 'READY' | 'ERROR';
@@ -1194,6 +1196,8 @@ interface UIState {
   setMobileMenu: (open: boolean) => void;
   setLanguage: (language: AppLanguage) => void;
   toggleLanguage: () => void;
+  setTheme: (theme: AppTheme) => void;
+  toggleTheme: () => void;
   toast: (type: Toast['type'], message: string) => void;
   dismissToast: (id: string) => void;
   setSyncState: (s: Partial<SyncState>) => void;
@@ -1207,6 +1211,7 @@ export const useUIStore = create<UIState>()(persist((set, get) => ({
   sidebarCollapsed: false,
   mobileMenuOpen: false,
   language: 'en',
+  theme: 'dark',
   toasts: [],
   syncState: { status: 'IDLE', pendingChanges: 0, source: 'LOCAL' },
   dataStatus: 'IDLE',
@@ -1221,6 +1226,10 @@ export const useUIStore = create<UIState>()(persist((set, get) => ({
   setLanguage: (language) => set({ language }),
 
   toggleLanguage: () => set((state) => ({ language: state.language === 'en' ? 'fr' : 'en' })),
+
+  setTheme: (theme) => set({ theme }),
+
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
 
   toast: (type, message) => {
     const toastId = `toast-${Date.now()}`;
@@ -1381,6 +1390,7 @@ export const useUIStore = create<UIState>()(persist((set, get) => ({
   partialize: (state) => ({
     sidebarCollapsed: state.sidebarCollapsed,
     language: state.language,
+    theme: state.theme,
   }),
 }));
 

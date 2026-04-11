@@ -12,8 +12,8 @@ const ICONS = {
 const TOAST_STYLES = {
   success: 'bg-emerald-600 text-white',
   error:   'bg-red-600 text-white',
-  warning: 'bg-amber-500 text-white',
-  info:    'bg-surface-800 text-white',
+  warning: 'bg-brand-500 text-surface-950',
+  info:    'bg-surface-950 text-white',
 };
 
 export const Toast: React.FC = () => {

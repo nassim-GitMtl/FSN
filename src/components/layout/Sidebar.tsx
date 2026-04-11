@@ -130,23 +130,23 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-30 flex h-full flex-col border-r border-white/10 bg-surface-950 text-white transition-[width] duration-200',
+        'fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-200 bg-surface-100/95 text-surface-900 backdrop-blur-xl transition-[width] duration-200',
         sidebarCollapsed ? 'w-[88px]' : 'w-[272px]',
       )}
     >
-      <div className="flex h-[76px] items-center gap-3 border-b border-white/10 px-4">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white text-sm font-semibold text-surface-950">
+      <div className="flex h-[76px] items-center gap-3 border-b border-surface-200 px-4">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-surface-950 shadow-sm">
           FM
         </div>
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-white">FSM Command</div>
-            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Field service operations</div>
+            <div className="truncate text-sm font-semibold text-surface-900">FSM Command</div>
+            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-500">Field service operations</div>
           </div>
         )}
         <button
           onClick={toggleSidebar}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl border border-surface-200 text-surface-500 transition-colors hover:bg-surface-50 hover:text-surface-900"
         >
           <svg className={cn('h-4 w-4 transition-transform', sidebarCollapsed && 'rotate-180')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -155,22 +155,22 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {!sidebarCollapsed && (
-        <div className="mx-4 mt-4 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Workspace</div>
+        <div className="mx-4 mt-4 rounded-[18px] border border-surface-200 bg-surface-50 px-4 py-4 shadow-sm">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-500">Workspace</div>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-white">
+            <div className="text-sm font-medium text-surface-900">
               {user.workspace === 'SERVICE' ? 'Service Operations' : 'Installation Operations'}
             </div>
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-black/20 px-3 py-3">
-              <div className="text-lg font-semibold text-white">{activeJobs.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Open jobs</div>
+            <div className="rounded-xl border border-surface-200 bg-surface-100 px-3 py-3">
+              <div className="text-lg font-semibold text-surface-900">{activeJobs.length}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">Open jobs</div>
             </div>
-            <div className="rounded-xl bg-black/20 px-3 py-3">
-              <div className="text-lg font-semibold text-white">{unassignedJobs.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Unassigned</div>
+            <div className="rounded-xl border border-surface-200 bg-surface-100 px-3 py-3">
+              <div className="text-lg font-semibold text-surface-900">{unassignedJobs.length}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">Unassigned</div>
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ export const Sidebar: React.FC = () => {
         {filteredNav.map((section) => (
           <div key={section.section} className="mb-5">
             {!sidebarCollapsed && (
-              <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+              <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-surface-500">
                 {section.section}
               </div>
             )}
@@ -198,14 +198,14 @@ export const Sidebar: React.FC = () => {
                       'flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors',
                       sidebarCollapsed ? 'justify-center' : '',
                       isActive
-                        ? 'bg-white text-surface-900'
-                        : 'text-white/68 hover:bg-white/8 hover:text-white',
+                        ? 'bg-brand-500 text-surface-950 shadow-sm'
+                        : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900',
                     )}
                   >
                     <span
                       className={cn(
                         'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
-                        isActive ? 'bg-surface-900 text-white' : 'bg-white/8 text-current',
+                        isActive ? 'bg-surface-950 text-white' : 'bg-surface-200 text-current',
                       )}
                     >
                       <NavIcon icon={item.icon} active={isActive} />
@@ -213,7 +213,7 @@ export const Sidebar: React.FC = () => {
                     {!sidebarCollapsed && (
                       <div className="min-w-0">
                         <div className="truncate font-medium">{item.label}</div>
-                        <div className={cn('truncate text-[11px]', isActive ? 'text-surface-500' : 'text-white/35')}>
+                        <div className={cn('truncate text-[11px]', isActive ? 'text-surface-800/80' : 'text-surface-500')}>
                           {item.caption}
                         </div>
                       </div>
@@ -232,14 +232,14 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div className={cn('border-t border-white/10 p-4', sidebarCollapsed && 'flex justify-center')}>
+      <div className={cn('border-t border-surface-200 p-4', sidebarCollapsed && 'flex justify-center')}>
         {!sidebarCollapsed ? (
-          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-3">
+          <div className="rounded-[18px] border border-surface-200 bg-surface-50 px-3 py-3 shadow-sm">
             <div className="flex items-center gap-3">
               <Avatar initials={user.avatarInitials} size="sm" />
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-white">{user.name}</div>
-                <div className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">{user.role}</div>
+                <div className="truncate text-sm font-medium text-surface-900">{user.name}</div>
+                <div className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-500">{user.role}</div>
               </div>
             </div>
           </div>

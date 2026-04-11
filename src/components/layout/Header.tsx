@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { cn, toISODate } from '@/lib/utils';
 import { useAuthStore, useJobStore, useSearchStore, useUIStore } from '@/store';
 import { Spinner } from '@/components/ui';
+import { ThemeToggle } from './ThemeToggle';
 
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'INVOICED'];
 
@@ -68,7 +69,7 @@ const RESULT_TONES: Record<string, string> = {
 
 export const Header: React.FC = () => {
   const { user, logout, switchWorkspace } = useAuthStore();
-  const { syncState, triggerSync, sidebarCollapsed } = useUIStore();
+  const { syncState, triggerSync, sidebarCollapsed, language } = useUIStore();
   const jobs = useJobStore((state) => state.jobs);
   const { query, results, setQuery, search, clear } = useSearchStore();
   const navigate = useNavigate();
@@ -141,7 +142,7 @@ export const Header: React.FC = () => {
   return (
     <header
       className={cn(
-        'fixed right-0 top-0 z-20 border-b border-surface-200 bg-[#f3f5f7]/94 backdrop-blur-md transition-[left] duration-200',
+        'fixed right-0 top-0 z-20 border-b border-surface-200 bg-surface-50/92 backdrop-blur-xl shadow-sm transition-[left] duration-200',
         sidebarCollapsed ? 'left-[88px]' : 'left-[272px]',
       )}
     >
@@ -165,12 +166,12 @@ export const Header: React.FC = () => {
               onChange={(event) => handleQueryChange(event.target.value)}
               onFocus={() => setSearchFocused(true)}
               placeholder="Search work orders, clients, or sales orders"
-              className="input h-11 border-surface-200 bg-white pl-10 pr-10 shadow-none"
+              className="input h-11 border-surface-200 bg-surface-100 pl-10 pr-10 shadow-none"
             />
             {query && (
               <button
                 onClick={() => handleQueryChange('')}
-                className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700"
+                className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-200 hover:text-surface-700"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -180,7 +181,7 @@ export const Header: React.FC = () => {
           </div>
 
           {searchFocused && query.trim().length >= 2 && (
-            <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-[18px] border border-surface-200 bg-white shadow-[0_24px_48px_-32px_rgba(15,23,32,0.35)]">
+            <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-[18px] border border-surface-200 bg-surface-100 shadow-card-hover">
               {results.length === 0 ? (
                 <div className="px-4 py-6 text-center text-sm text-surface-500">No results for "{query.trim()}"</div>
               ) : (
@@ -213,7 +214,7 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        <div className="hidden items-center gap-2 rounded-xl border border-surface-200 bg-white px-3 py-2 2xl:flex">
+        <div className="hidden items-center gap-2 rounded-xl border border-surface-200 bg-surface-100 px-3 py-2 2xl:flex">
           {[
             { label: 'Open', value: activeJobs.length },
             { label: 'Unassigned', value: unassignedJobs },
@@ -227,7 +228,7 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-xl border border-surface-200 bg-white p-1">
+          <div className="flex items-center rounded-xl border border-surface-200 bg-surface-100 p-1">
             {(['SERVICE', 'INSTALLATION'] as const).map((workspace) => (
               <button
                 key={workspace}
@@ -235,7 +236,7 @@ export const Header: React.FC = () => {
                 className={cn(
                   'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
                   user.workspace === workspace
-                    ? 'bg-surface-900 text-white'
+                    ? 'bg-brand-500 text-surface-950'
                     : 'text-surface-500 hover:bg-surface-50 hover:text-surface-900',
                 )}
               >
@@ -244,18 +245,20 @@ export const Header: React.FC = () => {
             ))}
           </div>
 
+          <ThemeToggle compact language={language} />
+
           <button
             onClick={() => triggerSync()}
             disabled={syncState.status === 'SYNCING'}
             className={cn(
               'flex h-11 items-center gap-2 rounded-xl border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors',
               syncState.status === 'SUCCESS'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
                 : syncState.status === 'ERROR'
-                  ? 'border-red-200 bg-red-50 text-red-700'
+                  ? 'border-red-300 bg-red-100 text-red-700'
                   : dirtyCount > 0
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-surface-200 bg-white text-surface-600 hover:bg-surface-50',
+                    ? 'border-brand-300 bg-brand-100 text-brand-700'
+                    : 'border-surface-200 bg-surface-100 text-surface-600 hover:bg-surface-50',
             )}
           >
             {syncState.status === 'SYNCING' ? <Spinner size={14} /> : <span className="h-2 w-2 rounded-full bg-current" />}
@@ -263,8 +266,8 @@ export const Header: React.FC = () => {
           </button>
 
           <div className="group relative">
-            <button className="flex h-11 items-center gap-3 rounded-xl border border-surface-200 bg-white px-3 text-left transition-colors hover:bg-surface-50">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-900 text-xs font-semibold text-white">
+            <button className="flex h-11 items-center gap-3 rounded-xl border border-surface-200 bg-surface-100 px-3 text-left transition-colors hover:bg-surface-50">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-xs font-semibold text-surface-950">
                 {user.avatarInitials}
               </div>
               <div className="hidden min-w-0 xl:block">
@@ -275,7 +278,7 @@ export const Header: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="invisible absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-[18px] border border-surface-200 bg-white opacity-0 shadow-[0_24px_48px_-32px_rgba(15,23,32,0.35)] transition-all group-hover:visible group-hover:opacity-100">
+            <div className="invisible absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-[18px] border border-surface-200 bg-surface-100 opacity-0 shadow-card-hover transition-all group-hover:visible group-hover:opacity-100">
               <div className="border-b border-surface-100 px-4 py-4">
                 <div className="text-sm font-semibold text-surface-900">{user.name}</div>
                 <div className="mt-1 text-xs text-surface-500">{user.email}</div>

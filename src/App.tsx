@@ -18,6 +18,22 @@ import { BillingList, SODetail } from '@/pages/Billing';
 import { Reports } from '@/pages/Reports';
 import { MobileApp } from '@/pages/mobile/MobileApp';
 
+const ThemeBridge: React.FC = () => {
+  const theme = useUIStore((state) => state.theme);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    root.dataset.theme = theme;
+  }, [theme]);
+
+  return null;
+};
+
 const ProtectedAppShell: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const userId = useAuthStore((state) => state.user?.id);
@@ -56,11 +72,11 @@ const ProtectedAppShell: React.FC = () => {
 
   if (dataStatus === 'IDLE' || dataStatus === 'LOADING') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-950 px-6 text-white">
-        <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/[0.04] p-8 text-center shadow-[0_30px_80px_-50px_rgba(15,23,32,0.55)]">
-          <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl bg-brand-500/20" />
+      <div className="flex min-h-screen items-center justify-center bg-surface-50 px-6 text-surface-900">
+        <div className="w-full max-w-md rounded-[28px] border border-surface-200 bg-surface-100 p-8 text-center shadow-card">
+          <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl bg-brand-100" />
           <h1 className="mt-5 text-2xl font-semibold tracking-[-0.04em]">Loading shared demo workspace</h1>
-          <p className="mt-3 text-sm leading-relaxed text-white/60">
+          <p className="mt-3 text-sm leading-relaxed text-surface-500">
             Pulling jobs, technicians, clients, and billing records from Supabase.
           </p>
         </div>
@@ -70,11 +86,11 @@ const ProtectedAppShell: React.FC = () => {
 
   if (dataStatus === 'ERROR') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-950 px-6 text-white">
-        <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-white/[0.04] p-8 shadow-[0_30px_80px_-50px_rgba(15,23,32,0.55)]">
-          <div className="eyebrow text-white/50">Configuration required</div>
+      <div className="flex min-h-screen items-center justify-center bg-surface-50 px-6 text-surface-900">
+        <div className="w-full max-w-lg rounded-[28px] border border-surface-200 bg-surface-100 p-8 shadow-card">
+          <div className="eyebrow">Configuration required</div>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">The demo backend is not ready yet</h1>
-          <p className="mt-4 text-sm leading-relaxed text-white/68">
+          <p className="mt-4 text-sm leading-relaxed text-surface-500">
             {dataError || 'Supabase could not be reached. Check your environment variables and database setup, then retry.'}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -101,6 +117,7 @@ const PublicOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children 
 
 export const App: React.FC = () => (
   <BrowserRouter>
+    <ThemeBridge />
     <Routes>
       <Route
         path="/login"

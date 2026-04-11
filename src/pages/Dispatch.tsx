@@ -970,7 +970,7 @@ const MobilePreviewPanel: React.FC<{ date: string; cat: string }> = ({ date, cat
   return (
     <div className="p-3">
       <div className="mb-3 text-sm font-semibold text-surface-700">{copy.mobilePreview}</div>
-      <div className="rounded-2xl bg-surface-900 p-3 text-white" style={{ minHeight: '500px' }}>
+      <div className="rounded-2xl bg-surface-950 p-3 text-white" style={{ minHeight: '500px' }}>
         <div className="mb-4 flex items-center justify-between">
           <div className="text-sm font-bold">FSM</div>
           <div className="text-xs text-white/50">

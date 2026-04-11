@@ -323,7 +323,7 @@ export const Dashboard: React.FC = () => {
                         <span className="font-semibold text-surface-900">{item.value}</span>
                       </div>
                       <div className="h-2 rounded-full bg-surface-100">
-                        <div className="h-2 rounded-full bg-surface-900" style={{ width: `${(item.value / maxServiceTypeValue) * 100}%` }} />
+                        <div className="h-2 rounded-full bg-surface-950" style={{ width: `${(item.value / maxServiceTypeValue) * 100}%` }} />
                       </div>
                     </div>
                   ))}

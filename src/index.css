@@ -8,6 +8,55 @@
     --sidebar-collapsed-width: 88px;
     --header-height: 76px;
     --mobile-nav-height: 64px;
+    --color-brand-50: 255 248 235;
+    --color-brand-100: 254 236 203;
+    --color-brand-200: 253 218 157;
+    --color-brand-300: 251 197 106;
+    --color-brand-400: 248 176 49;
+    --color-brand-500: 245 164 0;
+    --color-brand-600: 216 129 6;
+    --color-brand-700: 177 92 14;
+    --color-brand-800: 121 63 18;
+    --color-brand-900: 81 42 13;
+    --color-brand-950: 44 22 7;
+    --color-surface-50: 249 247 243;
+    --color-surface-100: 243 239 232;
+    --color-surface-200: 228 220 208;
+    --color-surface-300: 205 193 179;
+    --color-surface-400: 162 148 132;
+    --color-surface-500: 120 108 93;
+    --color-surface-600: 90 81 70;
+    --color-surface-700: 64 57 49;
+    --color-surface-800: 41 37 32;
+    --color-surface-900: 24 21 18;
+    --color-surface-950: 11 10 9;
+    color-scheme: light;
+  }
+
+  html.dark {
+    --color-brand-50: 36 25 10;
+    --color-brand-100: 56 39 12;
+    --color-brand-200: 84 58 17;
+    --color-brand-300: 128 88 25;
+    --color-brand-400: 188 129 37;
+    --color-brand-500: 245 164 0;
+    --color-brand-600: 255 191 87;
+    --color-brand-700: 255 216 145;
+    --color-brand-800: 255 232 189;
+    --color-brand-900: 255 243 223;
+    --color-brand-950: 255 249 240;
+    --color-surface-50: 8 12 18;
+    --color-surface-100: 13 19 29;
+    --color-surface-200: 24 32 45;
+    --color-surface-300: 43 54 71;
+    --color-surface-400: 95 109 130;
+    --color-surface-500: 138 150 167;
+    --color-surface-600: 175 185 199;
+    --color-surface-700: 209 217 227;
+    --color-surface-800: 230 236 243;
+    --color-surface-900: 246 248 251;
+    --color-surface-950: 4 7 12;
+    color-scheme: dark;
   }
 
   *,
@@ -26,8 +75,9 @@
 
   body {
     font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
-    background: #f3f5f7;
+    background: rgb(var(--color-surface-50));
     overscroll-behavior-y: none;
+    transition: background-color 0.25s ease, color 0.25s ease;
     @apply text-surface-900;
   }
 
@@ -55,19 +105,35 @@
   ::selection {
     @apply bg-brand-200 text-brand-950;
   }
+
+  html.dark .bg-white {
+    background-color: rgb(var(--color-surface-100)) !important;
+  }
+
+  html.dark .bg-white\/95 {
+    background-color: rgb(var(--color-surface-100) / 0.95) !important;
+  }
+
+  html.dark .bg-white\/90 {
+    background-color: rgb(var(--color-surface-100) / 0.9) !important;
+  }
+
+  html.dark .border-white\/10 {
+    border-color: rgb(var(--color-surface-200) / 0.78) !important;
+  }
 }
 
 @layer components {
   .glass-card {
-    @apply rounded-[20px] border border-surface-200 bg-white/90 shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
+    @apply rounded-[20px] border border-surface-200 bg-surface-100/90 shadow-card;
   }
 
   .surface-card {
-    @apply rounded-[20px] border border-surface-200 bg-white shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
+    @apply rounded-[20px] border border-surface-200 bg-surface-100 shadow-card;
   }
 
   .section-shell {
-    @apply rounded-[24px] border border-surface-200 bg-white p-6 shadow-[0_18px_36px_-28px_rgba(15,23,32,0.18)];
+    @apply rounded-[24px] border border-surface-200 bg-surface-100 p-6 shadow-card;
   }
 
   .hero-panel {
@@ -99,11 +165,11 @@
   }
 
   .btn-primary {
-    @apply bg-surface-900 text-white hover:bg-surface-800 active:bg-surface-950;
+    @apply bg-brand-500 text-surface-950 hover:bg-brand-400 active:bg-brand-600;
   }
 
   .btn-secondary {
-    @apply border border-surface-200 bg-white text-surface-700 hover:bg-surface-50 active:bg-surface-100;
+    @apply border border-surface-200 bg-surface-100 text-surface-700 hover:bg-surface-50 active:bg-surface-200;
   }
 
   .btn-ghost {
@@ -115,7 +181,7 @@
   }
 
   .btn-outline {
-    @apply border border-surface-200 bg-white text-surface-700 hover:bg-surface-50 active:bg-surface-100;
+    @apply border border-surface-200 bg-surface-100 text-surface-700 hover:bg-surface-50 active:bg-surface-200;
   }
 
   .btn-success {
@@ -123,7 +189,7 @@
   }
 
   .input {
-    @apply w-full rounded-xl border border-surface-200 bg-white px-3 py-2.5 text-sm text-surface-800 placeholder-surface-400 transition-all disabled:bg-surface-50 disabled:text-surface-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100;
+    @apply w-full rounded-xl border border-surface-200 bg-surface-100 px-3 py-2.5 text-sm text-surface-800 placeholder-surface-400 transition-all disabled:bg-surface-50 disabled:text-surface-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100;
   }
 
   .input-lg {
@@ -207,7 +273,7 @@
   }
 
   .sig-canvas {
-    @apply h-32 w-full cursor-crosshair rounded-xl border-2 border-dashed border-surface-300 bg-white;
+    @apply h-32 w-full cursor-crosshair rounded-xl border-2 border-dashed border-surface-300 bg-surface-100;
   }
 
   .mobile-input {
