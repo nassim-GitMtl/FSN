@@ -208,7 +208,7 @@ export const JobList: React.FC = () => {
           <Button variant="outline" onClick={exportVisibleJobs}>
             {copy.jobList.exportCSV}
           </Button>
-          <Button variant="primary" onClick={() => navigate('/jobs/new')} icon={<span>+</span>}>
+          <Button variant="primary" onClick={() => navigate('/jobs/new')} icon={<span></span>}>
             {copy.jobList.newJob}
           </Button>
         </div>

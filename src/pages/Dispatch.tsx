@@ -1047,7 +1047,7 @@ export const Dispatch: React.FC = () => {
             >
               {copy.techPreview}
             </button>
-            <Button variant="primary" size="sm" onClick={() => navigate('/jobs/new')}>
+            <Button variant="primary"  onClick={() => navigate('/jobs/new')}>
               {copy.newJob}
             </Button>
           </div>
