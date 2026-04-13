@@ -35,7 +35,7 @@ export const JobForm: React.FC = () => {
   const isEdit = !!id && id !== 'new';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { getJob, getJobsForCustomer, createJob, updateJob } = useJobStore();
+  const { getJob, getJobsForCustomer, createJob, updateJob, addAttachment } = useJobStore();
   const { customers, searchCustomers } = useCustomerStore();
   const { technicians } = useTechStore();
   const { getSOsForCustomer, createSO, updateSO } = useSOStore();
@@ -51,6 +51,8 @@ export const JobForm: React.FC = () => {
   const [newSalesOrderMemo, setNewSalesOrderMemo] = useState(job?.description || '');
   const [newSOLines, setNewSOLines] = useState<InlineSalesOrderLineDraft[]>([]);
   const [submissionError, setSubmissionError] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const customerResults = searchCustomers(customerSearch);
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<FormData>({
@@ -143,7 +145,33 @@ export const JobForm: React.FC = () => {
     updateSO(salesOrderId, { linkedJobId: undefined, linkedJobNumber: undefined });
   };
 
-  const onSubmit = (data: FormData) => {
+  const saveAttachments = async (jobId: string, jobNumber: string, customerId: string) => {
+    if (pendingFiles.length === 0) return;
+    const uploaderName = user?.name || 'Dispatcher';
+    const createdAt = new Date().toISOString();
+    await Promise.all(pendingFiles.map(async (file) => {
+      const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      addAttachment({
+        customerId,
+        jobId,
+        jobNumber,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        url,
+        source: 'JOB',
+        uploadedBy: uploaderName,
+        createdAt,
+      });
+    }));
+  };
+
+  const onSubmit = async (data: FormData) => {
     setSubmissionError('');
 
     const customer = customers.find(c => c.id === data.customerId);
@@ -243,6 +271,7 @@ export const JobForm: React.FC = () => {
         salesOrderId: nextSalesOrderId,
         salesOrderNumber: nextSalesOrderNumber,
       });
+      await saveAttachments(id!, job?.jobNumber || '', customer.id);
       setUnsavedChanges(false);
       toast('success', 'Job updated');
       navigate(`/jobs/${id}`);
@@ -281,6 +310,7 @@ export const JobForm: React.FC = () => {
           memo: existingSalesOrder.memo || data.description,
         });
       }
+      await saveAttachments(newJob.id, newJob.jobNumber, customer.id);
       setUnsavedChanges(false);
       toast('success', `Job ${newJob.jobNumber} created`);
       navigate(`/jobs/${newJob.id}`);
@@ -660,6 +690,51 @@ export const JobForm: React.FC = () => {
             { value: '', label: '— Unassigned —' },
             ...techPool.map(t => ({ value: t.id, label: `${t.name} (${t.status === 'AVAILABLE' ? '✓ Available' : t.status})` })),
           ]} {...register('technicianId')} />
+        </Card>
+
+        {/* File Attachments */}
+        <Card title="Attachments" subtitle="Files attached here will be visible to the technician on their phone.">
+          <div
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-surface-200 bg-surface-50 px-6 py-8 text-center hover:border-brand-300 hover:bg-brand-50 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <svg className="h-8 w-8 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-8m0 0-3 3m3-3 3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-surface-700">Click to upload files</p>
+              <p className="text-xs text-surface-400 mt-0.5">Photos, PDFs, documents — any format</p>
+            </div>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              if (files.length > 0) setPendingFiles((prev) => [...prev, ...files]);
+              e.target.value = '';
+            }}
+          />
+          {pendingFiles.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {pendingFiles.map((file, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-200 bg-white px-3 py-2">
+                  <svg className="h-4 w-4 flex-shrink-0 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <span className="flex-1 truncate text-sm text-surface-800">{file.name}</span>
+                  <span className="text-xs text-surface-400 flex-shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-surface-400 hover:text-red-500 transition-colors"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Form actions */}

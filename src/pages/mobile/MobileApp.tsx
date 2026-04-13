@@ -910,7 +910,7 @@ export const MobileApp: React.FC = () => {
             onCreated={handleJobCreated}
           />
         ) : selectedJobId ? (
-          <MobileJobDetail jobId={selectedJobId} onBack={handleBackToQueue} language={language} />
+          <MobileJobDetail jobId={selectedJobId} onBack={handleBackToQueue} onSelectJob={handleSelectJob} language={language} />
         ) : (
           <>
             {activeTab === 'home' && (
@@ -1914,8 +1914,9 @@ const MobileJobCard: React.FC<{
 const MobileJobDetail: React.FC<{
   jobId: string;
   onBack: () => void;
+  onSelectJob: (jobId: string) => void;
   language: AppLanguage;
-}> = ({ jobId, onBack, language }) => {
+}> = ({ jobId, onBack, onSelectJob, language }) => {
   const getJob = useJobStore((state) => state.getJob);
   const getNotes = useJobStore((state) => state.getNotes);
   const getUnifiedFilesForJob = useJobStore((state) => state.getUnifiedFilesForJob);
@@ -2826,7 +2827,7 @@ const MobileJobDetail: React.FC<{
           </MobileSectionCard>
 
           {/* Customer history */}
-          <CustomerJobHistory customerId={job.customerId} currentJobId={job.id} language={language} />
+          <CustomerJobHistory customerId={job.customerId} currentJobId={job.id} language={language} onOpen={onSelectJob} />
 
           {/* Completion requirements — always last */}
           {(!isJobLocked && isJobEditable) && (
@@ -3039,7 +3040,8 @@ const CustomerJobHistory: React.FC<{
   customerId: string;
   currentJobId: string;
   language: AppLanguage;
-}> = ({ customerId, currentJobId, language }) => {
+  onOpen: (jobId: string) => void;
+}> = ({ customerId, currentJobId, language, onOpen }) => {
   const copy = MOBILE_COPY[language];
   const getJobsForCustomer = useJobStore((state) => state.getJobsForCustomer);
   const jobs = getJobsForCustomer(customerId)
@@ -3058,7 +3060,12 @@ const CustomerJobHistory: React.FC<{
       ) : (
         <div className="space-y-2">
           {jobs.map((job) => (
-            <div key={job.id} className="rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5">
+            <button
+              key={job.id}
+              type="button"
+              onClick={() => onOpen(job.id)}
+              className="mobile-tap w-full rounded-xl border border-surface-100 bg-surface-50 px-3 py-2.5 text-left"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600">{job.jobNumber}</span>
                 <MobileStatusPill label={getLocalizedStatus(language, job.status)} status={job.status} />
@@ -3070,7 +3077,10 @@ const CustomerJobHistory: React.FC<{
               {job.resolution && (
                 <p className="mt-1.5 line-clamp-2 text-xs text-surface-500">{job.resolution}</p>
               )}
-            </div>
+              <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-500">
+                {language === 'fr' ? 'Voir les détails →' : 'View details →'}
+              </p>
+            </button>
           ))}
         </div>
       )}
