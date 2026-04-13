@@ -139,6 +139,8 @@ const WORKDAY_START_MINUTES = 6 * 60;
 const WORKDAY_END_MINUTES = 20 * 60;
 const RESIZE_STEP_MINUTES = 15;
 const RESIZE_SNAP_PX = 12;
+const TIMELINE_HOUR_WIDTH = 80; // px per hour in day-view timeline
+const TECH_ROW_HEIGHT = 72;     // px per tech row
 
 type TimeWindow = { start: number; end: number };
 type ResizeEdge = 'start' | 'end';
@@ -449,22 +451,115 @@ const ScheduledJobCard: React.FC<{
   );
 };
 
-// ── Droppable Tech Column ───────────────────────────────────────────────────
+// ── Timeline Job Block (horizontal time-row layout) ─────────────────────────
 
-const TechColumn: React.FC<{
+const TimelineJobBlock: React.FC<{
+  job: Job;
+  workStartMin: number;
+  workEndMin: number;
+  onResize: (job: Job, window: TimeWindow) => void;
+}> = ({ job, workStartMin, workEndMin, onResize }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id });
+  const language = useUIStore((state) => state.language);
+  const [previewWindow, setPreviewWindow] = useState<TimeWindow | null>(null);
+  const previewRef = useRef<TimeWindow | null>(null);
+
+  const rangeMin = workEndMin - workStartMin;
+  const activeWindow = previewWindow ?? getEditableJobTimeWindow(job);
+  const canResize = Boolean(job.technicianId && job.scheduledDate);
+  const durationH = Math.round(((activeWindow.end - activeWindow.start) / 60) * 10) / 10;
+
+  const leftPct = Math.max(0, ((activeWindow.start - workStartMin) / rangeMin) * 100);
+  const widthPct = Math.max(3, ((activeWindow.end - activeWindow.start) / rangeMin) * 100);
+
+  const startResizeTimeline = (edge: ResizeEdge, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!canResize) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const initialWindow = getEditableJobTimeWindow(job);
+    previewRef.current = initialWindow;
+    setPreviewWindow(initialWindow);
+    const pxPerMin = TIMELINE_HOUR_WIDTH / 60;
+    const onMove = (e: PointerEvent) => {
+      const delta = Math.round((e.clientX - startX) / pxPerMin / RESIZE_STEP_MINUTES) * RESIZE_STEP_MINUTES;
+      let ns = initialWindow.start, ne = initialWindow.end;
+      if (edge === 'start') ns = clamp(initialWindow.start + delta, workStartMin, initialWindow.end - RESIZE_STEP_MINUTES);
+      else ne = clamp(initialWindow.end + delta, initialWindow.start + RESIZE_STEP_MINUTES, workEndMin);
+      const nw = { start: ns, end: ne };
+      previewRef.current = nw;
+      setPreviewWindow(nw);
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      const final = previewRef.current ?? initialWindow;
+      previewRef.current = null;
+      setPreviewWindow(null);
+      if (final.start !== initialWindow.start || final.end !== initialWindow.end) onResize(job, final);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        position: 'absolute',
+        left: `${leftPct}%`,
+        width: `${widthPct}%`,
+        top: 4,
+        bottom: 4,
+        ...(transform ? { transform: CSS.Translate.toString(transform) } : {}),
+      }}
+      {...attributes}
+      className={cn(
+        'rounded-lg border cursor-grab active:cursor-grabbing select-none overflow-hidden',
+        isDragging ? 'opacity-30 shadow-lg' : 'bg-brand-50 border-brand-200 shadow-sm hover:shadow-card-hover',
+      )}
+    >
+      <div {...listeners} className="h-full px-2 py-1 overflow-hidden">
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-[10px] font-bold text-brand-700 truncate">{job.jobNumber}</span>
+          <StatusBadge status={job.status} label={STATUS_LABELS_BY_LANGUAGE[language][job.status]} className="text-[9px] py-0 px-1 flex-shrink-0" />
+        </div>
+        <div className="text-[10px] font-medium text-surface-800 truncate">{job.customerName}</div>
+        <div className="text-[9px] text-surface-400">{minutesToTime(activeWindow.start)}–{minutesToTime(activeWindow.end)} · {durationH}h</div>
+      </div>
+      {canResize && (
+        <>
+          <button type="button" onPointerDown={(e) => startResizeTimeline('start', e)}
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-brand-400/30 hover:bg-brand-400/50 transition-colors" />
+          <button type="button" onPointerDown={(e) => startResizeTimeline('end', e)}
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-brand-400/30 hover:bg-brand-400/50 transition-colors" />
+        </>
+      )}
+    </div>
+  );
+};
+
+// ── Tech Timeline Row (techs as rows, hours as columns) ──────────────────────
+
+const TechTimelineRow: React.FC<{
   tech: Technician;
   jobs: Job[];
+  workStartMin: number;
+  workEndMin: number;
   onResize: (job: Job, window: TimeWindow) => void;
-}> = ({ tech, jobs, onResize }) => {
+}> = ({ tech, jobs, workStartMin, workEndMin, onResize }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `day:${tech.id}` });
   const language = useUIStore((state) => state.language);
   const copy = DISPATCH_COPY[language];
   const sortedJobs = useMemo(() => sortJobsBySchedule(jobs), [jobs]);
+  const rangeH = (workEndMin - workStartMin) / 60;
 
   return (
-    <div className="flex flex-col w-52 flex-shrink-0">
-      {/* Tech header */}
-      <div className="flex items-center gap-2 px-2 py-2 bg-white border border-surface-200 rounded-xl mb-2">
+    <div className="flex border-b border-surface-200 last:border-b-0" style={{ height: TECH_ROW_HEIGHT }}>
+      {/* Tech label */}
+      <div className="w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 flex items-center gap-2">
         <Avatar initials={tech.avatarInitials} color={tech.color} size="sm" />
         <div className="min-w-0">
           <div className="text-xs font-semibold text-surface-800 truncate">{tech.name}</div>
@@ -476,29 +571,24 @@ const TechColumn: React.FC<{
           </div>
         </div>
       </div>
-
-      {/* Drop zone */}
+      {/* Timeline band */}
       <div
         ref={setNodeRef}
-        className={cn(
-          'flex-1 min-h-[200px] rounded-xl p-2 transition-all space-y-2',
-          isOver ? 'bg-brand-50 border-2 border-brand-400 border-dashed' : 'bg-surface-50 border border-surface-200',
-        )}
+        className={cn('relative flex-shrink-0 transition-colors', isOver ? 'bg-brand-50' : 'bg-white')}
+        style={{ width: rangeH * TIMELINE_HOUR_WIDTH }}
       >
-        {sortedJobs.map(j => (
-          <ScheduledJobCard
-            key={j.id}
-            job={j}
-            compact
-            onResize={onResize}
-            hasConflict={hasSchedulingConflict(j, sortedJobs)}
-          />
+        {/* Hour grid lines */}
+        {Array.from({ length: rangeH + 1 }).map((_, i) => (
+          <div key={i} className="absolute top-0 bottom-0 border-l border-surface-100" style={{ left: i * TIMELINE_HOUR_WIDTH }} />
         ))}
         {sortedJobs.length === 0 && (
-          <div className="h-full flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-[10px] text-surface-300">{copy.dropJobHere}</span>
           </div>
         )}
+        {sortedJobs.map((job) => (
+          <TimelineJobBlock key={job.id} job={job} workStartMin={workStartMin} workEndMin={workEndMin} onResize={onResize} />
+        ))}
       </div>
     </div>
   );
@@ -627,7 +717,7 @@ export const Dispatch: React.FC = () => {
   const { user } = useAuthStore();
   const { jobs, assignTechnician, updateJob } = useJobStore();
   const technicians = useTechStore(s => s.technicians);
-  const { toast, language, setLanguage } = useUIStore();
+  const { toast, language, setLanguage, workStart, workEnd } = useUIStore();
   const navigate = useNavigate();
   const copy = DISPATCH_COPY[language];
 
@@ -764,6 +854,10 @@ export const Dispatch: React.FC = () => {
   };
 
   const weekDates = useMemo(() => getWorkWeekDates(selectedDate), [selectedDate]);
+  const wsMin = timeToMinutes(workStart) ?? WORKDAY_START_MINUTES;
+  const weMin = timeToMinutes(workEnd) ?? WORKDAY_END_MINUTES;
+  const timelineRangeH = (weMin - wsMin) / 60;
+  const timelineHours = Array.from({ length: timelineRangeH + 1 }, (_, i) => wsMin / 60 + i);
   const boardDateFrom = viewMode === 'week' ? weekDates[0] : selectedDate;
   const boardDateTo = viewMode === 'week' ? weekDates[weekDates.length - 1] : selectedDate;
   const activeBoardJobs = catJobs.filter((job) => !['COMPLETED', 'CANCELLED', 'INVOICED'].includes(job.status));
@@ -866,7 +960,7 @@ export const Dispatch: React.FC = () => {
 
       <section className="section-shell flex min-h-0 flex-1 overflow-hidden p-0">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="w-72 flex-shrink-0 overflow-y-auto border-r border-surface-200/70 bg-surface-50/50 p-3">
+          <div className="w-72 flex-shrink-0 flex flex-col overflow-hidden border-r border-surface-200/70 bg-surface-50/50 p-3">
             <UnassignedPanel
               jobs={unassignedJobs}
               search={unassignedSearch}
@@ -886,16 +980,32 @@ export const Dispatch: React.FC = () => {
 
           <div className="flex-1 overflow-auto p-4">
             {viewMode === 'day' ? (
-              <div className="flex gap-3 min-w-max">
-                {techPool.map(tech => (
-                  <TechColumn
-                    key={tech.id}
-                    tech={tech}
-                    jobs={getJobsForTech(tech.id)}
-                    onResize={handleResizeJob}
-                  />
-                ))}
-              </div>
+                <div className="surface-card overflow-hidden min-w-max">
+                  {/* Hour ruler */}
+                  <div className="flex border-b border-surface-200">
+                    <div className="w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+                      Technician
+                    </div>
+                    <div className="flex flex-shrink-0 bg-surface-50" style={{ width: timelineRangeH * TIMELINE_HOUR_WIDTH }}>
+                      {timelineHours.slice(0, -1).map((h) => (
+                        <div key={h} className="border-l border-surface-200 py-2 text-center text-[10px] font-medium text-surface-400" style={{ width: TIMELINE_HOUR_WIDTH }}>
+                          {String(Math.floor(h)).padStart(2, '0')}:00
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Tech rows */}
+                  {techPool.map(tech => (
+                    <TechTimelineRow
+                      key={tech.id}
+                      tech={tech}
+                      jobs={getJobsForTech(tech.id)}
+                      workStartMin={wsMin}
+                      workEndMin={weMin}
+                      onResize={handleResizeJob}
+                    />
+                  ))}
+                </div>
             ) : (
               // Week view
               <div className="space-y-4">
