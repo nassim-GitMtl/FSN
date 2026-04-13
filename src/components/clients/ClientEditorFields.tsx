@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input, Textarea } from '@/components/ui';
 import type { CustomerDraft } from '@/lib/customer-form';
+import { AddressSearch } from './AddressSearch';
 
 interface ClientEditorFieldsProps {
   draft: CustomerDraft;
@@ -18,6 +19,14 @@ export const ClientEditorFields: React.FC<ClientEditorFieldsProps> = ({ draft, o
     <Input label="Category" value={draft.category} onChange={(event) => onChange({ category: event.target.value })} />
     <Input label="Account #" value={draft.accountNumber} onChange={(event) => onChange({ accountNumber: event.target.value })} />
     <Input label="Address Label" value={draft.addressLabel} onChange={(event) => onChange({ addressLabel: event.target.value })} />
+    <div className="md:col-span-2">
+      <AddressSearch
+        label="Search Address"
+        placeholder="Start typing an address to auto-fill…"
+        onSelect={(parts) => onChange(parts)}
+        inputClassName="input w-full"
+      />
+    </div>
     <Input label="Street" value={draft.street} onChange={(event) => onChange({ street: event.target.value })} />
     <Input label="City" value={draft.city} onChange={(event) => onChange({ city: event.target.value })} />
     <Input label="State / Province" value={draft.state} onChange={(event) => onChange({ state: event.target.value })} />

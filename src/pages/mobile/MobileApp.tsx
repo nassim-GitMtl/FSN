@@ -7,6 +7,7 @@ import { cn, SERVICE_TYPE_LABELS, formatDuration, formatFileSize, parseDateValue
 import type { Attachment, Customer, Job, JobNote, JobStatus, Priority, SOLine, ServiceType, Technician } from '@/types';
 import { buildCustomerDraft, buildCustomerPayloadFromDraft, type CustomerDraft } from '@/lib/customer-form';
 import { SALES_ORDER_CATALOG, createInlineSalesOrderLine, type InlineSalesOrderLineDraft } from '@/lib/sales-order-catalog';
+import { AddressSearch } from '@/components/clients/AddressSearch';
 
 type MobileTab = 'home' | 'jobs' | 'profile';
 type MobileCreateMode = 'client' | 'job';
@@ -1326,6 +1327,14 @@ const MobileClientForm: React.FC<{
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <AddressSearch
+                label={language === 'fr' ? 'Rechercher une adresse' : 'Search Address'}
+                placeholder={language === 'fr' ? 'Commencez à taper une adresse…' : 'Start typing an address to auto-fill…'}
+                onSelect={(parts) => setDraft((current) => ({ ...current, ...parts }))}
+                inputClassName={inputClass}
+              />
+            </label>
             <label className="block md:col-span-2">
               <div className="eyebrow mb-1.5">Street</div>
               <input className={inputClass} value={draft.street} onChange={(event) => setDraft((current) => ({ ...current, street: event.target.value }))} />
