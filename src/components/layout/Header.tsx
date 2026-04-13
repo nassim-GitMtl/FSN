@@ -204,7 +204,7 @@ export const Header: React.FC = () => {
                 key={workspace}
                 onClick={() => switchWorkspace(workspace)}
                 className={cn(
-                  'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                  'shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-semibold uppercase leading-none tracking-[0.16em] transition-colors',
                   user.workspace === workspace
                     ? 'bg-brand-500 text-surface-950'
                     : 'text-surface-500 hover:bg-surface-50 hover:text-surface-900',
@@ -221,7 +221,7 @@ export const Header: React.FC = () => {
                 key={lang}
                 onClick={() => setLanguage(lang)}
                 className={cn(
-                  'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                  'shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-semibold uppercase leading-none tracking-[0.16em] transition-colors',
                   language === lang
                     ? 'bg-brand-500 text-surface-950'
                     : 'text-surface-500 hover:bg-surface-50 hover:text-surface-900',
@@ -238,7 +238,7 @@ export const Header: React.FC = () => {
             onClick={() => triggerSync()}
             disabled={syncState.status === 'SYNCING'}
             className={cn(
-              'flex h-11 items-center gap-2 rounded-xl border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors',
+              'flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 text-xs font-semibold uppercase leading-none tracking-[0.14em] transition-colors',
               syncState.status === 'SUCCESS'
                 ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
                 : syncState.status === 'ERROR'
@@ -253,7 +253,7 @@ export const Header: React.FC = () => {
           </button>
 
           <div className="group relative">
-            <button className="flex h-11 items-center gap-3 rounded-xl border border-surface-200 bg-surface-100 px-3 text-left transition-colors hover:bg-surface-50">
+            <button className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-surface-200 bg-surface-100 px-3 text-left transition-colors hover:bg-surface-50">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-xs font-semibold text-surface-950">
                 {user.avatarInitials}
               </div>
@@ -273,7 +273,7 @@ export const Header: React.FC = () => {
               <div className="p-2">
                 <button
                   onClick={logout}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm text-red-600 transition-colors hover:bg-red-50"
+                  className="flex min-h-[2.75rem] w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

@@ -1030,7 +1030,7 @@ export const Dispatch: React.FC = () => {
                   type="button"
                   onClick={() => setLanguage(value)}
                   className={cn(
-                    'rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+                    'shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-semibold uppercase leading-none tracking-[0.16em] transition-colors',
                     language === value ? 'bg-brand-50 text-brand-700' : 'text-surface-500 hover:bg-surface-50 hover:text-surface-800',
                   )}
                 >
@@ -1041,7 +1041,7 @@ export const Dispatch: React.FC = () => {
             <button
               onClick={() => setShowMobilePreview(!showMobilePreview)}
               className={cn(
-                'rounded-xl border px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] transition-colors',
+                'shrink-0 whitespace-nowrap rounded-xl border px-4 py-2.5 text-xs font-semibold uppercase leading-none tracking-[0.16em] transition-colors',
                 showMobilePreview ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-surface-600 hover:bg-surface-50',
               )}
             >
