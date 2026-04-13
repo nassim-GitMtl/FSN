@@ -149,6 +149,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function snapMinutes(value: number): number {
+  return Math.round(value / RESIZE_STEP_MINUTES) * RESIZE_STEP_MINUTES;
+}
+
 function timeToMinutes(value?: string): number | null {
   if (value) {
     const [hours, minutes] = value.split(':').map(Number);
@@ -192,6 +196,28 @@ function getEditableJobTimeWindow(job: Job): TimeWindow {
   return { start, end: clamp(start + duration, start + RESIZE_STEP_MINUTES, WORKDAY_END_MINUTES) };
 }
 
+function getJobDurationMinutes(job: Job): number {
+  const existing = getJobTimeWindow(job);
+  if (existing) {
+    return Math.max(RESIZE_STEP_MINUTES, existing.end - existing.start);
+  }
+
+  return Math.max(
+    RESIZE_STEP_MINUTES,
+    Math.round(((job.estimatedDuration || 1) * 60) / RESIZE_STEP_MINUTES) * RESIZE_STEP_MINUTES,
+  );
+}
+
+function getDragCenter(event: DragEndEvent): { x: number; y: number } | null {
+  const rect = event.active.rect.current.translated ?? event.active.rect.current.initial;
+  if (!rect) return null;
+
+  return {
+    x: rect.left + (rect.width / 2),
+    y: rect.top + (rect.height / 2),
+  };
+}
+
 function sortJobsBySchedule(jobs: Job[]): Job[] {
   return [...jobs].sort((left, right) => {
     const leftWindow = getEditableJobTimeWindow(left);
@@ -227,6 +253,90 @@ function getAutoScheduledWindow(job: Job, jobs: Job[]): TimeWindow {
   const end = start + durationMinutes;
 
   return { start, end };
+}
+
+function getWindowFromDayDrop(
+  event: DragEndEvent,
+  job: Job,
+  workStartMin: number,
+  workEndMin: number,
+): TimeWindow | null {
+  const center = getDragCenter(event);
+  const rowRect = event.over?.rect;
+
+  if (!center || !rowRect || rowRect.width <= 0) {
+    return null;
+  }
+
+  const durationMinutes = getJobDurationMinutes(job);
+  const ratio = clamp((center.x - rowRect.left) / rowRect.width, 0, 1);
+  const rawStart = workStartMin + (ratio * (workEndMin - workStartMin));
+  const start = snapMinutes(clamp(rawStart, workStartMin, workEndMin - durationMinutes));
+
+  return {
+    start,
+    end: start + durationMinutes,
+  };
+}
+
+function getWindowFromWeekDrop(
+  event: DragEndEvent,
+  job: Job,
+  targetJobs: Job[],
+  workStartMin: number,
+  workEndMin: number,
+): TimeWindow {
+  const sortedJobs = sortJobsBySchedule(targetJobs);
+  if (sortedJobs.length === 0) {
+    const start = clamp(8 * 60, workStartMin, workEndMin - getJobDurationMinutes(job));
+    return {
+      start,
+      end: start + getJobDurationMinutes(job),
+    };
+  }
+
+  const center = getDragCenter(event);
+  const cellRect = event.over?.rect;
+  const durationMinutes = getJobDurationMinutes(job);
+
+  if (!center || !cellRect || cellRect.height <= 0) {
+    return getAutoScheduledWindow(job, sortedJobs);
+  }
+
+  const slotCount = sortedJobs.length + 1;
+  const ratio = clamp((center.y - cellRect.top) / cellRect.height, 0, 0.9999);
+  const slotIndex = Math.min(sortedJobs.length, Math.max(0, Math.floor(ratio * slotCount)));
+
+  if (slotIndex === 0) {
+    const nextWindow = getEditableJobTimeWindow(sortedJobs[0]);
+    const start = clamp(nextWindow.start - durationMinutes, workStartMin, workEndMin - durationMinutes);
+    return {
+      start,
+      end: start + durationMinutes,
+    };
+  }
+
+  if (slotIndex >= sortedJobs.length) {
+    return getAutoScheduledWindow(job, sortedJobs);
+  }
+
+  const previousWindow = getEditableJobTimeWindow(sortedJobs[slotIndex - 1]);
+  const nextWindow = getEditableJobTimeWindow(sortedJobs[slotIndex]);
+  const gapStart = previousWindow.end;
+  const gapEnd = nextWindow.start;
+
+  if (gapEnd - gapStart >= durationMinutes) {
+    return {
+      start: gapStart,
+      end: gapStart + durationMinutes,
+    };
+  }
+
+  const start = clamp(nextWindow.start - durationMinutes, workStartMin, workEndMin - durationMinutes);
+  return {
+    start,
+    end: start + durationMinutes,
+  };
 }
 
 function hasSchedulingConflict(job: Job, targetJobs: Job[]): boolean {
@@ -559,7 +669,7 @@ const TechTimelineRow: React.FC<{
   return (
     <div className="flex border-b border-surface-200 last:border-b-0" style={{ height: TECH_ROW_HEIGHT }}>
       {/* Tech label */}
-      <div className="w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 flex items-center gap-2">
+      <div className="sticky left-0 z-20 w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 flex items-center gap-2">
         <Avatar initials={tech.avatarInitials} color={tech.color} size="sm" />
         <div className="min-w-0">
           <div className="text-xs font-semibold text-surface-800 truncate">{tech.name}</div>
@@ -654,8 +764,8 @@ const UnassignedPanel: React.FC<{
   const copy = DISPATCH_COPY[language];
 
   return (
-    <div className="w-60 flex-shrink-0 flex flex-col">
-      <div className="mb-2">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="sticky top-0 z-10 mb-2 bg-surface-50/95 pb-2 backdrop-blur-sm">
         <div className="text-sm font-semibold text-surface-700 mb-1.5">{copy.unassigned} ({jobs.length})</div>
         <input
           className="w-full px-2.5 py-1.5 text-xs bg-surface-100 rounded-lg border border-transparent focus:outline-none focus:border-brand-400 focus:bg-white placeholder-surface-400 transition-all"
@@ -697,7 +807,7 @@ const UnassignedPanel: React.FC<{
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 overflow-y-auto rounded-xl p-2 space-y-2 transition-all',
+          'flex-1 min-h-0 overflow-y-auto rounded-xl p-2 pr-1.5 space-y-2 transition-all',
           isOver ? 'bg-brand-50 border-2 border-brand-400 border-dashed' : 'bg-surface-50 border border-surface-200',
         )}
       >
@@ -715,7 +825,7 @@ const UnassignedPanel: React.FC<{
 
 export const Dispatch: React.FC = () => {
   const { user } = useAuthStore();
-  const { jobs, assignTechnician, updateJob } = useJobStore();
+  const { jobs, updateJob } = useJobStore();
   const technicians = useTechStore(s => s.technicians);
   const { toast, language, setLanguage, workStart, workEnd } = useUIStore();
   const navigate = useNavigate();
@@ -783,17 +893,18 @@ export const Dispatch: React.FC = () => {
         if (!draggedJob) return;
 
         const targetJobs = catJobs.filter(j =>
+          j.id !== draggedJob.id &&
           j.technicianId === techId &&
           j.scheduledDate === targetDate &&
           !['CANCELLED', 'INVOICED'].includes(j.status)
         );
-        const isNewAssignment = !draggedJob.technicianId;
-        const autoWindow = isNewAssignment ? getAutoScheduledWindow(draggedJob, targetJobs) : null;
-        const scheduledStart = autoWindow ? minutesToTime(autoWindow.start) : draggedJob.scheduledStart;
-        const scheduledEnd = autoWindow ? minutesToTime(autoWindow.end) : draggedJob.scheduledEnd;
-        const estimatedDuration = autoWindow
-          ? Math.round((((autoWindow.end - autoWindow.start) / 60) * 10)) / 10
-          : draggedJob.estimatedDuration;
+        const dropWindow = target[0] === 'day'
+          ? getWindowFromDayDrop(event, draggedJob, wsMin, weMin)
+          : getWindowFromWeekDrop(event, draggedJob, targetJobs, wsMin, weMin);
+        const resolvedWindow = dropWindow ?? getAutoScheduledWindow(draggedJob, targetJobs);
+        const scheduledStart = minutesToTime(resolvedWindow.start);
+        const scheduledEnd = minutesToTime(resolvedWindow.end);
+        const estimatedDuration = Math.round((((resolvedWindow.end - resolvedWindow.start) / 60) * 10)) / 10;
 
         const candidateJob = {
           ...draggedJob,
@@ -806,12 +917,14 @@ export const Dispatch: React.FC = () => {
         };
         const hasConflict = hasSchedulingConflict(candidateJob, targetJobs);
 
-        assignTechnician(jobId, techId, tech.name);
         updateJob(jobId, {
+          technicianId: techId,
+          technicianName: tech.name,
           scheduledDate: targetDate,
           scheduledStart,
           scheduledEnd,
           estimatedDuration,
+          status: draggedJob.technicianId ? draggedJob.status : 'SCHEDULED',
         });
 
         if (hasConflict) {
@@ -960,7 +1073,7 @@ export const Dispatch: React.FC = () => {
 
       <section className="section-shell flex min-h-0 flex-1 overflow-hidden p-0">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="w-72 flex-shrink-0 flex flex-col overflow-hidden border-r border-surface-200/70 bg-surface-50/50 p-3">
+          <div className="w-72 min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-r border-surface-200/70 bg-surface-50/50 p-3">
             <UnassignedPanel
               jobs={unassignedJobs}
               search={unassignedSearch}
@@ -978,12 +1091,12 @@ export const Dispatch: React.FC = () => {
             />
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="min-w-0 flex-1 overflow-auto p-4">
             {viewMode === 'day' ? (
                 <div className="surface-card overflow-hidden min-w-max">
                   {/* Hour ruler */}
-                  <div className="flex border-b border-surface-200">
-                    <div className="w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+                  <div className="sticky top-0 z-30 flex border-b border-surface-200">
+                    <div className="sticky left-0 z-30 w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-surface-400">
                       Technician
                     </div>
                     <div className="flex flex-shrink-0 bg-surface-50" style={{ width: timelineRangeH * TIMELINE_HOUR_WIDTH }}>
@@ -1011,7 +1124,7 @@ export const Dispatch: React.FC = () => {
               <div className="space-y-4">
                 {/* Week header */}
                 <div className="sticky top-0 z-10 flex gap-2 bg-white pb-2">
-                  <div className="w-32 flex-shrink-0" />
+                  <div className="sticky left-0 z-20 w-32 flex-shrink-0 bg-white" />
                   {weekDates.map(d => {
                     const dt = parseDateValue(d);
                     const isToday = d === today;
@@ -1029,7 +1142,7 @@ export const Dispatch: React.FC = () => {
                 {techPool.map(tech => (
                   <div key={tech.id} className="flex gap-2">
                     {/* Tech label */}
-                    <div className="w-32 flex-shrink-0 flex items-center gap-2">
+                    <div className="sticky left-0 z-10 w-32 flex-shrink-0 flex items-center gap-2 bg-white">
                       <Avatar initials={tech.avatarInitials} color={tech.color} size="sm" />
                       <span className="text-xs font-medium text-surface-700 truncate">{tech.name.split(' ')[0]}</span>
                     </div>
