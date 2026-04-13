@@ -166,6 +166,10 @@ export const DESKTOP_COPY = {
       endTime: 'End Time',
       reason: 'Reason',
       whyRescheduled: 'Why is this job being rescheduled?',
+      workingHours: 'Working Hours',
+      workStart: 'Day starts',
+      workEnd: 'Day ends',
+      unassignedJobs: 'Unassigned Jobs',
     },
     technicians: {
       fieldCoverage: 'Field coverage',
@@ -531,6 +535,10 @@ export const DESKTOP_COPY = {
       endTime: 'Heure de fin',
       reason: 'Raison',
       whyRescheduled: 'Pourquoi ce travail est-il replanifié?',
+      workingHours: 'Heures de travail',
+      workStart: 'Début de journée',
+      workEnd: 'Fin de journée',
+      unassignedJobs: 'Travaux non assignés',
     },
     technicians: {
       fieldCoverage: 'Couverture terrain',

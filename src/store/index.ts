@@ -1212,6 +1212,8 @@ interface UIState {
   dataError?: string;
   dashboardKPIs: DashboardKPIs | null;
   unsavedChanges: boolean;
+  workStart: string;
+  workEnd: string;
 
   toggleSidebar: () => void;
   setMobileMenu: (open: boolean) => void;
@@ -1226,6 +1228,7 @@ interface UIState {
   triggerSync: (options?: { silent?: boolean }) => Promise<void>;
   loadKPIs: (workspace: Workspace) => void;
   setUnsavedChanges: (val: boolean) => void;
+  setWorkHours: (start: string, end: string) => void;
 }
 
 export const useUIStore = create<UIState>()(persist((set, get) => ({
@@ -1239,6 +1242,8 @@ export const useUIStore = create<UIState>()(persist((set, get) => ({
   dataError: undefined,
   dashboardKPIs: null,
   unsavedChanges: false,
+  workStart: '07:00',
+  workEnd: '18:00',
 
   toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
@@ -1406,6 +1411,8 @@ export const useUIStore = create<UIState>()(persist((set, get) => ({
   },
 
   setUnsavedChanges: (val) => set({ unsavedChanges: val }),
+
+  setWorkHours: (start, end) => set({ workStart: start, workEnd: end }),
 }), {
   name: 'fsm-ui-store-v1',
   partialize: (state) => ({
