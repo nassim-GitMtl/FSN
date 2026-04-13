@@ -988,8 +988,8 @@ export const Dispatch: React.FC = () => {
   const nextDay = () => setSelectedDate((current) => shiftISODate(current, 1));
 
   return (
-    <div className="flex min-h-[calc(100vh-140px)] flex-col gap-4 animate-fade-in">
-      <section className="section-shell space-y-4">
+    <div className="flex h-[calc(100vh-4rem)] min-h-0 flex-col gap-4 animate-fade-in overflow-hidden">
+      <section className="section-shell flex-shrink-0 space-y-4">
         <div className="page-header">
           <div>
             <div className="eyebrow">{copy.liveRouting}</div>
@@ -1071,7 +1071,7 @@ export const Dispatch: React.FC = () => {
         </div>
       </section>
 
-      <section className="section-shell flex min-h-0 flex-1 overflow-hidden p-0">
+      <section className="section-shell min-h-0 flex flex-1 overflow-hidden p-0">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="w-72 min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-r border-surface-200/70 bg-surface-50/50 p-3">
             <UnassignedPanel
