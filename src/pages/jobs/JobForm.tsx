@@ -750,7 +750,7 @@ export const JobForm: React.FC = () => {
           >
             {copy.jobForm.cancel}
           </Button>
-          <Button type="submit" variant="primary" size="lg">
+          <Button type="submit" variant="primary" >
             {isEdit ? copy.jobForm.saveChanges : copy.jobForm.createJob}
           </Button>
         </div>
