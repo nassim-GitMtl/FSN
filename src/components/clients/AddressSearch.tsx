@@ -1,19 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-interface NominatimResult { 
-  place_id: number;
-  display_name: string;
-  address: {
-    house_number?: string;
-    road?: string;
-    city?: string;
-    town?: string;
-    village?: string;
-    suburb?: string;
-    state?: string;
-    postcode?: string;
+const API_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY as string | undefined;
+
+// ─── Google Places API (New) types ───────────────────────────────────────────
+
+interface Suggestion {
+  placePrediction: {
+    placeId: string;
+    text: { text: string };
+    structuredFormat: {
+      mainText: { text: string };
+      secondaryText: { text: string };
+    };
   };
 }
+
+interface AddressComponent {
+  longText: string;
+  shortText: string;
+  types: string[];
+}
+
+// ─── Public interface ─────────────────────────────────────────────────────────
 
 export interface AddressParts {
   street: string;
@@ -26,9 +34,10 @@ interface AddressSearchProps {
   onSelect: (parts: AddressParts) => void;
   placeholder?: string;
   inputClassName?: string;
-  /** Optional label shown above the search box */
   label?: string;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddressSearch: React.FC<AddressSearchProps> = ({
   onSelect,
@@ -37,15 +46,19 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
   label,
 }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // If no API key is configured yet, render nothing so the rest of the form works fine
+  if (!API_KEY) return null;
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (query.length < 4) {
-      setResults([]);
+    if (query.length < 3) {
+      setSuggestions([]);
       setOpen(false);
       return;
     }
@@ -53,23 +66,29 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
     timerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const url =
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}` +
-          `&format=json&addressdetails=1&limit=5`;
-        const res = await fetch(url);
-        const data: NominatimResult[] = await res.json();
-        setResults(data);
-        setOpen(data.length > 0);
+        const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': API_KEY!,
+          },
+          body: JSON.stringify({ input: query }),
+        });
+        const data = await res.json();
+        const list: Suggestion[] = data.suggestions ?? [];
+        setSuggestions(list);
+        setOpen(list.length > 0);
       } catch {
-        setResults([]);
+        setSuggestions([]);
         setOpen(false);
       } finally {
         setLoading(false);
       }
-    }, 500);
+    }, 350);
     return () => clearTimeout(timerRef.current);
   }, [query]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     const close = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -80,13 +99,32 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const handleSelect = (result: NominatimResult) => {
-    const { house_number, road, city, town, village, suburb, state, postcode } = result.address;
-    const street = [house_number, road].filter(Boolean).join(' ');
-    const resolvedCity = city || town || village || suburb || '';
-    onSelect({ street, city: resolvedCity, state: state || '', zip: postcode || '' });
+  const handleSelect = async (suggestion: Suggestion) => {
+    const placeId = suggestion.placePrediction.placeId;
     setQuery('');
     setOpen(false);
+    try {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+        headers: {
+          'X-Goog-Api-Key': API_KEY!,
+          'X-Goog-FieldMask': 'addressComponents',
+        },
+      });
+      const place = await res.json();
+      const components: AddressComponent[] = place.addressComponents ?? [];
+
+      const get = (type: string, short = false) =>
+        components.find((c) => c.types.includes(type))?.[short ? 'shortText' : 'longText'] ?? '';
+
+      const street = [get('street_number'), get('route')].filter(Boolean).join(' ');
+      const city = get('locality') || get('postal_town') || get('sublocality_level_1');
+      const state = get('administrative_area_level_1', true);
+      const zip = get('postal_code');
+
+      onSelect({ street, city, state, zip });
+    } catch {
+      // silently ignore detail failures — user can fill fields manually
+    }
   };
 
   return (
@@ -107,19 +145,24 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
           </span>
         )}
       </div>
-      {open && results.length > 0 && (
+      {open && suggestions.length > 0 && (
         <ul className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-surface-200 bg-white shadow-lg">
-          {results.map((r) => (
-            <li key={r.place_id}>
-              <button
-                type="button"
-                onClick={() => handleSelect(r)}
-                className="w-full px-4 py-2.5 text-left text-sm text-surface-800 hover:bg-surface-50 border-b border-surface-100 last:border-b-0"
-              >
-                {r.display_name}
-              </button>
-            </li>
-          ))}
+          {suggestions.map((s) => {
+            const main = s.placePrediction.structuredFormat.mainText.text;
+            const secondary = s.placePrediction.structuredFormat.secondaryText.text;
+            return (
+              <li key={s.placePrediction.placeId}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(s)}
+                  className="w-full px-4 py-2.5 text-left border-b border-surface-100 last:border-b-0 hover:bg-surface-50"
+                >
+                  <div className="text-sm font-medium text-surface-800">{main}</div>
+                  <div className="text-xs text-surface-400">{secondary}</div>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
