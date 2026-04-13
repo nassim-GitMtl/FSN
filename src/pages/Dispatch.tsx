@@ -653,7 +653,30 @@ const TimelineJobBlock: React.FC<{
 
 // ── Tech Timeline Row (techs as rows, hours as columns) ──────────────────────
 
-const TechTimelineRow: React.FC<{
+const TechLabelRow: React.FC<{
+  tech: Technician;
+  jobs: Job[];
+}> = ({ tech, jobs }) => {
+  const language = useUIStore((state) => state.language);
+  const copy = DISPATCH_COPY[language];
+
+  return (
+    <div className="border-b border-surface-200 bg-surface-50 px-3 flex items-center gap-2" style={{ height: TECH_ROW_HEIGHT }}>
+      <Avatar initials={tech.avatarInitials} color={tech.color} size="sm" />
+      <div className="min-w-0">
+        <div className="text-xs font-semibold text-surface-800 truncate">{tech.name}</div>
+        <div className={cn('text-[10px]',
+          tech.status === 'AVAILABLE' ? 'text-emerald-600' :
+          tech.status === 'ON_JOB' ? 'text-brand-600' : 'text-amber-600'
+        )}>
+          {copy.jobs(jobs.length)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TechTimelineBand: React.FC<{
   tech: Technician;
   jobs: Job[];
   workStartMin: number;
@@ -667,39 +690,22 @@ const TechTimelineRow: React.FC<{
   const rangeH = (workEndMin - workStartMin) / 60;
 
   return (
-    <div className="flex border-b border-surface-200 last:border-b-0" style={{ height: TECH_ROW_HEIGHT }}>
-      {/* Tech label */}
-      <div className="sticky left-0 z-20 w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 flex items-center gap-2">
-        <Avatar initials={tech.avatarInitials} color={tech.color} size="sm" />
-        <div className="min-w-0">
-          <div className="text-xs font-semibold text-surface-800 truncate">{tech.name}</div>
-          <div className={cn('text-[10px]',
-            tech.status === 'AVAILABLE' ? 'text-emerald-600' :
-            tech.status === 'ON_JOB' ? 'text-brand-600' : 'text-amber-600'
-          )}>
-            {copy.jobs(jobs.length)}
-          </div>
+    <div
+      ref={setNodeRef}
+      className={cn('relative border-b border-surface-200 transition-colors', isOver ? 'bg-brand-50' : 'bg-white')}
+      style={{ height: TECH_ROW_HEIGHT, width: rangeH * TIMELINE_HOUR_WIDTH }}
+    >
+      {Array.from({ length: rangeH + 1 }).map((_, i) => (
+        <div key={i} className="absolute top-0 bottom-0 border-l border-surface-100" style={{ left: i * TIMELINE_HOUR_WIDTH }} />
+      ))}
+      {sortedJobs.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-[10px] text-surface-300">{copy.dropJobHere}</span>
         </div>
-      </div>
-      {/* Timeline band */}
-      <div
-        ref={setNodeRef}
-        className={cn('relative flex-shrink-0 transition-colors', isOver ? 'bg-brand-50' : 'bg-white')}
-        style={{ width: rangeH * TIMELINE_HOUR_WIDTH }}
-      >
-        {/* Hour grid lines */}
-        {Array.from({ length: rangeH + 1 }).map((_, i) => (
-          <div key={i} className="absolute top-0 bottom-0 border-l border-surface-100" style={{ left: i * TIMELINE_HOUR_WIDTH }} />
-        ))}
-        {sortedJobs.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-[10px] text-surface-300">{copy.dropJobHere}</span>
-          </div>
-        )}
-        {sortedJobs.map((job) => (
-          <TimelineJobBlock key={job.id} job={job} workStartMin={workStartMin} workEndMin={workEndMin} onResize={onResize} />
-        ))}
-      </div>
+      )}
+      {sortedJobs.map((job) => (
+        <TimelineJobBlock key={job.id} job={job} workStartMin={workStartMin} workEndMin={workEndMin} onResize={onResize} />
+      ))}
     </div>
   );
 };
@@ -840,6 +846,9 @@ export const Dispatch: React.FC = () => {
   const [queueDateTo, setQueueDateTo] = useState('');
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const techRailRef = useRef<HTMLDivElement | null>(null);
+  const timelineRailRef = useRef<HTMLDivElement | null>(null);
+  const dayScrollSourceRef = useRef<'tech' | 'timeline' | null>(null);
 
   const ws = user?.workspace || 'SERVICE';
   const cat = ws === 'SERVICE' ? 'SERVICE' : 'INSTALLATION';
@@ -987,6 +996,21 @@ export const Dispatch: React.FC = () => {
   const prevDay = () => setSelectedDate((current) => shiftISODate(current, -1));
   const nextDay = () => setSelectedDate((current) => shiftISODate(current, 1));
 
+  const syncDayRailScroll = (source: 'tech' | 'timeline') => (event: React.UIEvent<HTMLDivElement>) => {
+    const target = source === 'tech' ? timelineRailRef.current : techRailRef.current;
+    if (!target) return;
+    if (dayScrollSourceRef.current && dayScrollSourceRef.current !== source) return;
+
+    dayScrollSourceRef.current = source;
+    target.scrollTop = event.currentTarget.scrollTop;
+
+    window.requestAnimationFrame(() => {
+      if (dayScrollSourceRef.current === source) {
+        dayScrollSourceRef.current = null;
+      }
+    });
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] min-h-0 flex-col gap-4 animate-fade-in overflow-hidden">
       <section className="section-shell flex-shrink-0 space-y-4">
@@ -1091,37 +1115,55 @@ export const Dispatch: React.FC = () => {
             />
           </div>
 
-          <div className="min-w-0 flex-1 overflow-auto p-4">
+          <div className="min-w-0 flex-1 overflow-hidden p-4">
             {viewMode === 'day' ? (
-                <div className="surface-card overflow-hidden min-w-max">
-                  {/* Hour ruler */}
-                  <div className="sticky top-0 z-30 flex border-b border-surface-200">
-                    <div className="sticky left-0 z-30 w-44 flex-shrink-0 border-r border-surface-200 bg-surface-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-surface-400">
+                <div className="surface-card flex h-full min-h-0 overflow-hidden">
+                  <div className="flex h-full min-h-0 w-44 flex-shrink-0 flex-col border-r border-surface-200 bg-surface-50">
+                    <div className="flex h-10 items-center border-b border-surface-200 px-3 text-[10px] font-semibold uppercase tracking-wide text-surface-400">
                       Technician
                     </div>
-                    <div className="flex flex-shrink-0 bg-surface-50" style={{ width: timelineRangeH * TIMELINE_HOUR_WIDTH }}>
-                      {timelineHours.slice(0, -1).map((h) => (
-                        <div key={h} className="border-l border-surface-200 py-2 text-center text-[10px] font-medium text-surface-400" style={{ width: TIMELINE_HOUR_WIDTH }}>
-                          {String(Math.floor(h)).padStart(2, '0')}:00
-                        </div>
+                    <div
+                      ref={techRailRef}
+                      onScroll={syncDayRailScroll('tech')}
+                      className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                    >
+                      {techPool.map((tech) => (
+                        <TechLabelRow key={tech.id} tech={tech} jobs={getJobsForTech(tech.id)} />
                       ))}
                     </div>
                   </div>
-                  {/* Tech rows */}
-                  {techPool.map(tech => (
-                    <TechTimelineRow
-                      key={tech.id}
-                      tech={tech}
-                      jobs={getJobsForTech(tech.id)}
-                      workStartMin={wsMin}
-                      workEndMin={weMin}
-                      onResize={handleResizeJob}
-                    />
-                  ))}
+
+                  <div
+                    ref={timelineRailRef}
+                    onScroll={syncDayRailScroll('timeline')}
+                    className="min-w-0 flex-1 overflow-auto"
+                  >
+                    <div className="min-w-max">
+                      <div className="sticky top-0 z-20 flex border-b border-surface-200 bg-surface-50">
+                        {timelineHours.slice(0, -1).map((h) => (
+                          <div key={h} className="border-l border-surface-200 py-2 text-center text-[10px] font-medium text-surface-400" style={{ width: TIMELINE_HOUR_WIDTH }}>
+                            {String(Math.floor(h)).padStart(2, '0')}:00
+                          </div>
+                        ))}
+                      </div>
+
+                      {techPool.map((tech) => (
+                        <TechTimelineBand
+                          key={tech.id}
+                          tech={tech}
+                          jobs={getJobsForTech(tech.id)}
+                          workStartMin={wsMin}
+                          workEndMin={weMin}
+                          onResize={handleResizeJob}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
             ) : (
               // Week view
-              <div className="space-y-4">
+              <div className="h-full overflow-auto pr-1">
+                <div className="space-y-4">
                 {/* Week header */}
                 <div className="sticky top-0 z-10 flex gap-2 bg-white pb-2">
                   <div className="sticky left-0 z-20 w-32 flex-shrink-0 bg-white" />
@@ -1158,6 +1200,7 @@ export const Dispatch: React.FC = () => {
                     ))}
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>
