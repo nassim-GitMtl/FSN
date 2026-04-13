@@ -10,7 +10,7 @@ import { buildCustomerDraft, buildCustomerPayloadFromDraft, type CustomerDraft }
 export const ClientDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const language = useUIStore((state) => state.language);
+  const { toast, language } = useUIStore((state) => ({ toast: state.toast, language: state.language }));
   const copy = getDesktopCopy(language);
   const { getCustomer, updateCustomer } = useCustomerStore();
   const { getJobsForCustomer, getUnifiedFilesForCustomer } = useJobStore();
@@ -40,6 +40,15 @@ export const ClientDetail: React.FC = () => {
 
   const saveCustomerChanges = () => {
     if (!editDraft.companyName.trim()) {
+      toast('warning', 'Enter a company name before saving.');
+      return;
+    }
+    if (!editDraft.phone.trim()) {
+      toast('warning', 'A phone number is required.');
+      return;
+    }
+    if (!editDraft.street.trim() || !editDraft.state.trim() || !editDraft.zip.trim()) {
+      toast('warning', 'Street, state/province, and postal code are required.');
       return;
     }
 

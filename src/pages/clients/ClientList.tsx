@@ -65,6 +65,14 @@ export const ClientList: React.FC = () => {
       toast('warning', 'Enter a company name before saving the client.');
       return;
     }
+    if (!draft.phone.trim()) {
+      toast('warning', 'A phone number is required.');
+      return;
+    }
+    if (!draft.street.trim() || !draft.state.trim() || !draft.zip.trim()) {
+      toast('warning', 'Street, state/province, and postal code are required.');
+      return;
+    }
 
     const customer = createCustomer(buildCustomerPayloadFromDraft(draft));
     setShowCreateModal(false);

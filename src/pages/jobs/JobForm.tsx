@@ -152,10 +152,24 @@ export const JobForm: React.FC = () => {
       return;
     }
 
+    if (!customer.phone) {
+      setSubmissionError('The selected customer must have a phone number.');
+      return;
+    }
+    const customerAddr = customer.addresses.find(a => a.isDefault) || customer.addresses[0];
+    if (!customerAddr || !customerAddr.street || !customerAddr.state || !customerAddr.zip) {
+      setSubmissionError('The selected customer must have a complete address (street, state, postal code).');
+      return;
+    }
+
     const tech = technicians.find(t => t.id === data.technicianId);
     const existingSalesOrder = customerSalesOrders.find((salesOrder) => salesOrder.id === data.salesOrderId);
     if (salesOrderMode === 'existing' && !existingSalesOrder) {
       setSubmissionError('Link an existing sales order or switch to creating a new one inline.');
+      return;
+    }
+    if (salesOrderMode === 'new' && newSOLines.length === 0) {
+      setSubmissionError('Add at least one line item to the sales order before saving.');
       return;
     }
 

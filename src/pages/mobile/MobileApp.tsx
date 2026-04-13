@@ -1273,7 +1273,15 @@ const MobileClientForm: React.FC<{
 
   const handleSave = () => {
     if (!draft.companyName.trim()) {
-      toast('warning', language === 'fr' ? 'Entrez le nom de l’entreprise.' : 'Enter the company name.');
+      toast('warning', language === 'fr' ? "Entrez le nom de l'entreprise." : 'Enter the company name.');
+      return;
+    }
+    if (!draft.phone.trim()) {
+      toast('warning', language === 'fr' ? 'Un numéro de téléphone est requis.' : 'A phone number is required.');
+      return;
+    }
+    if (!draft.street.trim() || !draft.state.trim() || !draft.zip.trim()) {
+      toast('warning', language === 'fr' ? 'La rue, la province et le code postal sont requis.' : 'Street, state/province, and postal code are required.');
       return;
     }
 
