@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-interface NominatimResult {
+interface NominatimResult { 
   place_id: number;
   display_name: string;
   address: {
